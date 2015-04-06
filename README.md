@@ -1,7 +1,8 @@
 # Camelus
-Counts of Amplified Mass Elevations from Lensing with Ultrafast Simulation
-Chieh-An Lin (CEA Saclay)
-Release v1.2 - 2015-04-06
+Counts of Amplified Mass Elevations from Lensing with Ultrafast Simulation  
+Chieh-An Lin (CEA Saclay)  
+Release v1.2 - 2015-04-06 
+<p align="center"><a href="http://species.wikimedia.org/wiki/Camelus"><img src="http://www.cosmostat.org/wp-content/uploads/2014/11/Logo_Camelus_fig_name_vertical.png" width="240px" /></a></p>
 
 ## Description
 
@@ -30,7 +31,7 @@ For Mac users, do the follows before compilation:
 $ export CC=gcc
 $ export CXX=g++
 ```
-or use 'setenv' command in tcsh.
+or use `setenv` command in tcsh.
 
 To compile the package:
 ```
@@ -76,32 +77,33 @@ Authors:
   - [Chieh-An Lin](http://www.cosmostat.org/people/linc/)
   - [Martin Kilbinger](http://www.cosmostat.org/people/kilbinger/)
   - [François Lanusse](http://www.cosmostat.org/people/flanusse/)
-Please feel free to send questions, feedback and bug reports to chieh-an.lin (at) cea.fr. 
+
+Please feel free to send questions, feedback and bug reports to chieh-an.lin (at) cea.fr.  
 Check also the package [web page](http://www.cosmostat.org/software/camelus/).
 
 ## Tutorial
 
-Go to param and modify .par files to customize parameters.
+Go to param and modify `.par` files to customize parameters.
 
-`$ ./camelus 1 z`
-  This gives the values of the mass function from Jenkins et al. (2001) for M from 10^9 to 10^17 [M_sol h^2/Mpc^3].
+`$ ./camelus 1 z`  
+This gives the values of the mass function from Jenkins et al. (2001) for M from 10^9 to 10^17 [M_sol h^2/Mpc^3].
 
-`$ ./camelus 2`
-  This yields a halo list from sampling using customized parameters.
+`$ ./camelus 2`  
+This yields a halo list from sampling using customized parameters.
   
-`$ ./camelus 3`
-  This creates a peak catalogue and its histogram of S/N values. A halo list, a galaxy list, a smoothed noise map, a smoothed noisy map will be made as well.
+`$ ./camelus 3`  
+This creates a peak catalogue and its histogram of S/N values.   
+A halo list, a galaxy list, a smoothed noise map, a smoothed noisy map will be made as well.
   
-`$ ./camelus 4 N`
-  This creates N independent peak lists with the same cosmology and settings from .par files. Using this command can reduce the computation time, since the cosmological computations are factorized.
+`$ ./camelus 4 N`  
+This creates N independent peak lists with the same cosmology and settings from `.par` files.   
+Using this command can reduce the computation time, since the cosmological computations are factorized.
 
-`$ ./camelus 4 N Omega_m sigma_8`
-  Same as above, but the inputs Omega_m and sigma_8 will overwrite the values from .par files, and creates N independent peak lists.
+`$ ./camelus 4 N Omega_m sigma_8`  
+Same as above, but the inputs Omega_m and sigma_8 will overwrite the values from `.par` files, and creates N independent peak lists.
 
-`$ ./camelus 5`
-  ABC computation. This gives a posterior probability of Omega_m-sigma_8 constraints.
-  Only this combination is available. Parameters are defined in peakParam.par. 
-  This requires an observation data that we have provided an example in demo.
-  Only several summary statistics are available.
-  
+`$ ./camelus 5`  
+ABC computation which requires an observation data that we have provided an example in demo.  
+Parameters are defined in `peakParam.par`. Only several summary statistics are available.  
+This gives posterior samples of Omega_m-sigma_8 constraints. Only this combination is available. 
   
