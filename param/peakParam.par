@@ -1,0 +1,35 @@
+### Peak parameter file ###
+
+
+### Field
+strField 	rectangle	# Geometry (only 'rectangle' is available)
+Omega		304.8  304.8	# [arcmin] Field size (theta_x, theta_y)
+  
+### Halos
+z_halo_max	1.0		# Maxmimum redshift for halos
+N_z_halo	10		# Number of sampling redshift bins
+M_min		1e+12		# [M_sol/h] Minimum sampling mass
+M_max		1e+17		# [M_sol/h] Maximum sampling mass
+
+### Galaxies
+doKappa		1		# 0 = gamma, 1 = kappa
+# If z_s > 0, all source galaxies fixed at z_s
+# If z_s < 0, use nofz_hm.dat as redshift distribution law parameters
+z_s		1.0
+# If z_s < 0, doRandGalPos is automatically set to 1 
+doRandGalPos	0		# 0 = regular, 1 = random
+n_gal		25.0		# [arcmin^-2] Galaxy number density
+sigma_eps	0.4		# Ellipticity dispersion
+  
+### Map, filter & peaks selection
+theta_pix	0.2		# [arcmin] Pixel size
+strFilter	gauss		# Filter type (only 'gauss' is available)
+theta_G		1.0		# [arcmin] Filter size, only used if filter = gauss
+  
+### ABC
+ABC_d		2		# Parameter dimension 
+# param = (Omega_m, sigma_8), only this combination is available
+ABC_p		20		# Number of particles
+ABC_r_stop	0.33		# Shutoff success rate
+ABC_summ	abd5		# Summary type 
+# 'abd6', 'abd5', 'pct5', 'cut5', 'pct4', 'pct998', 'pct996', 'cut900' are available
