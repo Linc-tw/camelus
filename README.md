@@ -54,7 +54,7 @@ Current release: Camelus v1.2
   - Improved the computation speed by a factor of 6~7
   - Converted the halo array structure into a binned structure, called "halo_map"
   - Converted the galaxy tree structure into a binned structure, called "gal_map"
-  - Added the sequential Monte Carlo approximate Monte Carlo (SMC ABC) algorithm
+  - Added the sequential Monte Carlo approximate Bayesian computation (SMC ABC) algorithm
 
 ##### New features in v1.1 - Jan 19, 2015:
   - Fixed the bug from calculating halo radii
