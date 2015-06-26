@@ -9,9 +9,10 @@ Release v1.2 - 2015-04-06
 Camelus is a fast weak-lensing peak-count modeling algorithm in C. It provides a prediction on peak counts from input cosmological parameters.
 
 Here is the summary of the algorithm:
-  - sample halos from a mass function and assign profiles,
-  - carry out ray-tracing simulations,
-  - count peaks from smoothed maps.
+  - Sample halos from a mass function
+  - assign density profiles, randomize their positions
+  - Compute the projected mass, add noise
+  - Make maps and create peak catalogues
 
 For a more detailed description, please take a look at Lin & Kilbinger (2015a).
 
@@ -54,7 +55,7 @@ Current release: Camelus v1.2
   - Improved the computation speed by a factor of 6~7
   - Converted the halo array structure into a binned structure, called "halo_map"
   - Converted the galaxy tree structure into a binned structure, called "gal_map"
-  - Added the sequential Monte Carlo approximate Bayesian computation (SMC ABC) algorithm
+  - Added the population Monte Carlo approximate Bayesian computation (PMC ABC) algorithm
 
 ##### New features in v1.1 - Jan 19, 2015:
   - Fixed the bug from calculating halo radii
@@ -64,12 +65,13 @@ Current release: Camelus v1.2
 
 ## References
 
-  - [Bartelmann & Schneider (2001)](http://arxiv.org/abs/astro-ph/9912508) - Phys. Rep., 340, 291
-  - [Fan et al. (2010)](http://arxiv.org/abs/1006.5121) - ApJ, 719, 1408
-  - [Lin & Kilbinger (2015a)](http://arxiv.org/abs/1410.6955) - A&A, 576, A24
-  - [Marin et al. (2011)](http://arxiv.org/abs/1101.0955)
-  - [Takada & Jain (2003a)](http://arxiv.org/abs/astro-ph/0209167) - MNRAS, 340, 580
-  - [Weyant et al. (2013)](http://arxiv.org/abs/1206.2563) - ApJ, 764, 116
+  - [Bartelmann & Schneider (2001)](http://arxiv.org/abs/astro-ph/9912508). Phys. Rep., 340, 291.
+  - [Fan et al. (2010)](http://arxiv.org/abs/1006.5121). ApJ, 719, 1408.
+  - [Lin & Kilbinger (2015a)](http://arxiv.org/abs/1410.6955). A&A, 576, A24.
+  - [Lin & Kilbinger (2015b)](http://arxiv.org/abs/1506.01076). Submitted to A&A.
+  - [Marin et al. (2011)](http://arxiv.org/abs/1101.0955).
+  - [Takada & Jain (2003a)](http://arxiv.org/abs/astro-ph/0209167). MNRAS, 340, 580.
+  - [Weyant et al. (2013)](http://arxiv.org/abs/1206.2563). ApJ, 764, 116.
 
 ## Contact information
 
@@ -103,7 +105,7 @@ Using this command can reduce the computation time, since the cosmological compu
 Same as above, but the inputs Omega_m and sigma_8 will overwrite the values from `.par` files, and creates N independent peak lists.
 
 `$ ./camelus 5`  
-ABC computation which requires an observation data that we have provided an example in demo.  
+ABC computation which requires an observation data that we have provided an example in `demo`.  
 Parameters are defined in `peakParam.par`. Only several summary statistics are available.  
-This gives posterior samples of Omega_m-sigma_8 constraints. Only this combination is available.
+This gives posterior samples of Omega_m-sigma_8 constraints. Only this combination is available.Please check Lin & Kilbinger (2015b) for more details.
 
