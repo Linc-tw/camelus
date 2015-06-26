@@ -107,5 +107,6 @@ Same as above, but the inputs Omega_m and sigma_8 will overwrite the values from
 `$ ./camelus 5`  
 ABC computation which requires an observation data that we have provided an example in `demo`.  
 Parameters are defined in `peakParam.par`. Only several summary statistics are available.  
-This gives posterior samples of Omega_m-sigma_8 constraints. Only this combination is available.Please check Lin & Kilbinger (2015b) for more details.
+This gives posterior samples of Omega_m-sigma_8 constraints. Only this combination is available. 
+Please check Lin & Kilbinger (2015b) for more details.
 
