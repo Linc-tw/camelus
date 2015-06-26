@@ -10,7 +10,7 @@ Camelus is a fast weak-lensing peak-count modeling algorithm in C. It provides a
 
 Here is the summary of the algorithm:
   - Sample halos from a mass function
-  - assign density profiles, randomize their positions
+  - Assign density profiles, randomize their positions
   - Compute the projected mass, add noise
   - Make maps and create peak catalogues
 
