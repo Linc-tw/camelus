@@ -14,7 +14,7 @@ Here is the summary of the algorithm:
   - Compute the projected mass, add noise
   - Make maps and create peak catalogues
 
-For a more detailed description, please take a look at Lin & Kilbinger (2015a).
+For a more detailed description, please take a look at [Lin & Kilbinger (2015a)](http://arxiv.org/abs/1410.6955).
 
 ## Requirements
 
@@ -65,13 +65,13 @@ Current release: Camelus v1.2
 
 ## References
 
-  - [Bartelmann & Schneider (2001)](http://arxiv.org/abs/astro-ph/9912508). Phys. Rep., 340, 291.
-  - [Fan et al. (2010)](http://arxiv.org/abs/1006.5121). ApJ, 719, 1408.
-  - [Lin & Kilbinger (2015a)](http://arxiv.org/abs/1410.6955). A&A, 576, A24.
-  - [Lin & Kilbinger (2015b)](http://arxiv.org/abs/1506.01076). Submitted to A&A.
-  - [Marin et al. (2011)](http://arxiv.org/abs/1101.0955).
-  - [Takada & Jain (2003a)](http://arxiv.org/abs/astro-ph/0209167). MNRAS, 340, 580.
-  - [Weyant et al. (2013)](http://arxiv.org/abs/1206.2563). ApJ, 764, 116.
+  - [Bartelmann & Schneider (2001)](http://arxiv.org/abs/astro-ph/9912508) - Phys. Rep., 340, 291
+  - [Fan et al. (2010)](http://arxiv.org/abs/1006.5121) - ApJ, 719, 1408
+  - [Lin & Kilbinger (2015a)](http://arxiv.org/abs/1410.6955) - A&A, 576, A24
+  - [Lin & Kilbinger (2015b)](http://arxiv.org/abs/1506.01076) - Submitted to A&A
+  - [Marin et al. (2011)](http://arxiv.org/abs/1101.0955)
+  - [Takada & Jain (2003a)](http://arxiv.org/abs/astro-ph/0209167) - MNRAS, 340, 580
+  - [Weyant et al. (2013)](http://arxiv.org/abs/1206.2563) - ApJ, 764, 116
 
 ## Contact information
 
@@ -108,5 +108,5 @@ Same as above, but the inputs Omega_m and sigma_8 will overwrite the values from
 ABC computation which requires an observation data that we have provided an example in `demo`.  
 Parameters are defined in `peakParam.par`. Only several summary statistics are available.  
 This gives posterior samples of Omega_m-sigma_8 constraints. Only this combination is available.  
-Please check Lin & Kilbinger (2015b) for more details.
+Please check [Lin & Kilbinger (2015b)](http://arxiv.org/abs/1506.01076) for more details.
 
