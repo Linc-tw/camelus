@@ -58,7 +58,7 @@ $ ./camelus
 Current release: Camelus v1.3
 
 ##### New features in v1.3 - Dec 09, 2015:
-  - New file: constraint.c/.h
+  - New files: constraint.c/.h
   - Allowed multiscale peaks in one data vector
   - Allowed a data matrix from several realizations
   - Used the local galaxy density as the noise level in the S/N
@@ -66,6 +66,7 @@ Current release: Camelus v1.3
   - Changed the summary statistic options for PMC ABC
 
 Unavailable features because of the exterior file dependency:
+  - New files: FITSFunctions.c/.h
   - Added the mask option and nonlinear filtering
 
 ##### New features in v1.2 - Apr 06, 2015:
@@ -89,8 +90,8 @@ Unavailable features because of the exterior file dependency:
   - [Marin et al. (2011)](http://arxiv.org/abs/1101.0955)
   - [Takada & Jain (2003a)](http://arxiv.org/abs/astro-ph/0209167) - MNRAS, 340, 580
   - [Takada & Jain (2003b)](http://arxiv.org/abs/astro-ph/0304034) - MNRAS, 344, 857
-  - Wright & Brainerd (2000) - ApJ, 534, 34
   - [Weyant et al. (2013)](http://arxiv.org/abs/1206.2563) - ApJ, 764, 116
+  - Wright & Brainerd (2000) - ApJ, 534, 34
 
 ## Contact information
 
