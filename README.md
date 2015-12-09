@@ -1,10 +1,12 @@
-# Camelus
+Camelus
+=======
 Counts of Amplified Mass Elevations from Lensing with Ultrafast Simulation  
 Chieh-An Lin (CEA Saclay)  
-Release v1.2 - 2015-04-06 
+Release v1.3 - 2015-12-09 
 <p align="center"><a href="http://species.wikimedia.org/wiki/Camelus"><img src="http://www.cosmostat.org/wp-content/uploads/2014/11/Logo_Camelus_fig_name_vertical.png" width="240px" /></a></p>
 
-## Description
+Description
+-----------
 
 Camelus is a fast weak-lensing peak-count modeling algorithm in C. It provides a prediction on peak counts from input cosmological parameters.
 
@@ -19,11 +21,15 @@ For a more detailed description, please take a look at [Lin & Kilbinger (2015a)]
 ## Requirements
 
 The following softwares are required:
+  - [cfitsio](http://heasarc.gsfc.nasa.gov/fitsio/)
   - [cmake](http://cmake.org/cmake/resources/software.html)
-  - gcc
+  - [gcc](http://gcc.gnu.org/)
   - [gsl](http://www.gnu.org/software/gsl/)
   - [fftw](http://www.fftw.org/)
   - [nicaea v2.5](http://www.cosmostat.org/nicaea.html)
+  - [openmpi](http://www.open-mpi.org/)
+
+I will try to make some requirements optional for future releases.
 
 ## Compilation
 
@@ -49,7 +55,18 @@ $ ./camelus
 
 ## Updates
 
-Current release: Camelus v1.2
+Current release: Camelus v1.3
+
+##### New features in v1.3 - Dec 09, 2015:
+  - New file: constraint.c/.h
+  - Allowed multiscale peaks in one data vector
+  - Allowed a data matrix from several realizations
+  - Used the local galaxy density as the noise level in the S/N
+  - Increased the parameter dimension for PMC ABC
+  - Changed the summary statistic options for PMC ABC
+
+Unavailable features because of the exterior file dependency:
+  - Added the mask option and nonlinear filtering
 
 ##### New features in v1.2 - Apr 06, 2015:
   - Improved the computation speed by a factor of 6~7
@@ -68,9 +85,11 @@ Current release: Camelus v1.2
   - [Bartelmann & Schneider (2001)](http://arxiv.org/abs/astro-ph/9912508) - Phys. Rep., 340, 291
   - [Fan et al. (2010)](http://arxiv.org/abs/1006.5121) - ApJ, 719, 1408
   - [Lin & Kilbinger (2015a)](http://arxiv.org/abs/1410.6955) - A&A, 576, A24
-  - [Lin & Kilbinger (2015b)](http://arxiv.org/abs/1506.01076) - Submitted to A&A
+  - [Lin & Kilbinger (2015b)](http://arxiv.org/abs/1506.01076) - A&A, 583, A70
   - [Marin et al. (2011)](http://arxiv.org/abs/1101.0955)
   - [Takada & Jain (2003a)](http://arxiv.org/abs/astro-ph/0209167) - MNRAS, 340, 580
+  - [Takada & Jain (2003b)](http://arxiv.org/abs/astro-ph/0304034) - MNRAS, 344, 857
+  - Wright & Brainerd (2000) - ApJ, 534, 34
   - [Weyant et al. (2013)](http://arxiv.org/abs/1206.2563) - ApJ, 764, 116
 
 ## Contact information
@@ -94,19 +113,25 @@ This gives the values of the mass function from Jenkins et al. (2001) for M from
 This yields a halo list from sampling using customized parameters.
 
 `$ ./camelus 3`  
-This creates a peak catalogue and its histogram of S/N values.   
-A halo list, a galaxy list, a smoothed noise map, a smoothed noisy map will be made as well.
+This creates a lensing map using the first filter entry.   
+Intermediate results are also given, such as the halo catalogue, the noisy/noiseless galaxy catalogues, the noisy map, and the truth map.
 
-`$ ./camelus 4 N`  
-This creates N independent peak lists with the same cosmology and settings from `.par` files.   
-Using this command can reduce the computation time, since the cosmological computations are factorized.
-
-`$ ./camelus 4 N Omega_m sigma_8`  
-Same as above, but the inputs Omega_m and sigma_8 will overwrite the values from `.par` files, and creates N independent peak lists.
+`$ ./camelus 4`  
+This creates a peak catalogue and its histogram of S/N values using the first filter entry.   
+Intermediate results are also given, such as the halo catalogue, the galaxy catalogue, and the maps.
 
 `$ ./camelus 5`  
+This creates a data vector of peak counts from different scales.
+
+`$ ./camelus 6 N`  
+This creates N independent realizations of peak-count vector with the same cosmology and settings from `.par` files.
+
+`$ ./camelus 6 N Omega_m sigma_8 w0_de`  
+Same as above, but the inputs Omega_m, sigma_8, and w0_de will overwrite the values from `.par` files, and creates N independent realizations.
+
+`$ ./camelus 7`  
 ABC computation which requires an observation data that we have provided an example in `demo`.  
-Parameters are defined in `peakParam.par`. Only several summary statistics are available.  
-This gives posterior samples of Omega_m-sigma_8 constraints. Only this combination is available.  
+Parameters are defined in `peakParam.par`. Only two summary statistics are available in this release.  
+This gives posterior samples of Omega_m-sigma_8-w0_de constraints. Only this combination is available.  
 Please check [Lin & Kilbinger (2015b)](http://arxiv.org/abs/1506.01076) for more details.
 

@@ -3,7 +3,7 @@
   /***************************************
    **  peakSelection.c			**
    **  Chieh-An Lin, François Lanusse	**
-   **  Version 2015.03.25		**
+   **  Version 2015.12.09		**
    ***************************************/
 
 
@@ -11,16 +11,198 @@
 
 
 //----------------------------------------------------------------------
+//-- Functions related to local variance
+
+void fillGaussianKernelForVariance(fftw_complex *kernel, int length, int M, double scaleInPix)
+{
+  //-- Initialization
+  reset_fftw_complex(kernel, length);
+  
+  double scaleInPix_invSq = 1.0 / (SQ(scaleInPix));       //-- [pix^2]
+  double relay       = CUTOFF_FACTOR_FILTER * scaleInPix; //-- CUTOFF_FACTOR_FILTER set to 2.2 in peakParameters.h, equivalent to a Gaussian trunked at 3-sigma
+  int cutInPix       = (int)ceil(relay);
+  double cutInPix_sq = SQ(relay);
+  double sum         = 0.0;
+  double value;
+  int i, j, mod_j_M, r_sq;
+  
+  for (j=-cutInPix; j<=cutInPix; j++) {
+    mod_j_M = POS_MOD(M, j) * M;
+    for (i=-cutInPix; i<=cutInPix; i++) {
+      r_sq = i*i + j*j;
+      if (r_sq > cutInPix_sq) continue;
+      value = exp(-r_sq * scaleInPix_invSq);
+      sum += value;
+      kernel[POS_MOD(M, i) + mod_j_M][0] = SQ(value);
+    }
+  }
+  
+  //-- Normalization
+  rescaleReal_fftw_complex(kernel, length, 1.0 / (sum*sum));
+  return;
+}
+
+void fillStarletKernelForVariance(fftw_complex *kernel, int length, int M, double scaleInPix)
+{
+  //-- Initialization
+  reset_fftw_complex(kernel, length);
+  
+  int cutInPix = MIN((int)ceil(2 * scaleInPix), M/2); //-- [pix]
+  double sum   = 0.0;
+  double x, y, value;
+  int i, j, mod_j_M, r_sq;
+  
+  for (j=-cutInPix; j<=cutInPix; j++) {
+    mod_j_M = POS_MOD(M, j) * M;
+    y = (double)j / scaleInPix;
+    for (i=-cutInPix; i<=cutInPix; i++) {
+      x = (double)i / scaleInPix;
+      value = starlet_2D(x, y);
+      sum  += fabs(value);
+      kernel[POS_MOD(M, i) + mod_j_M][0] = SQ(value);
+    }
+  }
+  
+  //-- Normalization
+  rescaleReal_fftw_complex(kernel, length, 1.0 / (sum*sum));
+  return;
+}
+
+void makeKernelForVariance(peak_param *peak, FFT_arr *variance)
+{
+  FFT_t *var;
+  int i;
+  for (i=0; i<peak->nbLinFilters; i++) {
+    var = variance->array[i];
+    if (peak->linFilter[i] == gauss)     fillGaussianKernelForVariance(var->kernel, var->length, var->N, peak->linScaleInPix[i]);
+    else if (peak->linFilter[i] == star) fillStarletKernelForVariance(var->kernel, var->length, var->N, peak->linScaleInPix[i]);
+    fftw_execute(var->kernel_f); //-- To Fourier space
+  }
+  return;
+}
+
+void computeLocalVariance(gal_map *gMap, FFT_t *var, double sigma_half_sq)
+{
+  int N1 = gMap->N1;
+  int N2 = gMap->N2;
+  int M  = var->N;
+  double threshold         = gMap->fillingThreshold;
+  fftw_complex *var_before = var->before;
+  
+  int i, j, jN1, jM, index_FFT, size;
+  
+  //-- Fill sigma_eps^2 / 2N in var->before
+  for (j=0; j<M; j++) {
+    jN1 = j * N1;
+    jM  = j * M;
+    for (i=0; i<M; i++) {
+      index_FFT = i + jM;
+      if (i >= N1 || j >= N2) { //-- Buffer area
+	var_before[index_FFT][0] = 0.0;
+	var_before[index_FFT][1] = 0.0;
+      }
+      else {
+	size = gMap->map[i+jN1]->size;
+	if (size == 0 || (double)size < threshold) var_before[index_FFT][0] = 0.0;
+	else                                       var_before[index_FFT][0] = sigma_half_sq / (double)size;
+	var_before[index_FFT][1] = 0.0;
+      }
+    }
+  }
+  
+  execute_FFT_t(var);
+  return;
+}
+
+void computeLocalVariance_arr(peak_param *peak, gal_map *gMap, FFT_arr *variance)
+{
+  double sigma_half_sq = SQ(peak->sigma_half);
+  FFT_t *var           = variance->array[0];
+  
+  computeLocalVariance(gMap, var, sigma_half_sq);
+  
+  fftw_complex *var_before = var->before;
+  int FFTLength = var->length;
+  int i;
+  
+  for (i=1; i<variance->length; i++) {
+    var = variance->array[i];
+    multiplication_fftw_complex(var_before, var->kernel, var->after, FFTLength); //-- Multiplication
+    fftw_execute(var->after_b);                                                  //-- Go to direct space
+    rescaleReal_fftw_complex(var->after, FFTLength, peak->FFTNormFactor);        //-- Rescale, only real part is interesting.
+  }
+  return;
+}
+
+void kappaToSNR(peak_param *peak, gal_map *gMap, FFT_t *smoo, map_t *kMap, FFT_t *var)
+{
+  //-- Retrieve kappa from smoo_table, divide it by sigma_noise (becoming SNR),
+  //-- and stock SNR in kMap->value1.
+  
+  int N1 = gMap->N1;
+  int N2 = gMap->N2;
+  int M  = var->N;
+  double threshold = gMap->fillingThreshold;
+  double *SNR      = kMap->value1;
+  fftw_complex *smoo_table = (peak->doSmoothing == 2) ? smoo->before : smoo->after;
+  fftw_complex *var_after  = var->after;
+  int i, j, jN1, jM, index_kMap, size;
+  
+  for (j=0; j<N2; j++) {
+    jN1 = j * N1;
+    jM  = j * M;
+    for (i=0; i<N1; i++) {
+      index_kMap = i + jN1;
+      size = gMap->map[index_kMap]->size;
+      if (size == 0 || (double)size < threshold) SNR[index_kMap] = -DBL_MAX;
+      else                                       SNR[index_kMap] = smoo_table[i+jM][0] / sqrt(var_after[i+jM][0]);
+    }
+  }
+  return;
+}
+
+//----------------------------------------------------------------------
 //-- Functions related to peak selection
 
-int isPeak(double *kappa, int N1, int i, int j)
+int isPeak(double *SNR, int N1, int i, int j)
 {
-  int m, n;
-  double centerValue = kappa[i+j*N1];
-  for (m=-1; m<=1; m++) {
-    for (n=-1; n<=1; n++) {
+  double centerValue = SNR[i+j*N1];
+  int m, n, jn_N1;
+  for (n=-1; n<=1; n++) {
+    jn_N1 = (j + n) * N1;
+    for (m=-1; m<=1; m++) {
       if (m==0 && n==0) continue;
-      if (kappa[(i+m)+(j+n)*N1] >= centerValue) return 0;
+      if (SNR[(i+m)+jn_N1] >= centerValue) return 0;
+    }
+  }
+  return 1;
+}
+
+int isPeak_float(float *SNR, int N1, int i, int j)
+{
+  float centerValue = SNR[i+j*N1];
+  int m, n, jn_N1;
+  for (n=-1; n<=1; n++) {
+    jn_N1 = (j + n) * N1;
+    for (m=-1; m<=1; m++) {
+      if (m==0 && n==0) continue;
+      if (SNR[(i+m)+jn_N1] >= centerValue) return 0;
+    }
+  }
+  return 1;
+}
+
+int isPeakForTable(fftw_complex *table, int M, int i, int j)
+{
+  //-- table should have been turned into S/N map.
+  
+  double centerValue = table[i+j*M][0];
+  int m, n, jn_M;
+  for (n=-1; n<=1; n++) {
+    jn_M = (j + n) * M;
+    for (m=-1; m<=1; m++) {
+      if (m==0 && n==0) continue;
+      if (table[(i+m)+jn_M][0] >= centerValue) return 0;
     }
   }
   return 1;
@@ -28,25 +210,72 @@ int isPeak(double *kappa, int N1, int i, int j)
 
 void selectPeaks(peak_param *peak, map_t *kMap, double_arr *peakList, error **err)
 {
+  //-- kMap should have been turned into S/N map.
+  //-- Mask has been taken into account in kappaToSNR.
+  
   int bufferSize = peak->bufferSize;
-  testError(bufferSize<=0, peak_badValue, "Buffer size should be at least 1.", *err, __LINE__); forwardError(*err, __LINE__,);
+  testErrorRet(bufferSize<=0, peak_badValue, "Buffer size should be at least 1.", *err, __LINE__,);
   
-  double *kappa = kMap->kappa;
+  int N1    = kMap->N1;
+  int N2    = kMap->N2;
+  int count = 0;
+  //double factor = 1.0 / peak->sigma_noise[peak->scaleInd];
+  double *SNR  = kMap->value1;
   double *fArr = peakList->array;
-  int N1 = kMap->N1;
-  int N2 = kMap->N2;
+  int i, j, jN1;
   
-  int i, j, count = 0;
   for (j=bufferSize; j<N2-bufferSize; j++) {
+    jN1 = j * N1;
     for (i=bufferSize; i<N1-bufferSize; i++) {
-      if (isPeak(kappa, N1, i, j)) {
-	fArr[count] = kappa[i+j*N1] / peak->sigma_noise;
+      if (isPeak(SNR, N1, i, j)) {
+	fArr[count] = SNR[i+jN1];
 	count++;
       }
     }
   }
   
   peakList->length = count;
+  return;
+}
+
+void selectPeaks_mrlens(char name[], peak_param *peak, gal_map *gMap, double_arr *peakList)
+{
+  //-- This fuction selects peak from an image stocked in a float*.
+  //-- Peaks are kappa peaks not S/N peaks.
+  
+  //-- Read nonlinear map
+  FITS_t *fits = initializeImageReader_FITS_t(name);
+  float *kappa = read2DImage(fits);
+  free_FITS_t(fits);
+  
+  double threshold = gMap->fillingThreshold;
+  int i, size;
+  
+  //-- Masking 
+  for (i=0; i<gMap->length; i++) {
+    size = gMap->map[i]->size;
+    if (size == 0 || (double)size < threshold) kappa[i] = -DBL_MAX;
+  }
+  
+  int N1    = peak->resol[0];
+  int N2    = peak->resol[1];
+  int count = 0;
+  int bufferSize = peak->bufferSize;
+  double *fArr = peakList->array;
+  int j, jN1;
+  
+  for (j=bufferSize; j<N2-bufferSize; j++) {
+    jN1 = j * N1;
+    for (i=bufferSize; i<N1-bufferSize; i++) {
+      if (isPeak_float(kappa, N1, i, j)) {
+	fArr[count] = (double)kappa[i+jN1];
+	count++;
+      }
+    }
+  }
+  
+  peakList->length = count;
+  free(kappa);
   return;
 }
 
@@ -71,8 +300,8 @@ void outputPeakList(char name[], peak_param *peak, double_arr *peakList)
   fprintf(file, "# Peak list\n");
   fprintf(file, "# Field = %s, Omega = (%g, %g) [arcmin], theta_pix = %g [arcmin]\n", STR_FIELD_T(peak->field), peak->Omega[0], peak->Omega[1], peak->theta_pix);
   fprintf(file, "# n_gal = %g [arcmin^-2], z_s = %g\n", peak->n_gal, peak->z_s);
-  fprintf(file, "# Filter = %s, theta_G = %g [arcmin], s = %g [pix]\n", STR_FILTER_T(peak->filter), peak->theta_G, peak->s);
-  fprintf(file, "# sigma_eps = %g, sigma_pix = %g, sigma_noise = %g\n", peak->sigma_eps, peak->sigma_pix, peak->sigma_noise);
+  fprintf(file, "# Filter = %s, theta_G = %g [arcmin], s = %g [pix]\n", STR_FILTER_T(peak->filter[0]), peak->scale[0], peak->linScaleInPix[0]);
+  fprintf(file, "# sigma_eps = %g, sigma_pix = %g, sigma_noise = %g\n", peak->sigma_eps, peak->sigma_pix, peak->sigma_noise[0]);
   fprintf(file, "# Buffer size = %d [pix]\n", peak->bufferSize);
   fprintf(file, "#\n");
   fprintf(file, "# Number of pixels = %d\n", peakList->length); 
@@ -88,13 +317,51 @@ void outputPeakList(char name[], peak_param *peak, double_arr *peakList)
   return;
 }
 
-void peakListFromMassFct(cosmo_hm *cmhm, peak_param *peak, sampler_arr *sampArr, halo_map *hMap, gal_map *gMap, 
-			 map_t *kMap, map_t *nMap, FFT_t *transformer, double_arr *peakList, error **err)
+void peakListFromMassFct(cosmo_hm *cmhm, peak_param *peak, sampler_arr *sampArr, halo_map *hMap, sampler_t *galSamp, gal_map *gMap, short_mat *CCDMask,
+			 FFT_arr *smoother, map_t *kMap, FFT_arr *variance, double_arr *peakList, error **err)
 {
-  makeFastSimul(cmhm, peak, sampArr, hMap, err);     forwardError(*err, __LINE__,);
-  lensingForMap(cmhm, peak, hMap, gMap, err);        forwardError(*err, __LINE__,);
-  makeMap(peak, gMap, kMap, nMap, transformer, err); forwardError(*err, __LINE__,);
-  selectPeaks(peak, kMap, peakList, err);            forwardError(*err, __LINE__,);
+  makeFastSimul(cmhm, peak, sampArr, hMap, err);                  forwardError(*err, __LINE__,);
+  cleanOrMakeOrResample(cmhm, peak, galSamp, gMap, CCDMask, err); forwardError(*err, __LINE__,);
+  lensingCatalogue(cmhm, peak, hMap, gMap, err);                  forwardError(*err, __LINE__,);
+  makeMap(peak, gMap, smoother, kMap, err);                       forwardError(*err, __LINE__,);
+  computeLocalVariance_arr(peak, gMap, variance);
+  
+  if (peak->filter[0] == mrlens) {
+    selectPeaks_mrlens("kappaMap_mrlens.fits", peak, gMap, peakList);
+  }
+  else {
+    kappaToSNR(peak, gMap, smoother->array[0], kMap, variance->array[0]);
+    selectPeaks(peak, kMap, peakList, err);                         forwardError(*err, __LINE__,);
+  }
+  return;
+}
+
+//----------------------------------------------------------------------
+//-- Functions related to histogram
+
+void setHist(peak_param *peak, hist_t *hist)
+{
+  int i;
+  for (i=0; i<hist->length; i++) {
+    hist->x_lower[i] = peak->nu_bin[i];
+    hist->n[i]       = 0;
+  }
+  hist->x_max = peak->nu_bin[hist->length];
+  hist->dx    = -1.0;
+  hist->n_tot = 0;
+  return;
+}
+
+void setHist2(peak_param *peak, hist_t *hist)
+{
+  int i;
+  for (i=0; i<hist->length; i++) {
+    hist->x_lower[i] = peak->kappa_bin[i];
+    hist->n[i]       = 0;
+  }
+  hist->x_max = peak->kappa_bin[hist->length];
+  hist->dx    = -1.0;
+  hist->n_tot = 0;
   return;
 }
 
@@ -130,172 +397,59 @@ void outputHist(char name[], hist_t *hist)
   return;
 }
 
-void inputHist(char name[], hist_t *hist, error **err)
-{
-  //-- TODO
-  return;
-}
-
-//----------------------------------------------------------------------
-//-- Functions related to chi2_t
-
-chi2_t *initialize_chi2_t(int N, int d, error **err)
-{
-  //-- N              = number of data
-  //-- d              = dimension of observable vector
-  //-- *X_model       = observables from model, mean of several realizations for Camelus
-  //-- *intermediate  = to stock invCov * (X_model - X_obs)
-  //-- *X_obs         = observables from observation 
-  //-- *cov           = covariance matrix for X_model, debiased
-  //-- *cov2          = just a copy of cov
-  //-- *invCov        = inverse of cov, debiased
-  //-- *perm          = used for matrix inversion
-  chi2_t *chichi       = (chi2_t*)malloc_err(sizeof(chi2_t), err); forwardError(*err, __LINE__,);
-  chichi->N            = N;
-  chichi->d            = d;
-  chichi->X_model      = gsl_vector_alloc(d);
-  chichi->intermediate = gsl_vector_alloc(d);
-  chichi->X_obs        = gsl_vector_alloc(d);
-  chichi->cov          = gsl_matrix_alloc(d, d);
-  chichi->cov2         = gsl_matrix_alloc(d, d);
-  chichi->invCov       = gsl_matrix_alloc(d, d);
-  chichi->perm         = gsl_permutation_alloc(d);
-  return chichi;
-}
-
-void free_chi2_t(chi2_t *chichi)
-{
-  gsl_vector_free(chichi->X_model);
-  gsl_vector_free(chichi->intermediate);
-  gsl_vector_free(chichi->X_obs);
-  gsl_matrix_free(chichi->cov);
-  gsl_matrix_free(chichi->cov2);
-  gsl_matrix_free(chichi->invCov);
-  gsl_permutation_free(chichi->perm);
-  free(chichi);
-  return;
-}
-
-void update_chi2_t(chi2_t *chichi, hist_t *obsHist, double *dataMat)
-{
-  //-- data should be n*d matrix
-  int N = chichi->N;
-  int d = chichi->d;
-  gsl_vector *X_model = chichi->X_model;
-  gsl_matrix *cov     = chichi->cov;
-  gsl_matrix *cov2    = chichi->cov2;
-  double value;
-  
-  //-- Update mean
-  int i;
-  for (i=0; i<d; i++) {
-    value = gsl_stats_mean(dataMat+i*N, 1, N);
-    gsl_vector_set(X_model, i, value);
-    gsl_vector_set(chichi->X_obs, i, (double)(obsHist->n[i]));
-  }
-  
-  //-- Update covariance
-  int j;
-  for (j=0; j<d; j++) {
-    for (i=0; i<d; i++) {
-      if (i < j) {
-	value = gsl_matrix_get(cov, j, i);
-	gsl_matrix_set(cov, i, j, value);
-	continue;
-      }
-      value = gsl_stats_covariance_m(dataMat+i*N, 1, dataMat+j*N, 1, N, gsl_vector_get(X_model, i), gsl_vector_get(X_model, j));
-      gsl_matrix_set(cov, i, j, value);
-    } 
-  }
-  
-  //-- Make a copy, because the invertion will destroy cov
-  gsl_matrix_memcpy(cov2, cov); //-- Copy cov to cov2
-  
-  //-- Make LU decomposition and invert
-  int s;
-  gsl_linalg_LU_decomp(cov2, chichi->perm, &s);
-  gsl_linalg_LU_invert(cov2, chichi->perm, chichi->invCov);
-  
-  //-- Debias the C_{ij}^{-1}
-  //-- C^-1_nonbias = (N - d - 2) / (N - 1) * C^-1_bias
-  double factor = (N - d - 2) / (double)(N - 1);
-  gsl_matrix_scale(chichi->invCov, factor); //-- invCov *= factor
-  return;
-}
-
-double execute_chi2_t(chi2_t *chichi)
-{
-  //-- Let Delta X = X_model - X_obs,
-  //-- L = 1 / sqrt[(2 pi)^d * det(Cov)] * exp[-0.5 *(Delta X)^T * Cov^-1 * (Delta X)]
-  //-- -2 ln L = -2 * [ -0.5 * ln (2 pi)^d - 0.5 * ln det(Cov) - 0.5 * (Delta X)^T * Cov^-1 * (Delta X) ]
-  //--         = cst + ln det(Cov) + (Delta X)^T * Cov^-1 * (Delta X)
-  //-- We set chi2 = ln det(Cov) + (Delta X)^T * Cov^-1 * (Delta X)
-  
-  //-- data should be N*d matrix
-  int N = chichi->N;
-  int d = chichi->d;
-  gsl_vector *X_model = chichi->X_model;
-  double value;
-  
-  gsl_vector_sub(X_model, chichi->X_obs); //-- X_model -= X_obs
-  gsl_blas_dsymv(CblasUpper, 1.0, chichi->invCov, X_model, 0.0, chichi->intermediate); //-- intermediate = invCov * (X_model - X_obs)
-  gsl_blas_ddot(X_model, chichi->intermediate, &value);
-  value += gsl_linalg_LU_lndet(chichi->cov);
-  return value;
-}
-
 //----------------------------------------------------------------------
 //-- Main functions
 
-void doPeakList(char KNMap[], cosmo_hm *cmhm, peak_param *peak, error **err)
+void doPeakList(char fileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
 {
-  map_t *kMap = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
+  int N1_mask = (int)(peak->Omega[0] * peak->theta_CCD_inv);
+  int N2_mask = (int)(peak->Omega[1] * peak->theta_CCD_inv);
+  int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
   
-  if (KNMap == NULL) {
-    //-- Carry out KMap from fast simulation
-    sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->nbMassBins);
-    setMassSamplers(cmhm, peak, sampArr, err);                                                        forwardError(*err, __LINE__,);
-    halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
-    gal_map *gMap        = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
-    makeGalaxies(cmhm, peak, gMap, err);                                                              forwardError(*err, __LINE__,);
-    map_t *nMap          = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
-    FFT_t *transformer   = initialize_FFT_t(peak->FFTSize, peak->FFTSize);
-    fillGaussianKernel(transformer, peak->s);
-    
-    makeFastSimul(cmhm, peak, sampArr, hMap, err);     forwardError(*err, __LINE__,);
-    lensingForMap(cmhm, peak, hMap, gMap, err);        forwardError(*err, __LINE__,);
-    makeMap(peak, gMap, kMap, nMap, transformer, err); forwardError(*err, __LINE__,);
-    
-    outputFastSimul("haloList", cmhm, peak, hMap);
-    outputGalaxies("galList", cmhm, peak, gMap);
-    outputMap("KNMap", cmhm, peak, kMap);
-    outputMap("NMap", cmhm, peak, nMap);
-    
+  halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
+  sampler_t *galSamp   = initialize_sampler_t(peak->N_z_gal);
+  setGalaxySampler(cmhm, peak, galSamp, err);                                                       forwardError(*err, __LINE__,);
+  gal_map *gMap        = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
+  short_mat *CCDMask   = initialize_short_mat(N1_mask, N2_mask);
+  if (peak->doMask == 1) fillMask_CFHTLenS_W1(peak, CCDMask);
+  FFT_arr *smoother    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernel(peak, smoother);
+  map_t *kMap          = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
+  FFT_arr *variance    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernelForVariance(peak, variance);
+  double_arr *peakList = initialize_double_arr(length);
+  hist_t *hist         = initialize_hist_t(peak->N_nu);
+  setHist(peak, hist);
+  
+  if (fileName == NULL) {
+    //-- Carry out fast simulation
+    sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
+    setMassSamplers(cmhm, peak, sampArr, err);                         forwardError(*err, __LINE__,);
+    makeFastSimul(cmhm, peak, sampArr, hMap, err);                     forwardError(*err, __LINE__,);
+    outputFastSimul("haloCat", cmhm, peak, hMap);
     free_sampler_arr(sampArr);
-    free_halo_map(hMap);
-    free_gal_map(gMap);
-    free_map_t(nMap);
-    free_FFT_t(transformer);
   }
   else {
-    read_map_t(KNMap, peak, kMap, KN_map, err); forwardError(*err, __LINE__,);
+    read_halo_map(fileName, cmhm, hMap, err);                          forwardError(*err, __LINE__,);
   }
   
-  int length   = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
-  int nBins    = 35;
-  double lower = -5.00;
-  double upper = 12.50;
-  double_arr *peakList = initialize_double_arr(length);
-  hist_t *hist         = initialize_hist_t(nBins);
-  set_hist_t(hist, lower, upper);
-  
-  selectPeaks(peak, kMap, peakList, err); forwardError(*err, __LINE__,);
+  cleanOrMakeOrResample(cmhm, peak, galSamp, gMap, CCDMask, err);      forwardError(*err, __LINE__,);
+  lensingCatalogueAndOutputAll(cmhm, peak, hMap, gMap, err);           forwardError(*err, __LINE__,);
+  makeMapAndOutputAll(cmhm, peak, gMap, smoother, kMap, err);          forwardError(*err, __LINE__,);
+  kappaToSNR(peak, gMap, smoother->array[0], kMap, variance->array[0]);
+  selectPeaks(peak, kMap, peakList, err);                              forwardError(*err, __LINE__,);
   outputPeakList("peakList", peak, peakList);
-  int silent = 0;
+  int silent = 1;
   makeHist(peakList, hist, silent);
   outputHist("peakHist", hist);
   
+  free_halo_map(hMap);
+  free_sampler_t(galSamp);
+  free_gal_map(gMap);
+  free_short_mat(CCDMask);
+  free_FFT_arr(smoother);
   free_map_t(kMap);
+  free_FFT_arr(variance);
   free_double_arr(peakList);
   free_hist_t(hist);
   printf("------------------------------------------------------------------------\n");
@@ -305,88 +459,49 @@ void doPeakList(char KNMap[], cosmo_hm *cmhm, peak_param *peak, error **err)
 void doPeakList_repeat(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
 {
   char name[STRING_LENGTH_MAX];
-  int length = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
-  peak->printMode = 0; //-- Use 2 on planer
+  int N1_mask = (int)(peak->Omega[0] * peak->theta_CCD_inv);
+  int N2_mask = (int)(peak->Omega[1] * peak->theta_CCD_inv);
+  int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
+  peak->printMode = 1; //-- 0 = detailed, 1 = no flush, 2 = line mode, 3 = MPI
   
-  sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->nbMassBins);
+  sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
   setMassSamplers(cmhm, peak, sampArr, err);                                                        forwardError(*err, __LINE__,);
   halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
+  sampler_t *galSamp   = initialize_sampler_t(peak->N_z_gal);
+  setGalaxySampler(cmhm, peak, galSamp, err);                                                       forwardError(*err, __LINE__,);
   gal_map *gMap        = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
-  makeGalaxies(cmhm, peak, gMap, err);                                                              forwardError(*err, __LINE__,);
+  short_mat *CCDMask   = initialize_short_mat(N1_mask, N2_mask);
+  if (peak->doMask == 1) fillMask_CFHTLenS_W1(peak, CCDMask);
+  FFT_arr *smoother    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernel(peak, smoother);
   map_t *kMap          = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
-  map_t *nMap          = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
-  FFT_t *transformer   = initialize_FFT_t(peak->FFTSize, peak->FFTSize);
-  fillGaussianKernel(transformer, peak->s);
+  FFT_arr *variance    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernelForVariance(peak, variance);
   double_arr *peakList = initialize_double_arr(length);
   
   int i;
   for (i=0; i<N; i++) {
     clock_t start = clock();
     printf("\n-- Making peak lists: %d / %d realizations\n", i+1, N);
-    peakListFromMassFct(cmhm, peak, sampArr, hMap, gMap, kMap, nMap, transformer, peakList, err);   forwardError(*err, __LINE__,);
+    peakListFromMassFct(cmhm, peak, sampArr, hMap, galSamp, gMap, CCDMask, smoother, kMap, variance, peakList, err); forwardError(*err, __LINE__,);
     //-- Output
-    sprintf(name, "peakList_fast%d_gauss1.0", i+1);
+    sprintf(name, "peakList_%d", i+1);
     outputPeakList(name, peak, peakList);
     routineTime(start, clock());
   }
   
   free_sampler_arr(sampArr);
   free_halo_map(hMap);
+  free_sampler_t(galSamp);
   free_gal_map(gMap);
+  free_short_mat(CCDMask);
+  free_FFT_arr(smoother);
   free_map_t(kMap);
-  free_map_t(nMap);
-  free_FFT_t(transformer);
+  free_FFT_arr(variance);
   free_double_arr(peakList);
   printf("------------------------------------------------------------------------\n");
   return;
 }
-/*
-void doPeakHistForPMC(cosmo_hm *cmhm, peak_param *peak, hist_t *hist, double *dataMat, int N, error **err)
-{
-  //-- This function is called in chi2_wrapper for CosmoPMC.
-  //-- Binning is given by hist. Results for N realizations are stocked in dataMat.
-  
-  char name[STRING_LENGTH_MAX];
-  //int nbGal = (int)round(peak->n_gal * peak->area);
-  int N1    = peak->resol[0] - 2 * peak->bufferSize;
-  int N2    = peak->resol[1] - 2 * peak->bufferSize;
-  
-  sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->nbMassBins);
-  setMassSamplers(cmhm, peak, sampArr, err);                                                       forwardError(*err, __LINE__,);
-  halo_arr *halo       = initialize_halo_arr(NUMBER_HALOS_MAX, err);                               forwardError(*err, __LINE__,); //-- NUMBER_HALOS_MAX defined in peakParameters.h
-  gal_arr *gal         = initialize_gal_arr(nbGal, err);                                           forwardError(*err, __LINE__,);
-  makeGalaxies(cmhm, peak, gal, err);                                                              forwardError(*err, __LINE__,);
-  gal_ptr_arr *ptr     = initialize_gal_ptr_arr(gal, err);                                         forwardError(*err, __LINE__,);
-  gal_tree *tree       = initialize_gal_tree(ptr, 0, ptr->length, err);                            forwardError(*err, __LINE__,);
-  pix_arr *map         = initialize_pix_arr(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
-  pix_arr *noise       = initialize_pix_arr(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
-  FFT_t *transformer   = initialize_FFT_t(peak->FFTSize, peak->FFTSize);
-  fillGaussianKernel(transformer, peak->s);
-  double_arr *peakList = initialize_double_arr(N1 * N2);
-  
-  int i, j;
-  for (i=0; i<N; i++) {
-    clock_t start = clock();
-    printf("\n-- Making peak histograms: %d / %d realizations\n", i+1, N);
-    makePeakListFromBegin(cmhm, peak, sampArr, halo, gal, tree, map, noise, transformer, peakList, err); forwardError(*err, __LINE__,);
-    int silent = 1;
-    makeHist(peakList, hist, silent);
-    for (j=0; j<hist->length; j++) dataMat[i+j*N] = (double)(hist->n[j]);
-    routineTime(start, clock());
-  }
-  
-  free_sampler_arr(sampArr);
-  free_halo_arr(halo);
-  free_gal_arr(gal);
-  free_gal_ptr_arr(ptr);
-  free_gal_tree(tree);
-  free_pix_arr(map);
-  free_pix_arr(noise);
-  free_FFT_t(transformer);
-  free_double_arr(peakList);
-  printf("------------------------------------------------------------------------\n");
-  return;
-}
-*/
+
 //----------------------------------------------------------------------
 

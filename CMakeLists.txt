@@ -1,9 +1,9 @@
 
 
     ##############################################
-    ##  CMakeLists.txt for camelus v1.2		##
+    ##  CMakeLists.txt for camelus v1.3		##
     ##  Chieh-An Lin				##
-    ##  Version 2015.04.05			##
+    ##  Version 2015.12.09			##
     ##############################################
 
   
@@ -12,7 +12,13 @@ include(FindPkgConfig)
 
 project(camelus)
 
-pkg_check_modules(PKGS REQUIRED gsl fftw3)
+find_package(MPI REQUIRED)
+include_directories(${MPI_INCLUDE_PATH})
+link_directories(${MPI_LIBRARY_PATH})
+set(CMAKE_C_COMPILER mpicc)
+set(CMAKE_CXX_COMPILER mpicxx)
+
+pkg_check_modules(PKGS REQUIRED gsl fftw3 cfitsio)
 include_directories(${PKGS_INCLUDE_DIRS})
 link_directories(${PKGS_LIBRARY_DIRS})
 
@@ -24,4 +30,4 @@ set(CMAKE_CXX_FLAGS "-O3 -ffast-math")
 
 FILE(GLOB_RECURSE src_files "${PROJECT_SOURCE_DIR}/source/*.c")
 add_executable(camelus ${src_files})
-target_link_libraries(camelus -lnicaea ${PKGS_LIBRARIES} ${PKGS_INCLUDE})
+target_link_libraries(camelus ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES} -lnicaea ${PKGS_LIBRARIES} ${PKGS_INCLUDE} -lcfitsio)

@@ -3,7 +3,7 @@
   /*******************************
    **  haloSampling.c		**
    **  Chieh-An Lin		**
-   **  Version 2015.03.02	**
+   **  Version 2015.10.30	**
    *******************************/
 
 
@@ -15,13 +15,12 @@
 
 void set_halo_t(cosmo_hm *cmhm, halo_t *h, double z, double M, double pos[2], error **err)
 {
-  testError(h==NULL, peak_null, "halo_t *h is NULL", *err, __LINE__); forwardError(*err, __LINE__,);
+  testErrorRet(h==NULL, peak_null, "halo_t *h is NULL", *err, __LINE__,);
+  
   h->z        = z;
-  double a    = 1.0/(1.0+z);
+  double a    = 1.0 / (1.0 + z);
   h->a        = a;
-  int wOmegar = 0;
-  h->w        = w(cmhm->cosmo, a, wOmegar, err); forwardError(*err, __LINE__,);
-  double D_l  = a * f_K(cmhm->cosmo, h->w, err); forwardError(*err, __LINE__,);
+  h->w        = w(cmhm->cosmo, a, 0, err);       forwardError(*err, __LINE__,); //-- wOmegar = 0
   h->M        = M;
   double c    = concentration(cmhm, M, a, err);  forwardError(*err, __LINE__,);
   h->c        = c;
@@ -41,6 +40,7 @@ void set_halo_t(cosmo_hm *cmhm, halo_t *h, double z, double M, double pos[2], er
   h->r_vir_sq     = SQ(h->r_vir);
   //-- theta_vir = r_vir / D_A
   //-- given by angular diameter distance D_A = f_K / (1+z)
+  double D_l      = a * f_K(cmhm->cosmo, h->w, err); forwardError(*err, __LINE__,);
   h->theta_vir    = h->r_vir / D_l * RADIAN_TO_ARCMIN;
   h->theta_vir_sq = SQ(h->theta_vir);
   
@@ -52,15 +52,15 @@ void set_halo_t(cosmo_hm *cmhm, halo_t *h, double z, double M, double pos[2], er
 
 halo_node *initialize_halo_node(error **err)
 {
-  halo_node *hNode = (halo_node*)malloc_err(sizeof(halo_node), err); forwardError(*err, __LINE__, NULL);
-  hNode->h         = (halo_t*)malloc_err(sizeof(halo_t), err);       forwardError(*err, __LINE__, NULL);;
+  halo_node *hNode = (halo_node*)malloc_err(sizeof(halo_node), err); forwardError(*err, __LINE__,);
+  hNode->h         = (halo_t*)malloc_err(sizeof(halo_t), err);       forwardError(*err, __LINE__,);
   hNode->next      = NULL;
   return hNode;
 }
 
 halo_list *initialize_halo_list(error **err)
 {
-  halo_list *hList = (halo_list*)malloc_err(sizeof(halo_list), err); forwardError(*err, __LINE__, NULL);
+  halo_list *hList = (halo_list*)malloc_err(sizeof(halo_list), err); forwardError(*err, __LINE__,);
   hList->length    = 0;
   hList->size      = 0;
   hList->first     = NULL;
@@ -120,13 +120,14 @@ halo_map *initialize_halo_map(int N1, int N2, double theta_pix, error **err)
   hMap->length    = N1 * N2;
   hMap->total     = 0;
   hMap->theta_pix = theta_pix;
+  hMap->theta_pix_inv = 1.0 / theta_pix;
   
-  hMap->center[0] = 0.0;
-  hMap->center[1] = 0.0;
-  hMap->limits[0] = -0.5 * N1 * theta_pix;
-  hMap->limits[1] = -hMap->limits[0];
-  hMap->limits[2] = -0.5 * N2 * theta_pix;
-  hMap->limits[3] = -hMap->limits[2];
+  hMap->limits[0] = 0;
+  hMap->limits[1] = N1 * theta_pix;
+  hMap->limits[2] = 0;
+  hMap->limits[3] = N2 * theta_pix;
+  hMap->center[0] = 0.5 * hMap->limits[1];
+  hMap->center[1] = 0.5 * hMap->limits[3];
   
   hMap->map       = (halo_list**)malloc_err(hMap->length * sizeof(halo_list*), err); forwardError(*err, __LINE__,);
   int i;
@@ -137,7 +138,10 @@ halo_map *initialize_halo_map(int N1, int N2, double theta_pix, error **err)
 void free_halo_map(halo_map *hMap)
 {
   int i;
-  for (i=0; i<hMap->length; i++) {free_halo_list(hMap->map[i]); hMap->map[i] = NULL;}
+  if (hMap->map) {
+    for (i=0; i<hMap->length; i++) {free_halo_list(hMap->map[i]); hMap->map[i] = NULL;}
+    free(hMap->map); hMap->map = NULL;
+  }
   free(hMap); hMap = NULL;
   return;
 }
@@ -184,7 +188,7 @@ void read_halo_map(char name[], cosmo_hm *cmhm, halo_map *hMap, error **err)
   }
   
   fclose(file);
-  testError(count!=hMap->total, peak_match, "Halo number match error", *err, __LINE__); forwardError(*err, __LINE__,);
+  testErrorRet(count!=hMap->total, peak_match, "Halo number match error", *err, __LINE__,);
   printf("\"%s\" read       \n", name);
   printf("%d halos generated\n", count);
   return;
@@ -229,6 +233,8 @@ double massFct(cosmo_hm_params *cANDp, double mass, error **err)
 
 void fillMassFct(cosmo_hm_params *cANDp, sampler_t *samp, error **err)
 {
+  //-- WARNING: The pdf of this function is a "normalized" mass function, not the exact one!
+  
   double *x    = samp->x;
   double *pdf  = samp->pdf;
   int i;
@@ -282,11 +288,10 @@ double dVol(cosmo_hm *cmhm, peak_param *peak, double z, double ww, double dz, er
 {
   //-- Comoving volume between z and z+dz, peak->area in [arcmin^2]
   double dV, A;
-  double fK = f_K(cmhm->cosmo, ww, err);                         forwardError(*err, __LINE__, 0);
+  double fK = f_K(cmhm->cosmo, ww, err);                   forwardError(*err, __LINE__, 0.0);
   dV  = HUBBLE_DISTANCE * SQ(fK);
-  dV *= peak->area * SQ(ARCMIN_TO_RADIAN);
-  int wOmegar = 0;
-  dV *= dz / sqrt(Esqr(cmhm->cosmo, 1.0/(1.0+z), wOmegar, err)); forwardError(*err, __LINE__, 0);
+  dV *= peak->area * ARCMIN_SQ_TO_RADIAN_SQ;
+  dV *= dz / sqrt(Esqr(cmhm->cosmo, 1.0/(1.0+z), 0, err)); forwardError(*err, __LINE__, 0.0); //-- wOmegar = 0
   return dV;
 }
 
@@ -307,12 +312,13 @@ void randomizePosition(peak_param *peak, double *pos, error **err)
       break;
       
     case rectangle:
-      theta_x = gsl_ran_flat(generator, -0.5, 0.5) * Omega[0];
-      theta_y = gsl_ran_flat(generator, -0.5, 0.5) * Omega[1];
+      theta_x = gsl_ran_flat(generator, 0.0, 1.0) * Omega[0];
+      theta_y = gsl_ran_flat(generator, 0.0, 1.0) * Omega[1];
       break;
       
-    default :
-      peak->randPosFct(generator, pos);
+    default:
+      theta_x = gsl_ran_flat(generator, -0.5, 0.5) * Omega[0];
+      theta_y = gsl_ran_flat(generator, -0.5, 0.5) * Omega[1];
       return;
    }
 
@@ -323,47 +329,39 @@ void randomizePosition(peak_param *peak, double *pos, error **err)
 
 void setMassSamplers(cosmo_hm *cmhm, peak_param *peak, sampler_arr *sampArr, error **err)
 {
-  if (peak->printMode == 0) {
-    printf("Computing mass function...\r");
-    fflush(stdout);
-  }
-  
-  //-- Redshift
-  double z_max;
-  if (peak->z_halo_max < 0) z_max = get_zmax(cmhm->redshift, 0);
-  else                      z_max = peak->z_halo_max;
-  double dz = z_max / (double)(peak->N_z_halo); 
+  if (peak->printMode == 0) {printf("Computing mass function...\r"); fflush(stdout);}
   
   //-- Structure for mass function
   cosmo_hm_params *cANDp = (cosmo_hm_params*)malloc_err(sizeof(cosmo_hm_params), err); forwardError(*err, __LINE__,);
   cANDp->model = cmhm;
   cANDp->asymptotic = 0;
   
+  double dz = peak->dz_halo; 
+  double r  = pow(10, peak->dlogM); //-- Convert bin width to ratio
   sampler_t *samp;
-  double ww, dV;
-  double r = pow(10, peak->dlogM); //-- Convert bin width to ratio
-  int wOmegar = 0;
+  double *x, z, ww, dV;
+  int i, j;
   
   //-- Loop over redshifts
-  double z;
-  int i, j;
   for (i=0, z=0.5*dz; i<sampArr->length; i++, z+=dz) {
-    samp       = sampArr->array[i];
-    samp->dx   = peak->dlogM;
-    samp->x[0] = peak->M_min;
-    for (j=1; j<peak->nbMassBins; j++) samp->x[j] = samp->x[j-1] * r; //-- Fill masses
+    samp     = sampArr->array[i];
+    samp->dx = peak->dlogM;
+    x        = samp->x;
+    x[0]     = peak->M_min;
+    for (j=1; j<peak->N_M; j++) x[j] = x[j-1] * r; //-- Fill masses
     
     //-- Compute the volume
     cANDp->a = 1.0/(1.0+z);
-    ww = w(cmhm->cosmo, cANDp->a, wOmegar, err);  forwardError(*err, __LINE__,);
-    dV = dVol(cmhm, peak, z, ww, dz, err);        forwardError(*err, __LINE__,);
+    ww = w(cmhm->cosmo, cANDp->a, 0, err); forwardError(*err, __LINE__,); //-- wOmegar = 0
+    dV = dVol(cmhm, peak, z, ww, dz, err); forwardError(*err, __LINE__,);
     
     //-- Fill mass function and cdf
-    fillMassFct(cANDp, samp, err);                forwardError(*err, __LINE__,);
+    fillMassFct(cANDp, samp, err);         forwardError(*err, __LINE__,);
     samp->x_mean *= dV; //-- x_mean becomes total mass in dV
   }
   
-  if (peak->printMode != 1) printf("Mass function computation done\n");
+  free(cANDp);
+  if (peak->printMode < 2) printf("Mass function computation done\n");
   return;
 }
 
@@ -391,22 +389,17 @@ void makeFastSimul(cosmo_hm *cmhm, peak_param *peak, sampler_arr *sampArr, halo_
   //-- Reset
   reset_halo_map(hMap);
   
-  //-- Redshift
-  double z_max;
-  if (peak->z_halo_max < 0) z_max = get_zmax(cmhm->redshift, 0);
-  else                      z_max = peak->z_halo_max;
-  double dz = z_max / (double)(peak->N_z_halo);
-      
-  //-- Loop over redshifts
+  double dz = peak->dz_halo;
   double z;
   int i;
+  
   for (i=0, z=0.5*dz; i<peak->N_z_halo; i++, z+=dz) {
     sampleHalos(cmhm, peak, sampArr->array[i], hMap, z, err);
     forwardError(*err, __LINE__,);
   }
   
-  if (peak->printMode == 1) printf("%6d halos, ", hMap->total);
-  else                      printf("%d halos generated         \n", hMap->total);
+  if      (peak->printMode < 2)   printf("%d halos generated         \n", hMap->total);
+  else if (peak->printMode == 2) {printf("%6d halos, ", hMap->total); fflush(stdout);}
   return;
 }
 
@@ -429,6 +422,82 @@ void outputFastSimul(char name[], cosmo_hm *cmhm, peak_param *peak, halo_map *hM
 }
 
 //----------------------------------------------------------------------
+//-- Functions related to mass sheet
+
+void makeAInterpolator(cosmo_hm *cmhm, interpolator_t *a_inter, double z_max, error **err)
+{
+  //-- Give a(w)
+  
+  double a_f = 1.0 / (1.0 + z_max);
+  double a_0 = 1.0;
+  int N_a = a_inter->length - 1;
+  int i;
+  
+  //-- Fill scale factor interpolator
+  a_inter->dx = -(a_0 - a_f) / (double)N_a;
+  for (i=0; i<a_inter->length; i++) {
+    a_inter->value[i] = a_0 + i*a_inter->dx;
+    a_inter->x[i]     = w(cmhm->cosmo, a_inter->value[i], 0, err); forwardError(*err, __LINE__,);
+  }
+  return;
+}
+
+void makeKappa1Interpolator(cosmo_hm *cmhm, interpolator_t *a_inter, interpolator_t *kappa1_inter, double z_max, error **err)
+{
+  //-- TODO
+  //-- Give kappa_1(a)
+  return;
+}
+
+void massSheet(cosmo_hm *cmhm, peak_param *peak, sampler_t *samp, interpolator_t *a_inter, double sheet[2], error **err)
+{
+  double r  = pow(10, peak->dlogM); //-- Convert bin width to ratio
+  double *x;
+  int i, j;
+  
+  //-- Fill mass
+  for (i=0; i<peak->N_z_halo; i++) {
+    samp->dx = peak->dlogM;
+    x        = samp->x;
+    x[0]     = peak->M_min;
+    for (j=1; j<peak->N_M; j++) x[j] = x[j-1] * r;
+  }
+  
+  //-- Structure for mass function
+  cosmo_hm_params *cANDp = (cosmo_hm_params*)malloc_err(sizeof(cosmo_hm_params), err); forwardError(*err, __LINE__,);
+  cANDp->model = cmhm;
+  cANDp->asymptotic = 0;
+  
+  double w_s   = a_inter->x[a_inter->length-1];
+  double dw    = w_s / (double)peak->N_z_halo;
+  double rho_0 = CRITICAL_DENSITY * cmhm->cosmo->Omega_m;
+  double kappa_0 = 0.0;
+  double kappa_1 = 0.0;
+  double w_curr, a_curr, lambda, factor;
+  
+  //-- Compute kappa_0 and kappa_1
+  for (i=0; i<peak->N_z_halo; i++) {
+    //-- Fill mass function and cdf
+    w_curr   = (i + 0.5) * dw;
+    a_curr   = execute_interpolator_t(a_inter, w_curr);
+    cANDp->a = a_curr;
+    fillMassFct(cANDp, samp, err);                                                         forwardError(*err, __LINE__,);
+    
+    lambda = samp->x_mean / rho_0; //-- samp->x_mean is the average mass density.
+    factor = f_K(cmhm->cosmo, w_s - w_curr, err) * f_K(cmhm->cosmo, w_curr, err) / a_curr; forwardError(*err, __LINE__,);
+    kappa_0 += factor;
+    kappa_1 += factor * lambda;
+  }
+  free(cANDp);
+  
+  double fK_s  = f_K(cmhm->cosmo, w_s, err); forwardError(*err, __LINE__,);
+  factor = FOUR_PI_G_OVER_C2 * rho_0 * dw / fK_s;
+  sheet[0] = kappa_0 * factor;
+  sheet[1] = kappa_1 * factor;
+  return;
+}
+
+//----------------------------------------------------------------------
 //-- Main functions
 
 void doMassFct(cosmo_hm *cmhm, peak_param *peak, error **err)
@@ -445,12 +514,12 @@ void doMassFct(cosmo_hm *cmhm, peak_param *peak, error **err)
 
 void doFastSimulation(cosmo_hm *cmhm, peak_param *peak, error **err)
 {
-  sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->nbMassBins);
+  sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
   setMassSamplers(cmhm, peak, sampArr, err);                                                        forwardError(*err, __LINE__,);
   halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
   
   makeFastSimul(cmhm, peak, sampArr, hMap, err); forwardError(*err, __LINE__,);
-  outputFastSimul("haloList", cmhm, peak, hMap);
+  outputFastSimul("haloCat", cmhm, peak, hMap);
   
   free_sampler_arr(sampArr);
   free_halo_map(hMap);
@@ -458,6 +527,34 @@ void doFastSimulation(cosmo_hm *cmhm, peak_param *peak, error **err)
   return;
 }
 
+void doMassSheet(cosmo_hm *cmhm, peak_param *peak, double z_halo_max, double M_min, error **err)
+{
+  peak->z_halo_max = z_halo_max;
+  peak->dz_halo    = peak->z_halo_max / (double)(peak->N_z_halo);
+  peak->M_min      = M_min;
+  peak->N_M        = (int)ceil(log10(peak->M_max / peak->M_min) / peak->dlogM); //-- Number of mass bins
+  
+  printf("z_s      = %f\n", peak->z_halo_max);
+  printf("N_z_halo = %d\n", peak->N_z_halo);
+  printf("logMmin  = %f\n", log10(peak->M_min));
+  printf("logMmax  = %f\n", log10(peak->M_max));
+  
+  int N_a = 4000;
+  double sheet[2];
+  sampler_t *samp = initialize_sampler_t(peak->N_M);
+  interpolator_t *a_inter = initialize_interpolator_t(N_a+1);
+  makeAInterpolator(cmhm, a_inter, peak->z_halo_max, err); forwardError(*err, __LINE__,);
+  massSheet(cmhm, peak, samp, a_inter, sheet, err);        forwardError(*err, __LINE__,);
+  
+  printf("kappa_0 = %f\n", sheet[0]);
+  printf("kappa_1 = %f\n", sheet[1]);
+  printf("sigma_noise = %f\n", peak->sigma_noise[0]);
+  
+  free_sampler_t(samp);
+  free_interpolator_t(a_inter);
+  printf("------------------------------------------------------------------------\n");
+  return;
+}
 //----------------------------------------------------------------------
 
 

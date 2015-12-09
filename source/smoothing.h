@@ -3,7 +3,7 @@
   /*******************************
    **  smoothing.h		**
    **  Chieh-An Lin		**
-   **  Version 2015.02.23	**
+   **  Version 2015.12.09	**
    *******************************/
 
 
@@ -11,6 +11,7 @@
 #define __smooth__
 
 #include "commonHeader.h"
+#include "FITSFunctions.h"
 #include "peakParameters.h"
 #include "haloSampling.h"
 #include "rayTracing.h"
@@ -20,11 +21,12 @@ typedef struct {
   int N1, N2;        //-- Number of pixels of each side
   int length;        //-- If type = peak_list, length = nb of peaks, otherwise length = N1 * N2
   double theta_pix;  //-- [arcmin/deg] Pixel size
-  double center[2];  //-- [arcmin/deg] Center of the map;
+  double theta_pix_inv; //-- [arcmin^-1/deg^-1] Inverse of pixel size
   double limits[4];  //-- [arcmin/deg] (theta_x_min, theta_x_max, theta_y_min, theta_y_max) in arcmin or (RA_min, RA_max, DEC_min, DEC_max) in deg
+  double center[2];  //-- [arcmin/deg] Center of the map;
   mapType_t type;    //-- Map type (defined in peakParameters.h)
-  double kappa_mean; //-- kappa_mean = mean of kappa, excluding the buffer area
-  double *kappa;
+  double *value1;    //-- Either kappa, gamma_1, or g_1
+  double *value2;    //-- Either empty, gamma_2, or g_2
 } map_t;
 
 
@@ -32,25 +34,60 @@ typedef struct {
 map_t *initialize_map_t(int N1, int N2, double theta_pix, error **err);
 void free_map_t(map_t *kMap);
 void getPixPos_map_t(map_t *kMap, double pos[2], int i, int j);
-void subtractMean_map_t(peak_param *peak, map_t *kMap);
+void getPixPos(double pos[2], double limits[4], double theta_pix, int i, int j);
 void read_map_t(char *name, peak_param *peak, map_t *kMap, mapType_t type, error **err);
 void output_map_t(FILE *file, map_t *kMap);
 
-//-- Functions related to smoothing and noise
-void fillGaussianKernel(FFT_t *transformer, double s);
-void doFFTSmoothing(peak_param *peak, map_t *kMap, FFT_t *transformer, error **err);
-void fillNoise(peak_param *peak, map_t *nMap, u_int64_t seed);
-void addNoise(map_t *kMap, map_t *nMap, error **err);
+//-- Functions related to smoothing by FFT
+void fillGaussianKernel(fftw_complex *kernel, int length, int M, double scaleInPix);
+double starlet_2D(double x, double y);
+void fillStarletKernel(fftw_complex *kernel, int length, int M, double scaleInPix);
+void makeKernel(peak_param *peak, FFT_arr *smoother);
+void smoothByFFT_arr(peak_param *peak, gal_map *gMap, FFT_arr *smoother);
+
+//-- Functions related to direct convolution
+void DCWithGaussianForPair(gal_list *gList, FFT_t **smooArr, const double *cut_sq, const double *scale_invSq, int nbLinScales, int doKappa, 
+			   double *weight, double pixPos[2], int index_FFT);
+void DCWithGaussianForPixel(gal_map *gMap, FFT_arr *smoother, const double *cut_sq, const double *scale_invSq, int nbLinScales, int doKappa, 
+			    int M, int bufferSize, double theta_pix, double *weight, int i_pix, int j_pix);
+void DCWithGaussian(peak_param *peak, gal_map *gMap, FFT_arr *smoother);
+void smoothAndBinByDC(peak_param *peak, gal_map *gMap, FFT_arr *smoother);
+
+//-- Functions related to binning and noise
+void galaxyBinning(gal_map *gMap, FFT_t *smoo);
+void copyToAllBefore(FFT_arr *smoother);
+void addNoiseToTable(peak_param *peak, gal_map *gMap, fftw_complex *table);
+
+//-- Functions related to linear KS inversion
+void linearKS(fftw_complex *table, int M);
+void invertByLinKS(peak_param *peak, FFT_t *smoo);
+void invertByLinKS_arr(peak_param *peak, gal_map *gMap, FFT_arr *smoother);
+void linKSAndFFT(peak_param *peak, FFT_t *smoo);
+void linKSAndFFT_arr(peak_param *peak, FFT_arr *smoother);
+
+//-- Functions related to iterative KS inversion
+void iterativeKS(fftw_complex *reducedShear, fftw_complex *table, fftw_plan forward, fftw_plan backward, map_t *kMap, double FFTNormFactor, int M);
+void zeroPadding(fftw_complex *table, int N1, int N2, int M);
+void invertByIterKS(peak_param *peak, FFT_t *smoo, map_t *kMap);
+void invertByIterKS_arr(peak_param *peak, gal_map *gMap, FFT_arr *smoother, map_t *kMap);
+
+//-- Functions related to nonlinear filtering
+void MRLensFiltering(peak_param *peak, char executable[], char option[], char input[], char output[], char log[]);
+
+//-- Functions related to output
+void outputMap(char name[], cosmo_hm *cmhm, peak_param *peak, map_t *kMap);
+void outputMapFromTable(char name[], cosmo_hm *cmhm, peak_param *peak, fftw_complex *table, mapType_t type);
+void outfitsMapFromTable(char name[], peak_param *peak, fftw_complex *table, map_t *kMap);
+void outputMask(char name[], peak_param *peak, gal_map *gMap, map_t *kMap, error **err);
 
 //-- Functions related to map making
-void kappaMapFromKappa(gal_map *gMap, map_t *kMap, error **err);
-void outputMap(char name[], cosmo_hm *cmhm, peak_param *peak, map_t *kMap);
-void makeMap(peak_param *peak, gal_map *gMap, map_t *kMap, map_t *nMap, FFT_t *transformer, error **err);
+void pixelization(peak_param *peak, gal_map *gMap, FFT_arr *smoother, error **err);
+void makeMap(peak_param *peak, gal_map *gMap, FFT_arr *smoother, map_t *kMap, error **err);
+void makeTrueMap(char name[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, FFT_arr *smoother, map_t *kMap, int semiTruth, error **err);
+void makeMapAndOutputAll(cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, FFT_arr *smoother, map_t *kMap, error **err);
 
 //-- Main functions
-void doKMap(char haloFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
-void doNMap(cosmo_hm *cmhm, peak_param *peak, error **err);
-void doKNMap(char KName[], char NName[], cosmo_hm *cmhm, peak_param *peak, error **err);
+void doKMap(char fileName[], cosmo_hm *cmhm, peak_param *peak, int doNoise, error **err);
 
 
 #endif

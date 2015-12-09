@@ -3,7 +3,7 @@
   /*******************************
    **  haloSampling.h		**
    **  Chieh-An Lin		**
-   **  Version 2015.02.23	**
+   **  Version 2015.10.30	**
    *******************************/
 
 
@@ -47,8 +47,9 @@ typedef struct {
   int length;       //-- Number of pixels
   int total;        //-- Number of halos
   double theta_pix; //-- [arcmin/deg] Pixel size
-  double center[2]; //-- [arcmin/deg] Center of the map;
+  double theta_pix_inv; //-- [arcmin^-1/deg^-1] Inverse of pixel size
   double limits[4]; //-- [arcmin/deg] (theta_x_min, theta_x_max, theta_y_min, theta_y_max) in arcmin or (RA_min, RA_max, DEC_min, DEC_max) in deg
+  double center[2]; //-- [arcmin/deg] Center of the map;
   halo_list **map;  //-- Binned halos
 } halo_map;
 
@@ -82,9 +83,14 @@ void sampleHalos(cosmo_hm *cmhm, peak_param *peak, sampler_t *samp, halo_map *hM
 void makeFastSimul(cosmo_hm *cmhm, peak_param *peak, sampler_arr *sampArr, halo_map *hMap, error **err);
 void outputFastSimul(char name[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
 
+//-- Functions related to mass sheet
+void makeAInterpolator(cosmo_hm *cmhm, interpolator_t *a_inter, double z_max, error **err);
+void massSheet(cosmo_hm *cmhm, peak_param *peak, sampler_t *samp, interpolator_t *a_inter, double sheet[2], error **err);
+
 //-- Main functions
 void doMassFct(cosmo_hm *cmhm, peak_param *peak, error **err);
 void doFastSimulation(cosmo_hm *cmhm, peak_param *peak, error **err);
+void doMassSheet(cosmo_hm *cmhm, peak_param *peak, double z_halo_max, double M_min, error **err);
 
 
 #endif

@@ -3,7 +3,7 @@
   /*******************************
    **  commonHeader.h		**
    **  Chieh-An Lin		**
-   **  Version 2015.02.25	**
+   **  Version 2015.12.09	**
    *******************************/
 
 
@@ -23,7 +23,6 @@
 #include <gsl/gsl_statistics.h>
 #include <fftw3.h>
 
-
 //-- Constants
 //-- The precision of 64 bits double is 52 bits, and 2^-52 is roughly 2e-16, so we only keep 17 digits in base 10.
 
@@ -35,6 +34,7 @@
 #define FOUR_PI_OVER_THREE 4.1887902047863910 
 #define PI_SQ              9.8696044010893586
 #define PI_INV             0.31830988618379067
+#define ONE_OVER_TWO_PI    0.15915494309189534
 
 #define SQRT_2             1.4142135623730950
 #define SQRT_2_INV         0.70710678118654752
@@ -42,15 +42,22 @@
 #define EXP_1              2.7182818284590452
 #define LN_10              2.3025850929940457
 #define LOG10_E            0.43429448190325183
+#define LOG2_E             1.4426950408889634
 
 //-- Unit conversion
-#define DEGREE_TO_RADIAN     0.017453292519943296
-#define ARCMIN_TO_RADIAN     2.9088820866572160e-04
-#define ARCSEC_TO_RADIAN     4.8481368110953599e-06
-#define RADIAN_TO_DEGREE     57.295779513082321
-#define RADIAN_TO_ARCMIN     3437.7467707849393
-#define RADIAN_TO_ARCSEC     206264.80624709636
-#define MEGA_PARSEC_TO_METER 3.0856775814671916e+22
+#define DEGREE_TO_RADIAN       0.017453292519943296
+#define ARCMIN_TO_RADIAN       2.9088820866572160e-04
+#define ARCSEC_TO_RADIAN       4.8481368110953599e-06
+#define RADIAN_TO_DEGREE       57.295779513082321
+#define RADIAN_TO_ARCMIN       3437.7467707849393
+#define RADIAN_TO_ARCSEC       206264.80624709636
+#define DEGREE_SQ_TO_RADIAN_SQ 3.0461741978670860e-04
+#define ARCMIN_SQ_TO_RADIAN_SQ 8.4615949940752389e-08
+#define ARCSEC_SQ_TO_RADIAN_SQ 2.3504430539097886e-11
+#define RADIAN_SQ_TO_DEGREE_SQ 3.2828063500117438e+03
+#define RADIAN_SQ_TO_ARCMIN_SQ 1.1818102860042278e+07
+#define RADIAN_SQ_TO_ARCSEC_SQ 4.2545170296152200e+10
+#define MEGA_PARSEC_TO_METER   3.0856775814671916e+22
 
 //-- Physical constants
 #define LIGHT_SPEED          299792458              //-- [m/s]
@@ -66,11 +73,6 @@
 
 typedef struct {
   int length;
-  int *array;
-} int_arr;
-
-typedef struct {
-  int length;
   double *array;
 } double_arr;
 
@@ -83,6 +85,16 @@ typedef struct {
   int N1, N2, N3, length;
   double *tensor;
 } double_ten3;
+
+typedef struct {
+  int length;
+  int *array;
+} int_arr;
+
+typedef struct {
+  int N1, N2, length;
+  short *matrix;
+} short_mat;
 
 typedef struct {
   int length;    //-- Number of points
@@ -102,16 +114,30 @@ typedef struct {
 } sampler_t;
 
 typedef struct {
-  int length;    
+  int length;
   sampler_t **array;
 } sampler_arr;
 
 typedef struct {
-  int N1, N2, length, length_f;
-  double *before, *kernel, *after;             //-- Direct space elements
-  fftw_complex *before_f, *kernel_f, *after_f; //-- Fourier space elements
-  fftw_plan before_p, kernel_p, after_p;       //-- fftw_plan elements
+  int N;        //-- Resolution, should be a square
+  int length;   //-- Number of pixels
+  fftw_complex *before, *kernel, *after; //-- fftw_complex elements, transformations are in-place
+  fftw_plan before_f, kernel_f, after_b; //-- fftw_plan elements, _f = forward, _b = backward
+  fftw_plan before_b;                    //-- Only used for KS inversion
 } FFT_t;
+
+typedef struct {
+  int length;
+  FFT_t **array;
+  /*
+  int N_array;     //-- Number of kernels
+  int N_type;      //-- Resolution, should be a square
+  int length_type; //-- Number of pixels
+  fftw_complex *before, **kernelArr, **afterArr; //-- fftw_complex elements, transformations are in-place
+  fftw_plan before_f, *kernelArr_f, *afterArr_b; //-- fftw_plan elements
+  fftw_plan *afterArr_f;                         //-- Only used for iterative KS inversion
+  */
+} FFT_arr;
 
 typedef struct {
   int length;      //-- Number of bins
@@ -122,11 +148,29 @@ typedef struct {
   int *n;          //-- Histogram
 } hist_t;
 
+typedef struct {
+  int length;       //-- Number of samples
+  double mean;      //-- Mean
+  double variance;  //-- Standard deviation
+  double two_h_sq;  //-- 2 * bandwidth^2
+  double amplitude; //-- Common amplitude factor
+  double *sample;   //-- Sample points
+} KDE_t;
 
-//-- Functions related to int_arr
-int_arr *initialize_int_arr(int length);
-void free_int_arr(int_arr *iArr);
-void print_int_arr(int_arr *iArr);
+typedef struct {
+  int length;
+  KDE_t **array;
+} KDE_arr;
+
+//-- Functions related to array
+void reset_double(double *array, int length);
+void rescale_double(double *array, int length, double factor);
+void reset_fftw_complex(fftw_complex *array, int length);
+void rescaleReal_fftw_complex(fftw_complex *array, int length, double factor);
+void rescale_fftw_complex(fftw_complex *array, int length, double factor);
+void multiplication_fftw_complex(fftw_complex *array1, fftw_complex *array2, fftw_complex *product, int length);
+void copy_fftw_complex(fftw_complex *from, fftw_complex *to, int length);
+void print_fftw_complex(fftw_complex *array, int N1);
 
 //-- Functions related to double_arr
 double_arr *initialize_double_arr(int length);
@@ -142,6 +186,16 @@ void print_double_mat(double_mat *fMat);
 double_ten3 *initialize_double_ten3(int N1, int N2, int N3);
 void free_double_ten3(double_ten3 *fTen);
 
+//-- Functions related to int_arr
+int_arr *initialize_int_arr(int length);
+void free_int_arr(int_arr *iArr);
+void print_int_arr(int_arr *iArr);
+
+//-- Functions related to short_mat
+short_mat *initialize_short_mat(int N1, int N2);
+void free_short_mat(short_mat *iMat);
+void print_short_mat(short_mat *iMat);
+
 //-- Functions related to interpolator_t
 interpolator_t *initialize_interpolator_t(int length);
 void free_interpolator_t(interpolator_t *inter);
@@ -156,14 +210,20 @@ void set_sampler_t(sampler_t *samp, int setTotalToOne);
 double execute_sampler_t(sampler_t *samp, double x);
 
 //-- Functions related to sampler_arr
-sampler_arr *initialize_sampler_arr(int length, int nbPoints);
+sampler_arr *initialize_sampler_arr(int N_array, int N_type);
 void free_sampler_arr(sampler_arr *sampArr);
 
 //-- Functions related to FFT_t
-FFT_t *initialize_FFT_t(int N1, int N2);
+FFT_t *initialize_FFT_t(int N);
 void free_FFT_t(FFT_t *transformer);
 void reset_FFT_t(FFT_t *transformer);
 void execute_FFT_t(FFT_t *transformer);
+
+//-- Functions related to FFT_arr
+FFT_arr *initialize_FFT_arr(int N_array, int N_type);
+void free_FFT_arr(FFT_arr *transArr);
+void reset_FFT_arr(FFT_arr *transArr);
+void execute_FFT_arr(FFT_arr *transArr);
 
 //-- Functions related to hist_t
 hist_t *initialize_hist_t(int length);
@@ -175,6 +235,17 @@ void push_hist_t(hist_t *hist, double x);
 void silentPush_hist_t(hist_t *hist, double x);
 hist_t *deepCopy_hist_t(hist_t *oldHist);
 
+//-- Functions related to KDE_t
+KDE_t *initialize_KDE_t(int length);
+void free_KDE_t(KDE_t *estimator);
+void set_KDE_t(KDE_t *estimator, double h);
+double execute_KDE_t(KDE_t *estimator, double x);
+double integrate_KDE_t(KDE_t *estimator, double x);
+
+//-- Functions related to KDE_arr
+KDE_arr *initialize_KDE_arr(int N_array, int N_type);
+void free_KDE_arr(KDE_arr *estArr);
+
 //-- Functions related to RNG
 u_int64_t renewSeed();
 gsl_rng *initializeGenerator();
@@ -184,12 +255,15 @@ void printTime(clock_t start, clock_t stop);
 void routineTime(clock_t start, clock_t stop);
 
 //-- Math functions
-int imod(int N, int i);
-int imodc(int N, int i);
+#define POS_MOD(N, i) ((i) >= 0 ? (i)%(N) : ((i)%(N) + N)%(N))                                           //-- Return value in range [0, N-1]
+#define CEN_MOD(N, i) ((i)%(N) > (N)/2 ? (i)%(N) - (N) : (i)%(N) <= (N)/2 - (N) ? (i)%(N) + N : (i)%(N)) //-- Return value in range [N/2 - N + 1, N/2], [-1, 0, 1] if N = 3 and [-1, 0, 1, 2] if N = 4
 
 //-- Fast math functions
 #define DIST_2D_SQ(a,b) (pow((a)[0]-(b)[0], 2) + pow((a)[1]-(b)[1], 2))
 #define DIST_3D_SQ(a,b) (pow((a)[0]-(b)[0], 2) + pow((a)[1]-(b)[1], 2) + pow((a)[2]-(b)[2], 2))
+#define DIST_4D_SQ(a,b) (pow((a)[0]-(b)[0], 2) + pow((a)[1]-(b)[1], 2) + pow((a)[2]-(b)[2], 2) + pow((a)[3]-(b)[3], 2))
+#define DIST_5D_SQ(a,b) (pow((a)[0]-(b)[0], 2) + pow((a)[1]-(b)[1], 2) + pow((a)[2]-(b)[2], 2) + pow((a)[3]-(b)[3], 2) + pow((a)[4]-(b)[4], 2))
+#define DIST_6D_SQ(a,b) (pow((a)[0]-(b)[0], 2) + pow((a)[1]-(b)[1], 2) + pow((a)[2]-(b)[2], 2) + pow((a)[3]-(b)[3], 2) + pow((a)[4]-(b)[4], 2) + pow((a)[5]-(b)[5], 2))
 #define NORM_2D_SQ(a)   (pow((a)[0], 2) + pow((a)[1], 2))
 #define NORM_3D_SQ(a)   (pow((a)[0], 2) + pow((a)[1], 2) + pow((a)[2], 2))
 #define SQ(a)           (pow((a), 2))

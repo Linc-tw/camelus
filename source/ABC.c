@@ -3,7 +3,7 @@
   /***********************************************
    **  ABC.c					**
    **  Chieh-An Lin				**
-   **  Version 2015.04.06			**
+   **  Version 2015.12.09			**
    **						**
    **  References:				**
    **  - Marin et al. (2011)			**
@@ -15,460 +15,415 @@
 
 
 //----------------------------------------------------------------------
-//-- Functions related to particle_t
+//-- Functions related to iteration_t
 
-particle_t *initialize_particle_t(int d, error **err)
+iteration_t *initialize_iteration_t(int f, int Q, int MPISize, error **err)
 {
-  particle_t *pa = (particle_t*)malloc_err(sizeof(particle_t), err); forwardError(*err, __LINE__,);
-  pa->d          = d;
-  pa->diff       = 0.0;
-  pa->weight     = 0.0;
-  pa->param      = (double*)malloc_err(d * sizeof(double), err);     forwardError(*err, __LINE__,);
-  pa->param_gsl  = gsl_vector_alloc(d);
-  return pa;
+  iteration_t *iter = (iteration_t*)malloc_err(sizeof(iteration_t), err); forwardError(*err, __LINE__,);
+  iter->f           = f;
+  iter->Q           = Q;
+  iter->Q_MPI       = (int)ceil((double)Q / (double)MPISize);
+  iter->nbAttempts  = 0;
+  iter->mean        = gsl_vector_alloc(f);
+  iter->buffer      = gsl_vector_alloc(f);
+  iter->cov         = gsl_matrix_alloc(f, f);
+  iter->cov2        = gsl_matrix_alloc(f, f);
+  iter->invCov      = gsl_matrix_alloc(f, f);
+  iter->cholesky    = gsl_matrix_alloc(f, f);
+  iter->perm        = gsl_permutation_alloc(f);
+  iter->matrix      = initialize_double_mat(f + 2, iter->Q_MPI * MPISize);
+  return iter;
 }
 
-void free_particle_t(particle_t *pa)
+void free_iteration_t(iteration_t *iter)
 {
-  if (pa->param) {free(pa->param); pa->param = NULL;}
-  gsl_vector_free(pa->param_gsl);
-  free(pa);
+  gsl_vector_free(iter->mean);
+  gsl_vector_free(iter->buffer);
+  gsl_matrix_free(iter->cov);
+  gsl_matrix_free(iter->cov2);
+  gsl_matrix_free(iter->invCov);
+  gsl_matrix_free(iter->cholesky);
+  gsl_permutation_free(iter->perm);
+  free_double_mat(iter->matrix);
+  free(iter);
   return;
 }
 
-void print_particle_t(particle_t *pa)
+void print_iteration_t(iteration_t *iter)
 {
-  //-- WARNING: d-dependent
-  printf("(Omega_M, sigma_8) = (%.3f, %.3f), weight = %.3f, diff = %9.5f\n", pa->param[0], pa->param[1], pa->weight, pa->diff);
-  return;
-}
-
-//----------------------------------------------------------------------
-//-- Functions related to particle_arr
-
-particle_arr *initialize_particle_arr(int d, int p, error **err)
-{
-  particle_arr *part = (particle_arr*)malloc_err(sizeof(particle_arr), err);   forwardError(*err, __LINE__,);
-  part->d            = d;
-  part->p            = p;
-  part->nbAttempts   = 0;
-  part->array        = (particle_t**)malloc_err(p * sizeof(particle_t*), err); forwardError(*err, __LINE__,);
-  part->mean         = initialize_double_arr(d);
-  part->cov          = gsl_matrix_alloc(d, d);
-  part->cov2         = gsl_matrix_alloc(d, d);
-  part->invCov       = gsl_matrix_alloc(d, d);
-  part->perm         = gsl_permutation_alloc(d);
+  //-- WARNING: f-dependent
   
-  int i;
-  for (i=0; i<p; i++) {
-    part->array[i] = initialize_particle_t(d, err);
-    forwardError(*err, __LINE__,);
-  }
-  return part;
-}
-
-void free_particle_arr(particle_arr *part)
-{
-  int i;
-  if (part->array) {
-    for (i=0; i<part->p; i++) {free_particle_t(part->array[i]); part->array[i] = NULL;}
-  }
-  if (part->mean) {free_double_arr(part->mean); part->mean = NULL;}
-  gsl_matrix_free(part->cov);
-  gsl_matrix_free(part->cov2);
-  gsl_matrix_free(part->invCov);
-  gsl_permutation_free(part->perm);
-  free(part);
-  return;
-}
-
-void print_particle_arr(particle_arr *part)
-{
-  printf("# particle_arr (first 20 elements)\n");
-  int L = MIN(part->p, 20);
+  printf("# iteration_t (first 20 elements)\n");
+  int f2 = iter->f + 2;
+  int L  = MIN(iter->Q, 20);
   
-  int i;
-  for (i=0; i<L; i++) print_particle_t(part->array[i]);
+  double *begin = iter->matrix->matrix;
+  double *end   = begin + f2 * L;
+  double *part;
+  for (part=begin; part<end; part+=f2) printf("(Omega_M, sigma_8, w0_de) = (%.3f, %.3f, % .3f), weight = %.3f, delta = %9.5f\n", part[0], part[1], part[2], part[f2-2], part[f2-1]);
   return;
 }
 
-void output1_particle_arr(FILE *file, particle_arr *part)
+void output_gsl_matrix(FILE *file, gsl_matrix *mat)
 {
-  //-- WARNING: d-dependent
-  int p = part->p;
-  fprintf(file, "# particle_arr\n");
-  fprintf(file, "# p                  = %d\n", p);
-  fprintf(file, "# Number of attempts = %d\n", part->nbAttempts);
-  fprintf(file, "# Success rate       = %.5f\n", p / (double)part->nbAttempts);
+  int f = mat->size1;
+  int i, j;
+  
+  fprintf(file, "# [[% 9.5f", mat->data[0+0*f]);
+  for (i=1; i<f; i++) fprintf(file, ", % 9.5f", mat->data[i+0*f]);
+  fprintf(file, "]");
+  
+  for (j=1; j<f; j++) {
+    fprintf(file, ",\n#  [% 9.5f", mat->data[0+j*f]);
+    for (i=1; i<f; i++) fprintf(file, ", % 9.5f", mat->data[i+j*f]);
+    fprintf(file, "]");
+  }
+  
+  fprintf(file, "]\n");
+  return;
+}
+
+void output1_iteration_t(FILE *file, iteration_t *iter)
+{
+  //-- WARNING: f-dependent
+  
+  int Q = iter->Q;
+  fprintf(file, "# iteration_t\n");
+  fprintf(file, "# f                  = %d\n", iter->f);
+  fprintf(file, "# Q                  = %d\n", Q);
+  fprintf(file, "# Number of attempts = %d\n", iter->nbAttempts);
+  fprintf(file, "# Success rate       = %.5f\n", Q / (double)iter->nbAttempts);
   fprintf(file, "#\n");
   
-  particle_t **partArr = part->array;
-  int i; 
+  int f2        = iter->f + 2;
+  double *begin = iter->matrix->matrix;
+  double *end   = begin + f2 * Q;
+  double *part;
   
-  fprintf(file, "Omega_M = [%.5f", partArr[0]->param[0]);
-  for (i=1; i<p; i++) fprintf(file, ", %.5f", partArr[i]->param[0]);
+  fprintf(file, "Omega_M = [");
+  for (part=begin;   part<end; part+=f2) fprintf(file, ", %.5f", part[0]);
   fprintf(file, "]\n");
   
-  fprintf(file, "sigma_8 = [%.5f", partArr[0]->param[1]);
-  for (i=1; i<p; i++) fprintf(file, ", %.5f", partArr[i]->param[1]);
+  fprintf(file, "sigma_8 = [");
+  for (part=begin+1; part<end; part+=f2) fprintf(file, ", %.5f", part[0]);
   fprintf(file, "]\n");
   
-  fprintf(file, "weight  = [%.5f", partArr[0]->weight);
-  for (i=1; i<p; i++) fprintf(file, ", %.5f", partArr[i]->weight);
+  fprintf(file, "w0_de   = [");
+  for (part=begin+2; part<end; part+=f2) fprintf(file, ", %.5f", part[0]);
   fprintf(file, "]\n");
   
-  fprintf(file, "diff    = [%.5f", partArr[0]->diff);
-  for (i=1; i<p; i++) fprintf(file, ", %.5f", partArr[i]->diff);
+  fprintf(file, "delta   = [");
+  for (part=begin+3; part<end; part+=f2) fprintf(file, ", %.5f", part[f2-2]);
+  fprintf(file, "]\n");
+  
+  fprintf(file, "weight  = [");
+  for (part=begin+4; part<end; part+=f2) fprintf(file, ", %.5f", part[f2-1]);
   fprintf(file, "]\n");
   fprintf(file, "\n");
   
-  fprintf(file, "cov    = [[% .5f, % .5f], [% .5f, % .5f]]\n",
-          gsl_matrix_get(part->cov, 0, 0), gsl_matrix_get(part->cov, 0, 1),
-          gsl_matrix_get(part->cov, 1, 0), gsl_matrix_get(part->cov, 1, 1));
-  
-  fprintf(file, "invCov = [[% .5f, % .5f], [% .5f, % .5f]]\n",
-          gsl_matrix_get(part->invCov, 0, 0), gsl_matrix_get(part->invCov, 0, 1),
-          gsl_matrix_get(part->invCov, 1, 0), gsl_matrix_get(part->invCov, 1, 1));
+  fprintf(file, "# cov    =\n");
+  output_gsl_matrix(file, iter->cov);
+  fprintf(file, "# invCov =\n");
+  output_gsl_matrix(file, iter->invCov);
   return;
 }
 
-void output2_particle_arr(FILE *file, particle_arr *part)
+void output2_iteration_t(FILE *file, iteration_t *iter)
 {
-  //-- WARNING: d-dependent
-  int p = part->p;
-  fprintf(file, "# particle_arr\n");
-  fprintf(file, "# p                  = %d\n", p);
-  fprintf(file, "# Number of attempts = %d\n", part->nbAttempts);
-  fprintf(file, "# Success rate       = %.5f\n", p / (double)part->nbAttempts);
-  fprintf(file, "# epsilon            = %.5f\n", part->epsilon);
-  fprintf(file, "# cov                = [[% .5f, % .5f], [% .5f, % .5f]]\n",
-          gsl_matrix_get(part->cov, 0, 0), gsl_matrix_get(part->cov, 0, 1),
-          gsl_matrix_get(part->cov, 1, 0), gsl_matrix_get(part->cov, 1, 1));
-  fprintf(file, "# invCov             = [[% .5f, % .5f], [% .5f, % .5f]]\n",
-          gsl_matrix_get(part->invCov, 0, 0), gsl_matrix_get(part->invCov, 0, 1),
-          gsl_matrix_get(part->invCov, 1, 0), gsl_matrix_get(part->invCov, 1, 1));
+  //-- WARNING: f-dependent
+  
+  int Q = iter->Q;
+  fprintf(file, "# iteration_t\n");
+  fprintf(file, "# f                  = %d\n", iter->f);
+  fprintf(file, "# Q                  = %d\n", Q);
+  fprintf(file, "# Number of attempts = %d\n", iter->nbAttempts);
+  fprintf(file, "# Success rate       = %.5f\n", Q / (double)iter->nbAttempts);
+  fprintf(file, "# epsilon            = %.5f\n", iter->epsilon);
+  fprintf(file, "# cov                =\n");
+  output_gsl_matrix(file, iter->cov);
+  fprintf(file, "# invCov             =\n");
+  output_gsl_matrix(file, iter->invCov);
   fprintf(file, "#\n");
-  fprintf(file, "# Omega_M  sigma_8   weight       diff\n");
+  fprintf(file, "# Omega_M  sigma_8     w0_de     delta    weight\n");
   
-  particle_t *pa;
+  int f2        = iter->f + 2;
+  double *begin = iter->matrix->matrix;
+  double *end   = begin + f2 * Q;
+  double *part;
+  
+  for (part=begin; part<end; part+=f2) fprintf(file, "  %.5f  %.5f  % .5f  %9.5f  %.5f\n", part[0], part[1], part[2], part[f2-2], part[f2-1]);
+  return;
+}
+
+void updateMean_iteration_t(iteration_t *iter)
+{
+  int f  = iter->f;
+  int f2 = iter->f + 2;
+  int Q  = iter->Q;
+  double *weight = iter->matrix->matrix + f2 - 1;
+  double *param;
   int i;
-  for (i=0; i<p; i++) {
-    pa = part->array[i];
-    fprintf(file, "  %.5f  %.5f  %.5f  %9.5f\n", pa->param[0], pa->param[1], pa->weight, pa->diff);
+  
+  for (i=0; i<f; i++) {
+    param = iter->matrix->matrix + i;
+    iter->mean->data[i] = gsl_stats_wmean(weight, f2, param, f2, Q);
   }
   return;
 }
 
-void updateEpsilon_particle_arr(particle_arr *part, double *diffArr)
+void updateCovariance_iteration_t(iteration_t *iter)
 {
-  int p = part->p;
-  int i;
-  for (i=0; i<p; i++) diffArr[i] = part->array[i]->diff;
-  
-  gsl_sort(diffArr, 1, p);
-  part->epsilon = gsl_stats_median_from_sorted_data(diffArr, 1, p);
-  printf("epsilon_median = %.5f\n", part->epsilon);
-  printf("Success rate   = %.5f\n", p / (double)part->nbAttempts);
-  return;
-}
-
-void updateMean_particle_arr(particle_arr *part)
-{
-  int d = part->d;
-  int p = part->p;
-  double sum;
-  
-  int i, j;
-  for (j=0; j<d; j++) {
-    sum = 0.0;
-    for (i=0; i<p; i++) sum += part->array[i]->weight * part->array[i]->param[j];
-    part->mean->array[j] = sum;
-  }
-  return;
-}
-
-void updateCovariance_particle_arr(particle_arr *part)
-{
-  int d = part->d;
-  int p = part->p;
-  gsl_matrix *cov = part->cov;
-  double *meanArr = part->mean->array;
+  int f2 = iter->f + 2;
+  int Q  = iter->Q;
   double w_tot    = 0.0;
   double w_sq_tot = 0.0;
-  double mean_i, mean_j, sum;
-  particle_t *pa;
+  double *begin   = iter->matrix->matrix;
+  double *end     = begin + f2 * Q;
+  double *part;
   
-  int k;
-  for (k=0; k<p; k++) {
-    w_tot    += part->array[k]->weight;
-    w_sq_tot += pow(part->array[k]->weight, 2);
+  for (part=begin; part<end; part+=f2) {
+    w_tot    += part[f2-1];
+    w_sq_tot += pow(part[f2-1], 2);
   }
   
+  int f = iter->f;
+  double *meanArr = iter->mean->data;
+  double *covMat  = iter->cov->data;
+  
+  double mean_i, mean_j, sum;
   int i, j;
-  for (j=0; j<d; j++) {
-    for (i=0; i<d; i++) {
+  
+  for (j=0; j<f; j++) {
+    for (i=0; i<f; i++) {
       sum = 0.0;
       if (i < j) {
-	gsl_matrix_set(cov, i, j, gsl_matrix_get(cov, j, i));
+	covMat[i+j*f] = covMat[j+i*f];
 	continue;
       }
       mean_i = meanArr[i];
       mean_j = meanArr[j];
-      for (k=0; k<p; k++) {
-	pa   = part->array[k];
-	sum += pa->weight * (pa->param[i] - mean_i) * (pa->param[j] - mean_j);
-      }
+      for (part=begin; part<end; part+=f2) sum += part[f2-1] * (part[i] - mean_i) * (part[j] - mean_j);
       sum *= w_tot / (pow(w_tot, 2) - w_sq_tot);
-      gsl_matrix_set(cov, i, j, sum);
+      covMat[i+j*f] = sum;
     }
   }
   
   //-- Make a copy, because the invertion will destroy cov
-  gsl_matrix_memcpy(part->cov2, cov);
+  gsl_matrix_memcpy(iter->cov2, iter->cov);
   
   //-- Make LU decomposition and invert
   int s;
-  gsl_linalg_LU_decomp(part->cov2, part->perm, &s);
-  gsl_linalg_LU_invert(part->cov2, part->perm, part->invCov);
+  gsl_linalg_LU_decomp(iter->cov2, iter->perm, &s);
+  gsl_linalg_LU_invert(iter->cov2, iter->perm, iter->invCov);
   
   //-- Debias the C_{ij}^{-1}
-  //-- C^-1_unbiased = (p - d - 2) / (p - 1) * C^-1_biased
-  double factor = (p - d -2) / (double)(p - 1);
-  gsl_matrix_scale(part->invCov, factor);
+  //-- C^-1_unbiased = (Q - f - 2) / (Q - 1) * C^-1_biased
+  double factor = (Q - f - 2) / (double)(Q - 1);
+  gsl_matrix_scale(iter->invCov, factor);
   return;
 }
 
-void read_particle_arr(char name[], particle_arr *part, double *diffArr, error **err)
+void updateCholesky_iteration_t(iteration_t *iter)
 {
-  //-- WARNING: d-dependent
+  gsl_matrix_memcpy(iter->cholesky, iter->cov);
+  gsl_linalg_cholesky_decomp(iter->cholesky);
+  return;
+}
+
+void read_iteration_t(char name[], iteration_t *iter, double *deltaArr, error **err)
+{
+  //-- WARNING: f-dependent
+  
   FILE *file = fopen_err(name, "r", err); forwardError(*err, __LINE__,);
   char buffer[STRING_LENGTH_MAX], *buffer1;
   int buffer2, count = 0;
-  particle_t *pa;
-  double pos[2], w, z, M;
+  int f2 = iter->f + 2;
+  double *part = iter->matrix->matrix;
   
   int c = fgetc(file);
   while (c != EOF) {
     if (c == (int)'#') buffer1 = fgets(buffer, STRING_LENGTH_MAX, file);
     else {
-      testError(count==part->p, peak_overflow, "Too many particles", *err, __LINE__); forwardError(*err, __LINE__,);
+      testErrorRet(count==iter->Q, peak_overflow, "Too many particles", *err, __LINE__,);
       ungetc(c, file);
-      pa = part->array[count];
-      buffer2 = fscanf(file, "%lf %lf %lf %lf\n", &pa->param[0], &pa->param[1], &pa->weight, &pa->diff);
+      buffer2 = fscanf(file, "%lf %lf %lf %lf %lf\n", &part[0], &part[1], &part[2], &part[f2-2], &part[f2-1]);
       count++;
+      part += f2;
     }
     c = fgetc(file);
   }
-  
   fclose(file);
+  
+  updateMean_iteration_t(iter);
+  updateCovariance_iteration_t(iter);
+  updateCholesky_iteration_t(iter);
+  
   printf("\"%s\" read\n", name);
   printf("%d particles generated\n", count);
-  updateEpsilon_particle_arr(part, diffArr);
-  updateMean_particle_arr(part);
-  updateCovariance_particle_arr(part);
   return;
 }
 
 //----------------------------------------------------------------------
-//-- Functions related to SMC_ABC_t
+//-- Functions related to PMC_ABC_t
 
-SMC_ABC_t *initialize_SMC_ABC_t(peak_param *peak, error **err)
+PMC_ABC_t *initialize_PMC_ABC_t(peak_param *peak, error **err)
 {
-  SMC_ABC_t *ABC = (SMC_ABC_t*)malloc_err(sizeof(SMC_ABC_t), err); forwardError(*err, __LINE__,);
-  ABC->d         = peak->ABC_d;
-  ABC->p         = peak->ABC_p;
+  PMC_ABC_t *ABC = (PMC_ABC_t*)malloc_err(sizeof(PMC_ABC_t), err); forwardError(*err, __LINE__,);
+  ABC->Q         = peak->ABC_Q;
   ABC->r_stop    = peak->ABC_r_stop;
   int i;
   STRING2ENUM(ABC->summ, peak->ABC_summ, summary_t, STR_SUMMARY_T, i, NB_SUMMARY_T, err); forwardError(*err, __LINE__,);
   
-  ABC->epsilon_0 = DBL_MAX;
-  ABC->priorFct  = prior_pentagon;
+  ABC->f         = 3;
+  ABC->priorFct  = prior_rectangle;
+  
+  ABC->Q_MPI     = (int)ceil((double)ABC->Q / (double)peak->MPISize);
   
   ABC->t         = 0;
-  ABC->oldPart   = initialize_particle_arr(ABC->d, ABC->p, err); forwardError(*err, __LINE__,);
-  ABC->newPart   = initialize_particle_arr(ABC->d, ABC->p, err); forwardError(*err, __LINE__,);
-  ABC->diffList  = initialize_double_arr(ABC->p);
+  ABC->oldIter   = initialize_iteration_t(ABC->f, ABC->Q, peak->MPISize, err); forwardError(*err, __LINE__,);
+  ABC->newIter   = initialize_iteration_t(ABC->f, ABC->Q, peak->MPISize, err); forwardError(*err, __LINE__,);
+  ABC->deltaList = initialize_double_arr(ABC->Q);
+  ABC->newIter->epsilon = 1e+15;
   
-  if (ABC->summ == abd6) {
-    ABC->obsSummary   = initialize_double_arr(6);
-    ABC->simulSummary = initialize_double_arr(6);
-    ABC->peakHist     = initialize_hist_t(6);
-    set_hist_t(ABC->peakHist, 3.5, 6.5);
-    ABC->peakHist->x_max = 1000.0; //-- So that bins are [3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 1000.0]
-    ABC->summaryFct   = summary_abd_all;
-    ABC->distFct      = dist_abd6;
-  }
-  else if (ABC->summ == pct6) {
-    ABC->obsSummary   = initialize_double_arr(6);
-    ABC->simulSummary = initialize_double_arr(6);
-    ABC->summaryFct   = summary_pct6;
-    ABC->distFct      = dist_6D;
-  }
-  else if (ABC->summ == cut6) {
-    ABC->obsSummary   = initialize_double_arr(6);
-    ABC->simulSummary = initialize_double_arr(6);
-    ABC->summaryFct   = summary_cut6;
-    ABC->distFct      = dist_6D;
-  }
-  else if (ABC->summ == abd5) {
-    ABC->obsSummary   = initialize_double_arr(5);
-    ABC->simulSummary = initialize_double_arr(5);
-    ABC->peakHist     = initialize_hist_t(5);
-    ABC->peakHist->x_lower[0] = 3.0;
-    ABC->peakHist->x_lower[1] = 3.8;
-    ABC->peakHist->x_lower[2] = 4.5;
-    ABC->peakHist->x_lower[3] = 5.3;
-    ABC->peakHist->x_lower[4] = 6.2;
-    ABC->peakHist->x_max      = 1000.0; //-- So that bins are [3.0, 3.8, 4.5, 5.3, 6.2, 1000.0]
-    ABC->summaryFct   = summary_abd_all;
-    ABC->distFct      = dist_abd5;
-  }
-  else if (ABC->summ == pct5) {
-    ABC->obsSummary   = initialize_double_arr(5);
-    ABC->simulSummary = initialize_double_arr(5);
-    ABC->summaryFct   = summary_pct5;
-    ABC->distFct      = dist_pct5;
-  }
-  else if (ABC->summ == cut5) {
-    ABC->obsSummary   = initialize_double_arr(5);
-    ABC->simulSummary = initialize_double_arr(5);
-    ABC->summaryFct   = summary_cut5;
-    ABC->distFct      = dist_cut5;
-  }
-  else if (ABC->summ == pct4) {
-    ABC->obsSummary   = initialize_double_arr(4);
-    ABC->simulSummary = initialize_double_arr(4);
-    ABC->summaryFct   = summary_pct4;
-    ABC->distFct      = dist_4D;
-  }
-  else if (ABC->summ == pct998) {
-    ABC->obsSummary   = initialize_double_arr(1);
-    ABC->simulSummary = initialize_double_arr(1);
-    ABC->summaryFct   = summary_pct998;
-    ABC->distFct      = dist_1D;
-  }
-  else if (ABC->summ == pct996) {
-    ABC->obsSummary   = initialize_double_arr(1);
-    ABC->simulSummary = initialize_double_arr(1);
-    ABC->summaryFct   = summary_pct996;
-    ABC->distFct      = dist_1D;
-  }
-  else if (ABC->summ == cut900) {
-    ABC->obsSummary   = initialize_double_arr(1);
-    ABC->simulSummary = initialize_double_arr(1);
-    ABC->summaryFct   = summary_cut900;
-    ABC->distFct      = dist_1D;
-  }
+  int N_bin      = peak->doSmoothing < 3 ? peak->N_nu : (peak->doSmoothing == 3 ? peak->N_kappa : MAX(peak->N_nu, peak->N_kappa));
+  ABC->x_obs     = initialize_double_arr(N_bin * peak->nbFilters);
+  ABC->x_mod     = initialize_double_arr(N_bin * peak->nbFilters);
+  ABC->summFct   = summary_multiscale;
+  
+  //-- WARNING: For Paper III, the distance is defined somewhere else
+  if (ABC->summ == summ_gauss)     ABC->distFct = dist_gauss;
+  else if (ABC->summ == summ_star) ABC->distFct = dist_star;
+  else if (ABC->summ == summ_mrlens);
   else {*err = addError(peak_unknown, "Unknown summary type", *err, __LINE__); forwardError(*err, __LINE__,);}
   
-  int length       = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
-  cosmo_hm *cmhm   = initialize_cosmo_hm_default(err);                                          forwardError(*err, __LINE__,);
+  int N1_mask    = (int)(peak->Omega[0] * peak->theta_CCD_inv);
+  int N2_mask    = (int)(peak->Omega[1] * peak->theta_CCD_inv);
+  int length     = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
+  cosmo_hm *cmhm = initialize_cosmo_hm_default(err);                                           forwardError(*err, __LINE__,);
   
-  ABC->sampArr     = initialize_sampler_arr(peak->N_z_halo, peak->nbMassBins);
-  ABC->hMap        = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
-  ABC->gMap        = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
-  makeGalaxies(cmhm, peak, ABC->gMap, err);                                                     forwardError(*err, __LINE__,);
-  ABC->kMap        = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
-  ABC->nMap        = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
-  ABC->transformer = initialize_FFT_t(peak->FFTSize, peak->FFTSize);
-  fillGaussianKernel(ABC->transformer, peak->s);
-  ABC->peakList    = initialize_double_arr(length);
+  //-- Camelus pipeline
+  ABC->sampArr    = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
+  ABC->hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
+  ABC->galSamp    = initialize_sampler_t(peak->N_z_gal);
+  setGalaxySampler(cmhm, peak, ABC->galSamp, err);                                             forwardError(*err, __LINE__,);
+  ABC->gMap       = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
+  ABC->CCDMask    = initialize_short_mat(N1_mask, N2_mask);
+  if (peak->doMask == 1) fillMask_CFHTLenS_W1(peak, ABC->CCDMask);
+  ABC->smoother   = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernel(peak, ABC->smoother);
+  ABC->kMap       = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
+  ABC->variance   = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernelForVariance(peak, ABC->variance);
+  ABC->peakList   = initialize_double_arr(length);
+  ABC->hist       = initialize_hist_t(peak->N_nu);
+  setHist(peak, ABC->hist);
+  ABC->hist2      = initialize_hist_t(peak->N_kappa);
+  setHist2(peak, ABC->hist2);
+  ABC->multiscale = initialize_double_mat(N_bin, peak->nbFilters);
   
   free_parameters_hm(&cmhm);
-  printf("ABC initialization done\n");
+  
+  if (peak->MPIInd == 0) printf("ABC initialization done\n");
   return ABC;
 }
 
-void free_SMC_ABC_t(SMC_ABC_t *ABC)
+void free_PMC_ABC_t(PMC_ABC_t *ABC)
 {
-  if (ABC->oldPart)      {free_particle_arr(ABC->oldPart);    ABC->oldPart = NULL;}
-  if (ABC->newPart)      {free_particle_arr(ABC->newPart);    ABC->newPart = NULL;}
-  if (ABC->diffList)     {free_double_arr(ABC->diffList);     ABC->diffList = NULL;}
+  if (ABC->oldIter)    {free_iteration_t(ABC->oldIter);   ABC->oldIter = NULL;}
+  if (ABC->newIter)    {free_iteration_t(ABC->newIter);   ABC->newIter = NULL;}
+  if (ABC->deltaList)  {free_double_arr(ABC->deltaList);  ABC->deltaList = NULL;}
   
-  if (ABC->obsSummary)   {free_double_arr(ABC->obsSummary);   ABC->obsSummary = NULL;}
-  if (ABC->simulSummary) {free_double_arr(ABC->simulSummary); ABC->simulSummary = NULL;}
-  if (ABC->peakHist)     {free_hist_t(ABC->peakHist);         ABC->peakHist = NULL;}
+  if (ABC->x_obs)      {free_double_arr(ABC->x_obs);      ABC->x_obs = NULL;}
+  if (ABC->x_mod)      {free_double_arr(ABC->x_mod);      ABC->x_mod = NULL;}
   
-  if (ABC->sampArr)      {free_sampler_arr(ABC->sampArr);     ABC->sampArr = NULL;}
-  if (ABC->hMap)         {free_halo_map(ABC->hMap);           ABC->hMap = NULL;}
-  if (ABC->gMap)         {free_gal_map(ABC->gMap);            ABC->gMap = NULL;}
-  if (ABC->kMap)         {free_map_t(ABC->kMap);              ABC->kMap = NULL;}
-  if (ABC->nMap)         {free_map_t(ABC->nMap);              ABC->nMap = NULL;}
-  if (ABC->transformer)  {free_FFT_t(ABC->transformer);       ABC->transformer = NULL;}
-  if (ABC->peakList)     {free_double_arr(ABC->peakList);     ABC->peakList = NULL;}
+  if (ABC->sampArr)    {free_sampler_arr(ABC->sampArr);   ABC->sampArr = NULL;}
+  if (ABC->hMap)       {free_halo_map(ABC->hMap);         ABC->hMap = NULL;}
+  if (ABC->galSamp)    {free_sampler_t(ABC->galSamp);     ABC->galSamp = NULL;}
+  if (ABC->gMap)       {free_gal_map(ABC->gMap);          ABC->gMap = NULL;}
+  if (ABC->CCDMask)    {free_short_mat(ABC->CCDMask);     ABC->CCDMask = NULL;}
+  if (ABC->smoother)   {free_FFT_arr(ABC->smoother);      ABC->smoother = NULL;}
+  if (ABC->kMap)       {free_map_t(ABC->kMap);            ABC->kMap = NULL;}
+  if (ABC->variance)   {free_FFT_arr(ABC->variance);      ABC->variance = NULL;}
+  if (ABC->peakList)   {free_double_arr(ABC->peakList);   ABC->peakList = NULL;}
+  if (ABC->hist)       {free_hist_t(ABC->hist);           ABC->hist = NULL;}
+  if (ABC->hist2)      {free_hist_t(ABC->hist2);          ABC->hist2 = NULL;}
+  if (ABC->multiscale) {free_double_mat(ABC->multiscale); ABC->multiscale = NULL;}
+  
   free(ABC); ABC = NULL;
   return;
 }
 
-void fillObservation_SMC_ABC_t(char name[], SMC_ABC_t *ABC, error **err)
+void fillObservation(char name[], peak_param *peak, PMC_ABC_t *ABC, error **err)
 {
   FILE *file = fopen_err(name, "r", err); forwardError(*err, __LINE__,);
-  char buffer[STRING_LENGTH_MAX], *buffer1;
-  int buffer2, count = 0;
-  double *array = ABC->peakList->array;
-  
   int c = fgetc(file);
+  int count = 0;
+  
+  char buffer[STRING_LENGTH_MAX];
+  char *buffer1;
+  int buffer2;
+  double buffer3[45];
+  
   while (c != EOF) {
     if (c == (int)'#') buffer1 = fgets(buffer, STRING_LENGTH_MAX, file);
     else {
       ungetc(c, file);
-      buffer2 = fscanf(file, "%lf\n", &array[count]);
+      buffer2 = fscanf(file, "%lf", &buffer3[count]);
       count++;
     }
     c = fgetc(file);
   }
   fclose(file);
   
-  ABC->peakList->length = count;
-  ABC->summaryFct(ABC->peakList, ABC->peakHist, ABC->obsSummary->array);
-  printf("Observation data read\n");
+  int i;
+  
+  if (ABC->summ == summ_gauss) {
+    for (i=0; i<18; i++) ABC->x_obs->array[i] = buffer3[i];
+  }
+  else if (ABC->summ == summ_mrlens) {
+    for (i=0; i<27; i++) ABC->x_obs->array[i] = buffer3[i+18];
+  }
+  
+  if (peak->MPIInd == 0) printf("Observation data read\n");
   return;
 }
 
 //----------------------------------------------------------------------
 //-- Functions related to accept-reject algorithm
 
-void generateParam(peak_param *peak, particle_arr *oldPart, particle_t *newPa, prior_fct *prior)
+void generateParam(peak_param *peak, iteration_t *oldIter, double *newPart, prior_fct *prior)
 {
-  //-- WARNING: d-dependent
-  if (newPa->d != 2) {
-    printf("Need to implement in ABC.c/generateParam\n");
-    exit(1);
-  }
+  int f  = oldIter->f;
+  int f2 = oldIter->f + 2;
+  double *oldBegin     = oldIter->matrix->matrix;
+  gsl_rng *generator   = peak->generator;
+  gsl_vector *buffer   = oldIter->buffer;
+  gsl_matrix *cholesky = oldIter->cholesky;
   
-  gsl_rng *generator      = peak->generator;
-  gsl_matrix *cov         = oldPart->cov;
-  particle_t **oldPartArr = oldPart->array;
-  double p, x1, x2, var2;
-  
-  particle_t *target;
+  double *target;
+  double q;
   int i;
+  
   do {
-    i = 0;
-    target = oldPartArr[0];
-    p = gsl_ran_flat(generator, 0.0, 1.0);
-    while (p > target->weight) {
-      p -= target->weight;
-      i++;
-      target = oldPartArr[i];
+    target = oldBegin;
+    q = gsl_ran_flat(generator, 0.0, 1.0);
+    while (q > target[f2-1]) {
+      q      -= target[f2-1];
+      target += f2;
     }
     
     //-- Compute pdf from multivariate Gaussian pdf
-    x1   = gsl_ran_gaussian(generator, sqrt(gsl_matrix_get(cov, 0, 0)));
-    var2 = gsl_matrix_get(cov, 1, 1) - SQ(gsl_matrix_get(cov, 1, 0)) / gsl_matrix_get(cov, 0, 0);
-    x2   = gsl_ran_gaussian(generator, sqrt(var2));
-    x2  += target->param[1] + x1 * gsl_matrix_get(cov, 1, 0) / gsl_matrix_get(cov, 0, 0);
-    x1  += target->param[0];
-    newPa->param[0] = x1;
-    newPa->param[1] = x2;
-  } while (!prior(newPa));
+    for(i=0; i<f; i++) buffer->data[i] = gsl_ran_ugaussian(generator);
+    gsl_blas_dtrmv(CblasLower, CblasNoTrans, CblasNonUnit, cholesky, buffer);
+    for(i=0; i<f; i++) newPart[i] = target[i] + buffer->data[i];
+  } while (!prior(newPart));
   
   return;
 }
 
 #define NZBIN 1
 #define NNZ 5
-cosmo_hm *initialize_cosmo_hm_ABC(double Omega_M, double sigma_8, error **err)
+cosmo_hm *initialize_cosmo_hm_ABC(double Omega_M, double sigma_8, double w0_de, error **err)
 {
   //-- If the number of parameters changes this need to be changed everywhere.
   
@@ -485,7 +440,7 @@ cosmo_hm *initialize_cosmo_hm_ABC(double Omega_M, double sigma_8, error **err)
   int Nnz[NZBIN]           = {NNZ};
   double par_nz[NZBIN*NNZ] = {0.0, 3.0, 2.0, 1.0, 0.5};
   nofz_t nofz[NZBIN]       = {ludo};
-  cosmo_hm *cmhm = init_parameters_hm(Omega_M, 1-Omega_M, -1.0, 0.0, NULL, 0, 
+  cosmo_hm *cmhm = init_parameters_hm(Omega_M, 1.0 - Omega_M, w0_de, 0.0, NULL, 0, 
 				      0.78, 0.047, 0.0, 0.0, sigma_8, 0.95,
 				      NZBIN, Nnz, nofz, par_nz, -1, -1, 
 				      smith03_revised, eisenhu_osc, growth_de, linder, norm_s8,
@@ -501,66 +456,85 @@ cosmo_hm *initialize_cosmo_hm_ABC(double Omega_M, double sigma_8, error **err)
 #undef NZBIN
 #undef NNZ
 
-void generateObs(peak_param *peak, SMC_ABC_t *ABC, particle_t *newPa, error **err)
+void generateModel(peak_param *peak, PMC_ABC_t *ABC, double *newPart, error **err)
 {
-  cosmo_hm *cmhmABC = initialize_cosmo_hm_ABC(newPa->param[0], newPa->param[1], err); forwardError(*err, __LINE__,);
-  updateCosmo_gal_map(cmhmABC, peak, ABC->gMap, err);                                 forwardError(*err, __LINE__,);
-  setMassSamplers(cmhmABC, peak, ABC->sampArr, err);                                  forwardError(*err, __LINE__,);
-  peakListFromMassFct(cmhmABC, peak, ABC->sampArr, ABC->hMap, ABC->gMap,
-		      ABC->kMap, ABC->nMap, ABC->transformer, ABC->peakList, err);    forwardError(*err, __LINE__,);
+  cosmo_hm *cmhmABC = initialize_cosmo_hm_ABC(newPart[0], newPart[1], newPart[2], err); forwardError(*err, __LINE__,);
+  setMassSamplers(cmhmABC, peak, ABC->sampArr, err);                                    forwardError(*err, __LINE__,);
+  if (peak->doRandGalPos == 0) updateCosmo_gal_map(cmhmABC, peak, ABC->gMap, err);      forwardError(*err, __LINE__,);
   
-  ABC->summaryFct(ABC->peakList, ABC->peakHist, ABC->simulSummary->array);
-  newPa->diff = ABC->distFct(ABC->obsSummary->array, ABC->simulSummary->array);
+  multiscaleFromMassFct(cmhmABC, peak, ABC->sampArr, ABC->hMap, ABC->galSamp, ABC->gMap, ABC->CCDMask,
+			ABC->smoother, ABC->kMap, ABC->variance, ABC->peakList, ABC->hist, ABC->hist2, ABC->multiscale, err); forwardError(*err, __LINE__,);
+  
+  ABC->summFct(ABC->peakList, ABC->hist, ABC->multiscale, ABC->x_mod->array);
+  int f2 = ABC->f + 2;
+  newPart[f2-2] = ABC->distFct(ABC->x_obs->array, ABC->x_mod->array);
   free_parameters_hm(&cmhmABC);
   return;
 }
 
-void acceptParticleFromPrior(peak_param *peak, SMC_ABC_t *ABC, particle_t *newPa, error **err)
+void acceptParticleFromPrior(peak_param *peak, PMC_ABC_t *ABC, double *newPart, error **err)
 {
-  //-- WARNING: d-dependent
+  //-- WARNING: f-dependent
+  
+  int f2 = ABC->f + 2;
   int reject = 1;
   do {
-    do priorGenerator(peak->generator, newPa);
-    while (!ABC->priorFct(newPa));
-    printf("(Omega_M, sigma_8) = (%.3f, %.3f), ", newPa->param[0], newPa->param[1]);
-
-    generateObs(peak, ABC, newPa, err);
+    do priorGenerator(peak->generator, newPart);
+    while (!ABC->priorFct(newPart));
+    if (peak->printMode == 2) printf("(Omega_M, sigma_8, w0_de) = (%.3f, %.3f, % .3f), ", newPart[0], newPart[1], newPart[2]);
+    
+    generateModel(peak, ABC, newPart, err);
+  
     if (isError(*err)) {
-      printf(", get error and resample\n");
+      if      (peak->printMode == 2) printf("get error and resample\n");
+      else if (peak->printMode == 3) printf("Proc %2d: (Omega_M, sigma_8, w0_de) = (%.3f, %.3f, % .3f), get error and resample\n", peak->MPIInd, newPart[0], newPart[1], newPart[2]);
       purgeError(err);
     }
+    
     else {
-      ABC->newPart->nbAttempts += 1;
-      printf("diff = %6.3f, ", newPa->diff);
+      ABC->newIter->nbAttempts += 1;
       reject = 0;
-      printf("accepted\n");
+      if      (peak->printMode == 2) printf("delta = %7.3f, accepted\n", newPart[f2-2]);
+      else if (peak->printMode == 3) printf("Proc %2d: (Omega_M, sigma_8, w0_de) = (%.3f, %.3f, % .3f), %6d halos, %d galaxies, kappa mean = %.5f, threshold = %.2f, delta = %7.3f, accepted\n", 
+					    peak->MPIInd, newPart[0], newPart[1], newPart[2], ABC->hMap->total, ABC->gMap->total, ABC->gMap->kappa_mean, ABC->gMap->fillingThreshold, newPart[f2-2]);
     }
   }
   while (reject);
   return;
 }
 
-void acceptParticle(peak_param *peak, SMC_ABC_t *ABC, particle_t *newPa, error **err)
+void acceptParticle(peak_param *peak, PMC_ABC_t *ABC, double *newPart, error **err)
 {
-  //-- WARNING: d-dependent
+  //-- WARNING: f-dependent
+  
+  int f2 = ABC->f + 2;
   int reject = 1;
   do {
-    generateParam(peak, ABC->oldPart, newPa, ABC->priorFct);
-    printf("(Omega_M, sigma_8) = (%.3f, %.3f), ", newPa->param[0], newPa->param[1]);
+    generateParam(peak, ABC->oldIter, newPart, ABC->priorFct);
+    if (peak->printMode == 2) printf("(Omega_M, sigma_8, w0_de) = (%.3f, %.3f, % .3f), ", newPart[0], newPart[1], newPart[2]);
     
-    generateObs(peak, ABC, newPa, err);
+    generateModel(peak, ABC, newPart, err);
+    
     if (isError(*err)) {
-      printf(", get error and resample\n");
+      if      (peak->printMode == 2) printf("get error and resample\n");
+      else if (peak->printMode == 3) printf("Proc %2d: (Omega_M, sigma_8, w0_de) = (%.3f, %.3f, % .3f), get error and resample\n", peak->MPIInd, newPart[0], newPart[1], newPart[2]);
       purgeError(err);
     }
+    
     else {
-      ABC->newPart->nbAttempts += 1;
-      printf("diff = %6.3f, ", newPa->diff);
-      if (newPa->diff <= ABC->oldPart->epsilon) {
+      ABC->newIter->nbAttempts += 1;
+      
+      if (newPart[f2-2] <= ABC->newIter->epsilon) {
 	reject = 0;
-	printf("accepted\n");
+	if      (peak->printMode == 2) printf("delta = %6.3f, accepted\n", newPart[f2-2]);
+	else if (peak->printMode == 3) printf("Proc %2d: (Omega_M, sigma_8, w0_de) = (%.3f, %.3f, % .3f), %6d halos, %d galaxies, kappa mean = %.5f, threshold = %.2f, delta = %7.3f, accepted\n", 
+					      peak->MPIInd, newPart[0], newPart[1], newPart[2], ABC->hMap->total, ABC->gMap->total, ABC->gMap->kappa_mean, ABC->gMap->fillingThreshold, newPart[f2-2]);
       }
-      else printf("rejected\n");
+      else {
+	if      (peak->printMode == 2) printf("delta = %6.3f, rejected\n", newPart[f2-2]);
+	else if (peak->printMode == 3) printf("Proc %2d: (Omega_M, sigma_8, w0_de) = (%.3f, %.3f, % .3f), %6d halos, %d galaxies, kappa mean = %.5f, threshold = %.2f, delta = %7.3f, rejected\n", 
+					      peak->MPIInd, newPart[0], newPart[1], newPart[2], ABC->hMap->total, ABC->gMap->total, ABC->gMap->kappa_mean, ABC->gMap->fillingThreshold, newPart[f2-2]);
+      }
     }
   }
   while (reject);
@@ -570,335 +544,293 @@ void acceptParticle(peak_param *peak, SMC_ABC_t *ABC, particle_t *newPa, error *
 //----------------------------------------------------------------------
 //-- Functions related to loop
 
-void swapOldAndNew(SMC_ABC_t *ABC)
+void swapOldAndNew(PMC_ABC_t *ABC)
 {
-  particle_arr *buffer = ABC->oldPart;
-  ABC->oldPart = ABC->newPart;
-  ABC->newPart = buffer;
+  iteration_t *buffer = ABC->oldIter;
+  ABC->oldIter = ABC->newIter;
+  ABC->newIter = buffer;
   return;
 }
 
-double argOfExp(particle_t *oldPa, particle_t *newPa, gsl_matrix *invCov)
+double argOfExp(double *oldPa, double *newPart, gsl_matrix *invCov, gsl_vector *Delta_param, gsl_vector *intermediate)
 {
-  gsl_vector *Delta_param  = oldPa->param_gsl;
-  gsl_vector *intermediate = newPa->param_gsl;
   double value;
-  
   int i;
-  for (i=0; i<newPa->d; i++) gsl_vector_set(Delta_param, i, newPa->param[i] - oldPa->param[i]);
+  for (i=0; i<Delta_param->size; i++) Delta_param->data[i] = newPart[i] - oldPa[i];
   gsl_blas_dsymv(CblasUpper, 1.0, invCov, Delta_param, 0.0, intermediate); //-- intermediate = invCov * Delta_param
   gsl_blas_ddot(Delta_param, intermediate, &value);
   value *= -0.5;
   return value;
 }
 
-void setWeights(SMC_ABC_t *ABC)
+void setWeights(PMC_ABC_t *ABC)
 {
-  particle_t **oldArr = ABC->oldPart->array;
-  particle_t **newArr = ABC->newPart->array;
-  gsl_matrix *invCov  = ABC->oldPart->invCov;
-  double arg, weight, sum = 0.0;
-  int p = ABC->p;
+  int f2 = ABC->f + 2;
+  int Q  = ABC->Q;
+  double *oldBegin = ABC->oldIter->matrix->matrix;
+  double *newBegin = ABC->newIter->matrix->matrix;
+  double *oldEnd   = oldBegin + f2 * Q;
+  double *newEnd   = newBegin + f2 * Q;
   
-  particle_t *oldPa, *newPa;
-  int i, j;
-  for (j=0; j<p; j++) {
-    newPa = newArr[j];
+  gsl_matrix *invCov       = ABC->oldIter->invCov;
+  gsl_vector *Delta_param  = ABC->oldIter->buffer;
+  gsl_vector *intermediate = ABC->newIter->buffer;
+  double sum = 0.0;
+  
+  double *oldPa, *newPart;
+  double arg, weight;
+  
+  for (newPart=newBegin; newPart<newEnd; newPart+=f2) {
     weight = 0.0;
-    for (i=0; i<p; i++) {
-      oldPa = oldArr[i];
-      arg = argOfExp(oldPa, newPa, invCov);
-      weight += oldPa->weight * exp(arg);
+    for (oldPa=oldBegin; oldPa<oldEnd; oldPa+=f2) {
+      arg = argOfExp(oldPa, newPart, invCov, Delta_param, intermediate);
+      weight += oldPa[f2-1] * exp(arg);
     }
     weight = 1.0 / weight;
-    newPa->weight = weight;
+    newPart[f2-1] = weight;
     sum += weight;
   }
   
-  for (i=0; i<p; i++) newArr[i]->weight /= sum;
+  for (newPart=newBegin; newPart<newEnd; newPart+=f2) newPart[f2-1] /= sum;
   return;
 }
 
-void loopZero(peak_param *peak, SMC_ABC_t *ABC, error **err)
+void setEpsilon(PMC_ABC_t *ABC)
+{
+  //-- After swapping
+  
+  int f2 = ABC->f + 2;
+  int Q  = ABC->Q;
+  double *oldBegin = ABC->oldIter->matrix->matrix + f2 - 2;
+  double *deltaArr = ABC->deltaList->array;
+  
+  double *oldPa;
+  int i;
+  
+  for (i=0, oldPa=oldBegin; i<Q; i++, oldPa+=f2) deltaArr[i] = oldPa[0];
+  gsl_sort(deltaArr, 1, Q);
+  ABC->newIter->epsilon = gsl_stats_median_from_sorted_data(deltaArr, 1, Q);
+  return;
+}
+
+void loopZero(peak_param *peak, PMC_ABC_t *ABC, error **err)
 {
   clock_t start = clock();
-  printf("-- Begin loop 0\n\n");
-  int p = ABC->p;
-  particle_arr *newPart = ABC->newPart;
+  ABC->t = 0;
+  ABC->newIter->nbAttempts = 0;
   
-  int i;
-  for (i=0; i<p; i++) {
-    acceptParticleFromPrior(peak, ABC, newPart->array[i], err); forwardError(*err, __LINE__,);
-    newPart->array[i]->weight = 1.0 / (double)p;
+  if (peak->MPIInd == 0) {
+    printf("-- Begin loop %d\n\n", ABC->t);
+    printf("Tolerance = DBL_MAX\n\n");
   }
-  printf("\n");
+  MPI_Barrier(MPI_COMM_WORLD); //-- Wait for print
   
-  print_particle_arr(newPart);
-  updateEpsilon_particle_arr(newPart, ABC->diffList->array);
-  updateMean_particle_arr(newPart);
-  updateCovariance_particle_arr(newPart);
+  int f2    = ABC->f + 2;
+  int Q     = ABC->Q;
+  int Q_MPI = ABC->Q_MPI;
+  double weight    = 1.0 / (double)Q;
+  double *newBegin = ABC->newIter->matrix->matrix;
+  double *newEnd   = newBegin + f2 * Q_MPI;
+  double *newPart;
   
-  printf("\n-- End loop 0, "); routineTime(start, clock());
-  printf("------------------------------------------------------------------------\n");
+  //-- Size ajustment for MPI
+  if (peak->MPIInd == peak->MPISize - 1) newEnd -= f2 * (peak->MPISize * Q_MPI - Q);
+  
+  for (newPart=newBegin; newPart<newEnd; newPart+=f2) {
+    acceptParticleFromPrior(peak, ABC, newPart, err); forwardError(*err, __LINE__,);
+    newPart[f2-1] = weight;
+  }
+  
+  printf("Proc %2d finished\n", peak->MPIInd);
+  
+  MPI_Allgather(newBegin, f2 * Q_MPI, MPI_DOUBLE, newBegin, f2 * Q_MPI, MPI_DOUBLE, MPI_COMM_WORLD);        //-- Communicate new particles
+  MPI_Allreduce(&ABC->newIter->nbAttempts, &ABC->newIter->nbAttempts, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD); //-- Communicate the number of attempts
+  
+  updateMean_iteration_t(ABC->newIter);
+  updateCovariance_iteration_t(ABC->newIter);
+  updateCholesky_iteration_t(ABC->newIter);
+  
+  if (peak->MPIInd == 0) {
+    printf("\nSuccess rate = %.5f\n", Q / (double)ABC->newIter->nbAttempts);
+    printf("\n-- End loop 0, "); routineTime(start, clock());
+    printf("------------------------------------------------------------------------\n");
+  }
   return;
 }
 
-void loop(peak_param *peak, SMC_ABC_t *ABC, error **err)
+void loop(peak_param *peak, PMC_ABC_t *ABC, error **err)
 {
   clock_t start = clock();
   swapOldAndNew(ABC);
+  setEpsilon(ABC);
   ABC->t++;
-  ABC->newPart->nbAttempts = 0;
-  particle_arr *newPart    = ABC->newPart;
-  particle_t **newPartArr  = newPart->array;
-  printf("-- Begin loop %d\n\n", ABC->t);
-  printf("Tolerance = %.5f\n", ABC->oldPart->epsilon);
+  ABC->newIter->nbAttempts = 0;
   
-  int i;
-  for (i=0; i<ABC->p; i++) {
-    acceptParticle(peak, ABC, newPartArr[i], err);
+  if (peak->MPIInd == 0) {
+    printf("-- Begin loop %d\n\n", ABC->t);
+    printf("Tolerance = %.5f\n\n", ABC->newIter->epsilon);
+  }
+  MPI_Barrier(MPI_COMM_WORLD); //-- Wait for print
+  
+  int f2    = ABC->f + 2;
+  int Q     = ABC->Q;
+  int Q_MPI = ABC->Q_MPI;
+  double *newBegin = ABC->newIter->matrix->matrix;
+  double *newEnd   = newBegin + f2 * Q_MPI;
+  double *newPart;
+  
+  //-- Size ajustment for MPI
+  if (peak->MPIInd == peak->MPISize - 1) newEnd -= f2 * (peak->MPISize * Q_MPI - Q);
+  
+  for (newPart=newBegin; newPart<newEnd; newPart+=f2) {
+    acceptParticle(peak, ABC, newPart, err);
     forwardError(*err, __LINE__,);
   }
+  
+  printf("Proc %2d finished\n", peak->MPIInd);
+  
+  MPI_Allgather(newBegin, f2 * Q_MPI, MPI_DOUBLE, newBegin, f2 * Q_MPI, MPI_DOUBLE, MPI_COMM_WORLD);        //-- Communicate new particles
+  MPI_Allreduce(&ABC->newIter->nbAttempts, &ABC->newIter->nbAttempts, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD); //-- Communicate the number of attempts
+  
   setWeights(ABC);
-  printf("\n");
+  updateMean_iteration_t(ABC->newIter);
+  updateCovariance_iteration_t(ABC->newIter);
+  updateCholesky_iteration_t(ABC->newIter);
   
-  print_particle_arr(newPart);
-  updateEpsilon_particle_arr(newPart, ABC->diffList->array);
-  updateMean_particle_arr(newPart);
-  updateCovariance_particle_arr(newPart);
-  
-  printf("\n-- End loop %d, ", ABC->t); routineTime(start, clock());
-  printf("------------------------------------------------------------------------\n");
+  if (peak->MPIInd == 0) {
+    printf("\nSuccess rate = %.5f\n", Q / (double)ABC->newIter->nbAttempts);
+    printf("\n-- End loop %d, ", ABC->t); routineTime(start, clock());
+    printf("------------------------------------------------------------------------\n");
+  }
   return;
 }
 
-void readAndLoop(char name[], peak_param *peak, SMC_ABC_t *ABC, error **err)
+void readAndLoop(char name[], peak_param *peak, PMC_ABC_t *ABC, error **err)
 {
   clock_t start = clock();
+  read_iteration_t(name, ABC->oldIter, ABC->deltaList->array, err); forwardError(*err, __LINE__,);
+  setEpsilon(ABC);
   ABC->t++;
-  read_particle_arr(name, ABC->oldPart, ABC->diffList->array, err); forwardError(*err, __LINE__,);
-  particle_arr *newPart   = ABC->newPart;
-  particle_t **newPartArr = newPart->array;
-  printf("-- Begin loop %d\n\n", ABC->t);
-  printf("Tolerance = %.5f\n", ABC->oldPart->epsilon);
   
-  int i;
-  for (i=0; i<ABC->p; i++) {
-    acceptParticle(peak, ABC, newPartArr[i], err);
+  if (peak->MPIInd == 0) {
+    printf("-- Begin loop %d\n\n", ABC->t);
+    printf("Tolerance = %.5f\n\n", ABC->newIter->epsilon);
+  }
+  MPI_Barrier(MPI_COMM_WORLD); //-- Wait for print
+  
+  int f2    = ABC->f + 2;
+  int Q     = ABC->Q;
+  int Q_MPI = ABC->Q_MPI;
+  double *newBegin = ABC->newIter->matrix->matrix;
+  double *newEnd   = newBegin + f2 * Q_MPI;
+  double *newPart;
+  
+  //-- Size ajustment for MPI
+  if (peak->MPIInd == peak->MPISize - 1) newEnd -= f2 * (peak->MPISize * Q_MPI - Q);
+  
+  for (newPart=newBegin; newPart<newEnd; newPart+=f2) {
+    acceptParticle(peak, ABC, newPart, err);
     forwardError(*err, __LINE__,);
   }
+  
+  MPI_Allgather(newBegin, f2 * Q_MPI, MPI_DOUBLE, newBegin, f2 * Q_MPI, MPI_DOUBLE, MPI_COMM_WORLD);        //-- Communicate new particles
+  MPI_Allreduce(&ABC->newIter->nbAttempts, &ABC->newIter->nbAttempts, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD); //-- Communicate the number of attempts
+  
   setWeights(ABC);
-  printf("\n");
-  
-  print_particle_arr(newPart);
-  updateEpsilon_particle_arr(newPart, ABC->diffList->array);
-  updateMean_particle_arr(newPart);
-  updateCovariance_particle_arr(newPart);
-  
-  printf("\n-- End loop %d, ", ABC->t); routineTime(start, clock());
-  printf("------------------------------------------------------------------------\n");
+  updateMean_iteration_t(ABC->newIter);
+  updateCovariance_iteration_t(ABC->newIter);
+  updateCholesky_iteration_t(ABC->newIter);
+    
+  if (peak->MPIInd == 0) {
+    printf("\nSuccess rate = %.5f\n", Q / (double)ABC->newIter->nbAttempts);
+    printf("\n-- End loop %d, ", ABC->t); routineTime(start, clock());
+    printf("------------------------------------------------------------------------\n");
+  }
   return;
 }
 
 //----------------------------------------------------------------------
 //-- Functions related to prior
 
-#define OMEGA_M_MIN 0.05
-#define OMEGA_M_MAX 0.95
-#define SIGMA_8_MIN 0.05
-#define SIGMA_8_MAX 1.5
-void priorGenerator(gsl_rng *generator, particle_t *pa)
+#define OMEGA_M_MIN 0.10
+#define OMEGA_M_MAX 0.90
+#define SIGMA_8_MIN 0.30
+#define SIGMA_8_MAX 1.60
+#define W0_DE_MIN -1.8
+#define W0_DE_MAX 0.0
+void priorGenerator(gsl_rng *generator, double *part)
 {
-  pa->param[0] = gsl_ran_flat(generator, OMEGA_M_MIN, OMEGA_M_MAX);
-  pa->param[1] = gsl_ran_flat(generator, SIGMA_8_MIN, SIGMA_8_MAX);
+  part[0] = gsl_ran_flat(generator, OMEGA_M_MIN, OMEGA_M_MAX);
+  part[1] = gsl_ran_flat(generator, SIGMA_8_MIN, SIGMA_8_MAX);
+  part[2] = gsl_ran_flat(generator, W0_DE_MIN, W0_DE_MAX);
   return;
 }
 
-int prior_rectangle(particle_t *pa)
+int prior_rectangle(double *part)
 {
-  int boolean = (pa->param[0] >= OMEGA_M_MIN) && (pa->param[0] < OMEGA_M_MAX)
-             && (pa->param[1] >= SIGMA_8_MIN) && (pa->param[1] < SIGMA_8_MAX);
+  int boolean = (part[0] >= OMEGA_M_MIN) && (part[0] < OMEGA_M_MAX)
+             && (part[1] >= SIGMA_8_MIN) && (part[1] < SIGMA_8_MAX)
+             && (part[2] >= W0_DE_MIN)   && (part[2] < W0_DE_MAX);
   return boolean;
 }
 
-int prior_pentagon(particle_t *pa)
+int prior_pentagon(double *part)
 {
-  double Omega_M = pa->param[0];
-  double sigma_8 = pa->param[1];
-  int boolean = (Omega_M + sigma_8 <= 2.0)
-             && (Omega_M >= OMEGA_M_MIN) && (Omega_M < OMEGA_M_MAX)
-             && (sigma_8 >= SIGMA_8_MIN) && (sigma_8 < SIGMA_8_MAX);
+  int boolean = (part[0] + part[1] <= 2.0)
+             && (part[0] >= OMEGA_M_MIN) && (part[0] < OMEGA_M_MAX)
+             && (part[1] >= SIGMA_8_MIN) && (part[1] < SIGMA_8_MAX)
+             && (part[2] >= W0_DE_MIN)   && (part[2] < W0_DE_MAX);
   return boolean;
 }
 #undef OMEGA_M_MIN
 #undef OMEGA_M_MAX
 #undef SIGMA_8_MIN
 #undef SIGMA_8_MAX
+#undef W0_DE_MIN
+#undef W0_DE_MAX
 
 //----------------------------------------------------------------------
 //-- Functions related to summary statistics
 
-void summary_abd_all(double_arr *peakList, hist_t *hist, double *summ)
+void summary_multiscale(double_arr *peakList, hist_t *hist, double_mat *multiscale, double *summ)
 {
-  reset_hist_t(hist);
   int i;
-  for (i=0; i<peakList->length; i++) silentPush_hist_t(hist, peakList->array[i]);
-  for (i=0; i<hist->length; i++) summ[i] = (double)hist->n[i];
-  return;
-}
-
-void summary_pct6(double_arr *peakList, hist_t *hist, double *summ)
-{
-  gsl_sort(peakList->array, 1, peakList->length);
-  summ[0] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.978);
-  summ[1] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.988);
-  summ[2] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.993);
-  summ[3] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.996);
-  summ[4] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.997);
-  summ[5] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.998);
-  return;
-}
-
-void summary_cut6(double_arr *peakList, hist_t *hist, double *summ)
-{
-  cutSmallPeaks(peakList, 3.0);
-  gsl_sort(peakList->array, 1, peakList->length);
-  summ[0] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.649);
-  summ[1] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.809);
-  summ[2] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.888);
-  summ[3] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.930);
-  summ[4] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.955);
-  summ[5] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.970);
-  return;
-}
-
-void summary_pct5(double_arr *peakList, hist_t *hist, double *summ)
-{
-  gsl_sort(peakList->array, 1, peakList->length);
-  summ[0] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.969);
-  summ[1] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.986);
-  summ[2] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.994);
-  summ[3] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.997);
-  summ[4] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.999);
-  return;
-}
-
-void summary_cut5(double_arr *peakList, hist_t *hist, double *summ)
-{
-  cutSmallPeaks(peakList, 3.0);
-  gsl_sort(peakList->array, 1, peakList->length);
-  summ[0] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.500);
-  summ[1] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.7763932023);
-  summ[2] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.900);
-  summ[3] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.9552786405);
-  summ[4] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.980);
-  return;
-}
-
-void summary_pct4(double_arr *peakList, hist_t *hist, double *summ)
-{
-  gsl_sort(peakList->array, 1, peakList->length);
-  summ[0] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.750);
-  summ[1] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.950);
-  summ[2] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.980);
-  summ[3] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.998);
-  return;
-}
-
-void summary_pct998(double_arr *peakList, hist_t *hist, double *summ)
-{
-  gsl_sort(peakList->array, 1, peakList->length);
-  summ[0] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.998);
-  return;
-}
-
-void summary_pct996(double_arr *peakList, hist_t *hist, double *summ)
-{
-  gsl_sort(peakList->array, 1, peakList->length);
-  summ[0] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.996);
-  return;
-}
-
-void summary_cut900(double_arr *peakList, hist_t *hist, double *summ)
-{
-  cutSmallPeaks(peakList, 3.0);
-  gsl_sort(peakList->array, 1, peakList->length);
-  summ[0] = gsl_stats_quantile_from_sorted_data(peakList->array, 1, peakList->length, 0.900);
+  for (i=0; i<multiscale->length; i++) summ[i] = multiscale->matrix[i];
   return;
 }
 
 //----------------------------------------------------------------------
 //-- Functions related to distance
 
-#define invCov11 0.00985569
-#define invCov22 0.01776991
-#define invCov33 0.03681831
-#define invCov44 0.06374419
-#define invCov55 0.11458256
-#define invCov66 0.05798793
-double dist_abd6(double *a, double *b)
+double dist_gauss(double *a, double *b)
 {
-  double dist_sq = invCov11*pow(a[0]-b[0], 2) + invCov22*pow(a[1]-b[1], 2) + invCov33*pow(a[2]-b[2], 2)
-                 + invCov44*pow(a[3]-b[3], 2) + invCov55*pow(a[4]-b[4], 2) + invCov66*pow(a[5]-b[5], 2);
-  return sqrt(dist_sq);
+  double invCovDiag[18] = {
+    0.000695, 0.000879, 0.001538, 0.002896, 0.006451,
+    0.018447, 0.047001, 0.119864, 0.097484, 0.001681,
+    0.002385, 0.004400, 0.007965, 0.017598, 0.031376,
+    0.077548, 0.160422, 0.099050
+  };
+  double sum = 0.0;
+  int i;
+  for (i=0; i<18; i++) sum += pow(a[i]-b[i], 2) * invCovDiag[i];
+  return sqrt(sum);
 }
-#undef invCov11
-#undef invCov22
-#undef invCov33
-#undef invCov44 
-#undef invCov55
-#undef invCov66
 
-#define invCov11 0.00310011
-#define invCov22 0.0112532
-#define invCov33 0.02762047
-#define invCov44 0.06786392
-#define invCov55 0.06672277
-double dist_abd5(double *a, double *b)
+double dist_star(double *a, double *b)
 {
-  double dist_sq = invCov11*pow(a[0]-b[0], 2) + invCov22*pow(a[1]-b[1], 2) + invCov33*pow(a[2]-b[2], 2)
-                 + invCov44*pow(a[3]-b[3], 2) + invCov55*pow(a[4]-b[4], 2);
-  return sqrt(dist_sq);
+  double invCovDiag[27] = {
+    0.000310, 0.000386, 0.000665, 0.001532, 0.004057,
+    0.016789, 0.060073, 0.219620, 0.539488, 0.000918,
+    0.001014, 0.001815, 0.003225, 0.007953, 0.019257,
+    0.052212, 0.144693, 0.206096, 0.002380, 0.003144,
+    0.005421, 0.009167, 0.019631, 0.037264, 0.098792,
+    0.184801, 0.150118
+  };
+  double sum = 0.0;
+  int i;
+  for (i=0; i<27; i++) sum += pow(a[i]-b[i], 2) * invCovDiag[i];
+  return sqrt(sum);
 }
-#undef invCov11
-#undef invCov22
-#undef invCov33
-#undef invCov44 
-#undef invCov55
-
-#define invCov11 572.48978014
-#define invCov22 186.75057353
-#define invCov33 55.19602293
-#define invCov44 18.55569778
-#define invCov55 5.16860924
-double dist_pct5(double *a, double *b)
-{
-  double dist_sq = invCov11*pow(a[0]-b[0], 2) + invCov22*pow(a[1]-b[1], 2) + invCov33*pow(a[2]-b[2], 2)
-                 + invCov44*pow(a[3]-b[3], 2) + invCov55*pow(a[4]-b[4], 2);
-  return sqrt(dist_sq);
-}
-#undef invCov11
-#undef invCov22
-#undef invCov33
-#undef invCov44 
-#undef invCov55
-
-#define invCov11 884.77956728
-#define invCov22 200.24750917
-#define invCov33 57.10480582
-#define invCov44 16.16071887
-#define invCov55 6.59617695
-double dist_cut5(double *a, double *b)
-{
-  double dist_sq = invCov11*pow(a[0]-b[0], 2) + invCov22*pow(a[1]-b[1], 2) + invCov33*pow(a[2]-b[2], 2)
-                 + invCov44*pow(a[3]-b[3], 2) + invCov55*pow(a[4]-b[4], 2);
-  return sqrt(dist_sq);
-}
-#undef invCov11
-#undef invCov22
-#undef invCov33
-#undef invCov44 
-#undef invCov55
 
 double dist_6D(double *a, double *b)
 {
@@ -925,34 +857,40 @@ double dist_1D(double *a, double *b)
 
 void doABC(cosmo_hm *cmhm, peak_param *peak, error **err)
 {
-  peak->printMode = 1; //-- Make camelus message silent
+  peak->printMode = 3; //-- 0 = detailed, 1 = no flush, 2 = line mode, 3 = MPI
   
   //-- Initialization
-  SMC_ABC_t *ABC = initialize_SMC_ABC_t(peak, err); forwardError(*err, __LINE__,);
+  PMC_ABC_t *ABC = initialize_PMC_ABC_t(peak, err); forwardError(*err, __LINE__,);
+  fillObservation("../demo/x_obs", peak, ABC, err); forwardError(*err, __LINE__,);
+  if (peak->MPIInd == 0) printf("------------------------------------------------------------------------\n");
   
-  //-- Fill observation data
   char name[STRING_LENGTH_MAX];
-  fillObservation_SMC_ABC_t("../demo/peakList", ABC, err); forwardError(*err, __LINE__,);
-  printf("------------------------------------------------------------------------\n");
+  FILE *file;
   
   //-- Loop 0
   loopZero(peak, ABC, err); forwardError(*err, __LINE__,);
-  sprintf(name, "particles_%s_p%d_t%d", STR_SUMMARY_T(ABC->summ), ABC->p, ABC->t);
-  FILE *file = fopen(name, "w");
-  output2_particle_arr(file, ABC->newPart);
-  fclose(file);
-  
-  //-- Other loops
-  while (ABC->newPart->nbAttempts * ABC->r_stop <= ABC->p) {
-    loop(peak, ABC, err); forwardError(*err, __LINE__,); //-- Switch old and new inside
-    sprintf(name, "particles_%s_p%d_t%d", STR_SUMMARY_T(ABC->summ), ABC->p, ABC->t);
-    FILE *file = fopen(name, "w");
-    output2_particle_arr(file, ABC->newPart);
+  if (peak->MPIInd == 0) {
+    sprintf(name, "iteration_%s_p%d_t%d", STR_SUMMARY_T(ABC->summ), ABC->Q, ABC->t);
+    file = fopen(name, "w");
+    output2_iteration_t(file, ABC->newIter);
     fclose(file);
   }
+  MPI_Barrier(MPI_COMM_WORLD); //-- Wait for output
   
-  printf("%d iterations done\n", ABC->t+1);
-  free_SMC_ABC_t(ABC);
+  //-- Other loops
+  while (ABC->newIter->nbAttempts * ABC->r_stop <= ABC->Q) {
+    loop(peak, ABC, err); forwardError(*err, __LINE__,); //-- Switch old and new inside
+    if (peak->MPIInd == 0) {
+      sprintf(name, "iteration_%s_p%d_t%d", STR_SUMMARY_T(ABC->summ), ABC->Q, ABC->t);
+      file = fopen(name, "w");
+      output2_iteration_t(file, ABC->newIter);
+      fclose(file);
+    }
+    MPI_Barrier(MPI_COMM_WORLD); //-- Wait for output
+  }
+  
+  if (peak->MPIInd == 0) printf("%d iterations done\n", ABC->t+1);
+  free_PMC_ABC_t(ABC);
   return;
 }
 
