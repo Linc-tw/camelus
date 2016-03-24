@@ -3,7 +3,7 @@
   /*******************************
    **  constraint.c		**
    **  Chieh-An Lin		**
-   **  Version 2015.12.09	**
+   **  Version 2016.01.26	**
    *******************************/
 
 
@@ -22,31 +22,42 @@ void fillMultiscale(peak_param *peak, hist_t *hist, double_mat *multiscale)
 }
 
 void multiscaleFromMassFct(cosmo_hm *cmhm, peak_param *peak, sampler_arr *sampArr, halo_map *hMap, sampler_t *galSamp, gal_map *gMap, short_mat *CCDMask, 
-			   FFT_arr *smoother, map_t *kMap, FFT_arr *variance, double_arr *peakList, hist_t *hist, hist_t *hist2, double_mat *multiscale, error **err)
+			   FFT_arr *FFTSmoother, FFT_arr *DCSmoother, map_t *kMap, FFT_arr *variance, double_arr *peakList, hist_t *nuHist, hist_t *kappaHist, 
+			   double_mat *multiscale, error **err)
 {
   makeFastSimul(cmhm, peak, sampArr, hMap, err);                  forwardError(*err, __LINE__,);
   cleanOrMakeOrResample(cmhm, peak, galSamp, gMap, CCDMask, err); forwardError(*err, __LINE__,);
   lensingCatalogue(cmhm, peak, hMap, gMap, err);                  forwardError(*err, __LINE__,);
-  makeMap(peak, gMap, smoother, kMap, err);                       forwardError(*err, __LINE__,);
+  makeMap(peak, gMap, FFTSmoother, DCSmoother, kMap, err);        forwardError(*err, __LINE__,);
+  
   computeLocalVariance_arr(peak, gMap, variance);
   
+  peak->scaleInd = 0;
   char name[STRING_LENGTH_MAX];
   int j;
-  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) {
-    for (j=0; j<smoother->length; j++) {
-      peak->scaleInd = j;
-      kappaToSNR(peak, gMap, smoother->array[j], kMap, variance->array[j]);
-      selectPeaks(peak, kMap, peakList, err);                     forwardError(*err, __LINE__,);
-      makeHist(peakList, hist, 1);
-      fillMultiscale(peak, hist, multiscale);
-    }
+  
+  for (j=0; j<peak->FFT_nbFilters; j++) {
+    kappaToSNR_FFT(peak, gMap, FFTSmoother->array[j], kMap, variance->array[j]);
+    selectPeaks(peak, kMap, peakList, err);                     forwardError(*err, __LINE__,);
+    makeHist(peakList, nuHist, 1);
+    fillMultiscale(peak, nuHist, multiscale);
+    peak->scaleInd++;
   }
-  if (peak->doSmoothing == 3 || peak->doSmoothing == 4) {
-    peak->scaleInd = peak->nbLinFilters;
-    sprintf(name, "kappaMap_mrlens_MPI%d.fits", peak->MPIInd);
+  
+  for (j=0; j<peak->DC_nbFilters; j++) {
+    kappaToSNR_DC(peak, gMap, DCSmoother->array[j], kMap);
+    selectPeaks(peak, kMap, peakList, err);                     forwardError(*err, __LINE__,);
+    makeHist(peakList, nuHist, 1);
+    fillMultiscale(peak, nuHist, multiscale);
+    peak->scaleInd++;
+  }
+  
+  if (peak->doNonlinear) {
+    sprintf(name, "%skappaMap_mrlens_proc%d.fits", peak->tempPath, peak->MPIInd);
     selectPeaks_mrlens(name, peak, gMap, peakList);
-    makeHist(peakList, hist2, 1);
-    fillMultiscale(peak, hist2, multiscale);
+    makeHist(peakList, kappaHist, 1);
+    fillMultiscale(peak, kappaHist, multiscale);
+    peak->scaleInd++;
   }
   return;
 }
@@ -61,14 +72,19 @@ void fillRealization(peak_param *peak, double_mat *multiscale, double *matrix)
   return;
 }
 
-void outputMultiscale(char name[], double_mat *multiscale)
+void outputMultiscale(char name[], peak_param *peak, double_mat *multiscale)
 {
   FILE *file = fopen(name, "w");
   
+  int nbLinFilters = peak->FFT_nbFilters + peak->DC_nbFilters;
+  int d_tot = nbLinFilters * peak->N_nu + peak->doNonlinear * peak->N_kappa;
+  
   fprintf(file, "# Multiscale data matrix\n");
-  fprintf(file, "# N_nu      = %d\n", multiscale->N1);
-  fprintf(file, "# nbFilters = %d\n", multiscale->N2);
-  fprintf(file, "# d_tot     = %d\n", multiscale->length);
+  fprintf(file, "# N_nu            = %d\n", peak->N_nu);
+  fprintf(file, "# nbLinFilters    = %d\n", nbLinFilters);
+  fprintf(file, "# N_kappa         = %d\n", peak->N_kappa);
+  fprintf(file, "# nbNonlinFilters = %d\n", peak->doNonlinear);
+  fprintf(file, "# d_tot           = %d\n", d_tot);
   fprintf(file, "#\n");
   fprintf(file, "# F0X0  F0X1  F0X2 ...\n");
   fprintf(file, "# F1X0  F1X1  F1X2 ...\n");
@@ -76,9 +92,16 @@ void outputMultiscale(char name[], double_mat *multiscale)
   fprintf(file, "# ...   ...   ...  ...\n");
   
   int i, j;
-  for (j=0; j<multiscale->N2; j++) {
-    for (i=0; i<multiscale->N1; i++) {
-      fprintf(file, " %5.1f ", multiscale->matrix[i+j*multiscale->N1]);
+  for (j=0; j<nbLinFilters; j++) {
+    for (i=0; i<peak->N_nu; i++) {
+      fprintf(file, " %6.1f ", multiscale->matrix[i+j*multiscale->N1]);
+    }
+    fprintf(file, "\n");
+  }
+  
+  for (j=nbLinFilters; j<nbLinFilters+peak->doNonlinear; j++) {
+    for (i=0; i<peak->N_kappa; i++) {
+      fprintf(file, " %6.1f ", multiscale->matrix[i+j*multiscale->N1]);
     }
     fprintf(file, "\n");
   }
@@ -216,11 +239,8 @@ void outfitsDataMat(char name[], cosmo_hm *cmhm, peak_param *peak, double_mat *d
 
 void doMultiscale(cosmo_hm *cmhm, peak_param *peak, error **err)
 {
-  char name[STRING_LENGTH_MAX];
-  int N1_mask = (int)(peak->Omega[0] * peak->theta_CCD_inv);
-  int N2_mask = (int)(peak->Omega[1] * peak->theta_CCD_inv);
   int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
-  int N_bin   = peak->doSmoothing < 3 ? peak->N_nu : (peak->doSmoothing == 3 ? peak->N_kappa : MAX(peak->N_nu, peak->N_kappa));
+  int N_bin   = (peak->doNonlinear == 0) ? peak->N_nu : (peak->doSmoothing == 4) ? peak->N_kappa : MAX(peak->N_nu, peak->N_kappa);
   peak->printMode = 2; //-- 0 = detailed, 1 = no flush, 2 = line mode, 3 = MPI
   
   sampler_arr *sampArr   = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
@@ -229,28 +249,30 @@ void doMultiscale(cosmo_hm *cmhm, peak_param *peak, error **err)
   sampler_t *galSamp     = initialize_sampler_t(peak->N_z_gal);
   setGalaxySampler(cmhm, peak, galSamp, err);                                                         forwardError(*err, __LINE__,);
   gal_map *gMap          = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
-  short_mat *CCDMask     = initialize_short_mat(N1_mask, N2_mask);
-  if (peak->doMask == 1) fillMask_CFHTLenS_W1(peak, CCDMask);
-  FFT_arr *smoother      = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
-  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernel(peak, smoother);
+  short_mat *CCDMask     = initializeMask(peak, err);                                                 forwardError(*err, __LINE__,);
+  FFT_arr *FFTSmoother   = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->FFT_nbFilters) makeKernel(peak, FFTSmoother);
+  FFT_arr *DCSmoother    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
   map_t *kMap            = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
   FFT_arr *variance      = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
-  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernelForVariance(peak, variance);
+  if (peak->FFT_nbFilters) makeKernelForVariance(peak, variance);
   double_arr *peakList   = initialize_double_arr(length);
-  hist_t *hist           = initialize_hist_t(peak->N_nu);
-  setHist(peak, hist);
-  hist_t *hist2          = initialize_hist_t(peak->N_kappa);
-  setHist2(peak, hist2);
+  hist_t *nuHist         = initialize_hist_t(peak->N_nu);
+  setHist_nu(peak, nuHist);
+  hist_t *kappaHist      = initialize_hist_t(peak->N_kappa);
+  setHist_kappa(peak, kappaHist);
   double_mat *multiscale = initialize_double_mat(N_bin, peak->nbFilters);
+  
+  char name[STRING_LENGTH_MAX];
   
   //-- Peak histogram
   printf("\n-- Making a realization\n");
-  multiscaleFromMassFct(cmhm, peak, sampArr, hMap, galSamp, gMap, CCDMask,
-			smoother, kMap, variance, peakList, hist, hist2, multiscale, err); forwardError(*err, __LINE__,);
+  multiscaleFromMassFct(cmhm, peak, sampArr, hMap, galSamp, gMap, CCDMask, FFTSmoother, DCSmoother, kMap, variance, peakList, nuHist, kappaHist, 
+			multiscale, err); forwardError(*err, __LINE__,);
   
   //-- Output
   sprintf(name, "multiscale_nbFilters%d", peak->nbFilters);
-  outputMultiscale(name, multiscale);
+  outputMultiscale(name, peak, multiscale);
   
   //-- Free
   free_sampler_arr(sampArr);
@@ -258,12 +280,13 @@ void doMultiscale(cosmo_hm *cmhm, peak_param *peak, error **err)
   free_sampler_t(galSamp);
   free_gal_map(gMap);
   free_short_mat(CCDMask);
-  free_FFT_arr(smoother);
+  free_FFT_arr(FFTSmoother);
+  free_FFT_arr(DCSmoother);
   free_map_t(kMap);
   free_FFT_arr(variance);
   free_double_arr(peakList);
-  free_hist_t(hist);
-  free_hist_t(hist2);
+  free_hist_t(nuHist);
+  free_hist_t(kappaHist);
   free_double_mat(multiscale);
   printf("------------------------------------------------------------------------\n");
   return;
@@ -271,11 +294,8 @@ void doMultiscale(cosmo_hm *cmhm, peak_param *peak, error **err)
 
 void doDataMatrix(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
 {
-  char name[STRING_LENGTH_MAX];
-  int N1_mask = (int)(peak->Omega[0] * peak->theta_CCD_inv);
-  int N2_mask = (int)(peak->Omega[1] * peak->theta_CCD_inv);
   int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
-  int N_bin   = peak->doSmoothing < 3 ? peak->N_nu : (peak->doSmoothing == 3 ? peak->N_kappa : MAX(peak->N_nu, peak->N_kappa));
+  int N_bin   = peak->doNonlinear == 0 ? peak->N_nu : (peak->doSmoothing == 4 ? peak->N_kappa : MAX(peak->N_nu, peak->N_kappa));
   peak->printMode = 2; //-- 0 = detailed, 1 = no flush, 2 = line mode, 3 = MPI
   
   sampler_arr *sampArr  = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
@@ -284,22 +304,23 @@ void doDataMatrix(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
   sampler_t *galSamp     = initialize_sampler_t(peak->N_z_gal);
   setGalaxySampler(cmhm, peak, galSamp, err);                                                         forwardError(*err, __LINE__,);
   gal_map *gMap          = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
-  short_mat *CCDMask     = initialize_short_mat(N1_mask, N2_mask);
-  if (peak->doMask == 1) fillMask_CFHTLenS_W1(peak, CCDMask);
-  FFT_arr *smoother      = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
-  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernel(peak, smoother);
+  short_mat *CCDMask     = initializeMask(peak, err);                                                 forwardError(*err, __LINE__,);
+  FFT_arr *FFTSmoother   = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->FFT_nbFilters) makeKernel(peak, FFTSmoother);
+  FFT_arr *DCSmoother    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
   map_t *kMap            = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
   FFT_arr *variance      = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
-  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernelForVariance(peak, variance);
+  if (peak->FFT_nbFilters) makeKernel(peak, variance);
   double_arr *peakList   = initialize_double_arr(length);
-  hist_t *hist           = initialize_hist_t(peak->N_nu);
-  setHist(peak, hist);
-  hist_t *hist2          = initialize_hist_t(peak->N_kappa);
-  setHist2(peak, hist2);
+  hist_t *nuHist         = initialize_hist_t(peak->N_nu);
+  setHist_nu(peak, nuHist);
+  hist_t *kappaHist      = initialize_hist_t(peak->N_kappa);
+  setHist_kappa(peak, kappaHist);
   double_mat *multiscale = initialize_double_mat(N_bin, peak->nbFilters);
   double_mat *dataMat    = initialize_double_mat(N_bin * peak->nbFilters, N);
   
   clock_t start = clock();
+  char name[STRING_LENGTH_MAX];
   int i;
   
   //-- Peak histogram loop
@@ -307,8 +328,8 @@ void doDataMatrix(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
   for (i=0; i<N; i++) {
     printf("Realization %4d: ", i+1);
     peak->realizationInd = i;
-    multiscaleFromMassFct(cmhm, peak, sampArr, hMap, galSamp, gMap, CCDMask,
-			  smoother, kMap, variance, peakList, hist, hist2, multiscale, err); forwardError(*err, __LINE__,);
+    multiscaleFromMassFct(cmhm, peak, sampArr, hMap, galSamp, gMap, CCDMask, FFTSmoother, DCSmoother, kMap, variance, peakList, nuHist, kappaHist, 
+			  multiscale, err); forwardError(*err, __LINE__,);
     fillRealization(peak, multiscale, dataMat->matrix);
   }
   
@@ -326,12 +347,13 @@ void doDataMatrix(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
   free_sampler_t(galSamp);
   free_gal_map(gMap);
   free_short_mat(CCDMask);
-  free_FFT_arr(smoother);
+  free_FFT_arr(FFTSmoother);
+  free_FFT_arr(DCSmoother);
   free_map_t(kMap);
   free_FFT_arr(variance);
   free_double_arr(peakList);
-  free_hist_t(hist);
-  free_hist_t(hist2);
+  free_hist_t(nuHist);
+  free_hist_t(kappaHist);
   free_double_mat(multiscale);
   free_double_mat(dataMat);
   printf("------------------------------------------------------------------------\n");
@@ -587,10 +609,10 @@ void doChi2(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
   FFT_arr *varArr        = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
   if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernelForVariance(peak, varArr);
   double_arr *peakList   = initialize_double_arr(length);
-  hist_t *hist           = initialize_hist_t(peak->N_nu);
-  setHist(peak, hist);
-  hist_t *hist2          = initialize_hist_t(peak->N_nu);
-  setHist(peak, hist2); //TODO
+  hist_t *nuHist         = initialize_hist_t(peak->N_nu);
+  setHist_nu(peak, nuHist);
+  hist_t *kappaHist      = initialize_hist_t(peak->N_nu);
+  setHist_kappa(peak, kappaHist);
   double_mat *multiscale = initialize_double_mat(peak->N_nu, peak->nbFilters);
   likelihood_t *LLH      = initialize_likelihood_t(peak->N_nu * peak->nbFilters, N, err);             forwardError(*err, __LINE__,);
   //sprintf(name, ); //TODO
@@ -604,7 +626,7 @@ void doChi2(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
     printf("Realization %4d: ", i+1);
     peak->realizationInd = i;
     multiscalePeakHistFromMassFct(cmhm, peak, sampArr, hMap, galSamp, gMap, CCDMask,
-				  smoother, kMap, varArr, peakList, hist, hist2, multiscale, err); forwardError(*err, __LINE__,);
+				  smoother, kMap, varArr, peakList, nuHist, kappaHist, multiscale, err); forwardError(*err, __LINE__,);
     fillRealization(peak, multiscale, LLH->matrix);
     printf("\n");
   }
@@ -628,7 +650,8 @@ void doChi2(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
   free_map_t(kMap);
   free_FFT_arr(varArr);
   free_double_arr(peakList);
-  free_hist_t(hist);
+  free_hist_t(nuHist);
+  free_hist_t(kappaHist);
   free_double_mat(multiscale);
   free_likelihood_t(LLH);
   printf("------------------------------------------------------------------------\n");

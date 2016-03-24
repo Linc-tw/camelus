@@ -3,7 +3,7 @@
   /*******************************
    **  commonHeader.c		**
    **  Chieh-An Lin		**
-   **  Version 2015.08.20	**
+   **  Version 2015.12.17	**
    *******************************/
 
   
@@ -269,7 +269,7 @@ interpolator_t *initialize_interpolator_t(int length)
 
 void free_interpolator_t(interpolator_t *inter)
 {
-  if (inter->x)     {free(inter->x);     inter->x = NULL;}
+  if (inter->x)     {free(inter->x);     inter->x     = NULL;}
   if (inter->value) {free(inter->value); inter->value = NULL;}
   free(inter); inter = NULL;
   return;
@@ -473,9 +473,9 @@ FFT_t *initialize_FFT_t(int N)
 
 void free_FFT_t(FFT_t *transformer)
 {
-  if (transformer->before)   {fftw_free(transformer->before);           transformer->before = NULL;}
-  if (transformer->kernel)   {fftw_free(transformer->kernel);           transformer->kernel = NULL;}
-  if (transformer->after)    {fftw_free(transformer->after);            transformer->after  = NULL;}
+  if (transformer->before)   {fftw_free(transformer->before);           transformer->before   = NULL;}
+  if (transformer->kernel)   {fftw_free(transformer->kernel);           transformer->kernel   = NULL;}
+  if (transformer->after)    {fftw_free(transformer->after);            transformer->after    = NULL;}
   
   if (transformer->before_f) {fftw_destroy_plan(transformer->before_f); transformer->before_f = NULL;}
   if (transformer->kernel_f) {fftw_destroy_plan(transformer->kernel_f); transformer->kernel_f = NULL;}
@@ -549,99 +549,6 @@ void execute_FFT_arr(FFT_arr *transArr)
   return;
 }
 
-/*
-FFT_arr *initialize_FFT_arr(int N_array, int N_type)
-{
-  //-- 'before' and 'kernel' should be set to 0 at the beginning.
-  
-  FFT_arr *transArr     = (FFT_arr*)malloc(sizeof(FFT_arr));
-  transArr->N_array     = N_array;
-  transArr->N_type      = N_type;
-  transArr->length_type = N_type * N_type;
-  int i;
-  
-  //-- Allocate fftw_complex elements
-  transArr->before         = (fftw_complex*)fftw_malloc(transArr->length_type * sizeof(fftw_complex));
-  transArr->kernelArr      = (fftw_complex**)malloc(N_array * sizeof(fftw_complex*));
-  transArr->afterArr       = (fftw_complex**)malloc(N_array * sizeof(fftw_complex*));
-  for (i=0; i<N_array; i++) {
-    transArr->kernelArr[i] = (fftw_complex*)fftw_malloc(transArr->length_type * sizeof(fftw_complex));
-    transArr->afterArr[i]  = (fftw_complex*)fftw_malloc(transArr->length_type * sizeof(fftw_complex));
-  }
-  
-  //-- Allocate fftw_plan elements
-  transArr->before_f         = fftw_plan_dft_2d(N_type, N_type, transArr->before,       transArr->before,       FFTW_FORWARD,  FFTW_ESTIMATE);
-  transArr->kernelArr_f      = (fftw_plan*)fftw_malloc(N_array * sizeof(fftw_plan));
-  transArr->afterArr_f       = (fftw_plan*)fftw_malloc(N_array * sizeof(fftw_plan));
-  transArr->afterArr_b       = (fftw_plan*)fftw_malloc(N_array * sizeof(fftw_plan));
-  for (i=0; i<N_array; i++) {
-    transArr->kernelArr_f[i] = fftw_plan_dft_2d(N_type, N_type, transArr->kernelArr[i], transArr->kernelArr[i], FFTW_FORWARD,  FFTW_ESTIMATE);
-    transArr->afterArr_f[i]  = fftw_plan_dft_2d(N_type, N_type, transArr->afterArr[i],  transArr->afterArr[i],  FFTW_FORWARD,  FFTW_ESTIMATE);
-    transArr->afterArr_b[i]  = fftw_plan_dft_2d(N_type, N_type, transArr->afterArr[i],  transArr->afterArr[i],  FFTW_BACKWARD, FFTW_ESTIMATE);
-  }
-  
-  return transArr;
-}
-
-void free_FFT_arr(FFT_arr *transArr)
-{
-  int i;
-  if (transArr->before)                 {fftw_free(transArr->before);       transArr->before = NULL;}
-  if (transArr->kernelArr) {
-    for (i=0; i<transArr->N_array; i++) {fftw_free(transArr->kernelArr[i]); transArr->kernelArr[i] = NULL;}
-    free(transArr->kernelArr); transArr->kernelArr = NULL;
-  }
-  if (transArr->afterArr) {
-    for (i=0; i<transArr->N_array; i++) {fftw_free(transArr->afterArr[i]);  transArr->afterArr[i] = NULL;}
-    free(transArr->afterArr); transArr->afterArr = NULL;
-  }
-  
-  if (transArr->before_f)               {fftw_destroy_plan(transArr->before_f);       transArr->before_f = NULL;}
-  if (transArr->kernelArr_f) {
-    for (i=0; i<transArr->N_array; i++) {fftw_destroy_plan(transArr->kernelArr_f[i]); transArr->kernelArr_f[i] = NULL;}
-    free(transArr->kernelArr_f); transArr->kernelArr_f = NULL;
-  }
-  if (transArr->afterArr_f) {
-    for (i=0; i<transArr->N_array; i++) {fftw_destroy_plan(transArr->afterArr_f[i]);  transArr->afterArr_f[i] = NULL;}
-    free(transArr->afterArr_f); transArr->afterArr_f = NULL;
-  }
-  if (transArr->afterArr_b) {
-    for (i=0; i<transArr->N_array; i++) {fftw_destroy_plan(transArr->afterArr_b[i]);  transArr->afterArr_b[i] = NULL;}
-    free(transArr->afterArr_b); transArr->afterArr_b = NULL;
-  }
-  
-  free(transArr); transArr = NULL;
-  return;
-}
-
-void reset_FFT_arr(FFT_arr *transArr)
-{ 
-  int i;
-  reset_fftw_complex(transArr->before, transArr->length_type);
-  return;
-}
-
-void execute_FFT_arr(FFT_arr *transArr)
-{
-  int N_array     = transArr->N_array;
-  int length_type = transArr->length_type;
-  double factor   = 1.0 / (double)length_type;
-  int i;
-  
-  //-- Go to Fourier space
-  fftw_execute(transArr->before_f);
-  
-  //-- Multiplication
-  for (i=0; i<N_array; i++) multiplication_fftw_complex(transArr->before, transArr->kernelArr[i], transArr->afterArr[i], length_type);
-  
-  //-- Go to direct space
-  for (i=0; i<N_array; i++) fftw_execute(transArr->afterArr_b[i]);
-  
-  //-- Rescale
-  for (i=0; i<N_array; i++) rescale_fftw_complex(transArr->afterArr[i], length_type, factor);
-  return;
-}
-*/
 //----------------------------------------------------------------------
 //-- Functions related to hist_t
 
@@ -666,7 +573,7 @@ hist_t *initialize_hist_t(int length)
 void free_hist_t(hist_t *hist)
 {
   if (hist->x_lower) {free(hist->x_lower); hist->x_lower = NULL;}
-  if (hist->n)       {free(hist->n);       hist->n = NULL;}
+  if (hist->n)       {free(hist->n);       hist->n       = NULL;}
   free(hist); hist = NULL;
   return;
 }
@@ -918,24 +825,5 @@ void routineTime(clock_t start, clock_t stop)
   else                printf("routine time = %d h %d m %d s\n", hours, minutes, (int)seconds);
   return;
 }
-
-//----------------------------------------------------------------------
-//-- Math functions
-/*
-int imod(int N, int i)
-{ 
-  //-- mod function ranged in [0, N-1]
-  if (i < 0)  return imod(N, i + N);
-  if (i >= N) return imod(N, i - N);
-  return i;
-}
-
-int imodc(int N, int i)
-{ 
-  //-- mod function centered on 0, positive side is priviledged if N is even
-  if (i <= -N + N/2) return imodc(N, i + N);
-  if (i > N/2)       return imodc(N, i - N);
-  return i;
-}*/
 
 //----------------------------------------------------------------------

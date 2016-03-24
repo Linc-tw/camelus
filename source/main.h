@@ -3,17 +3,14 @@
   /*******************************
    **  main.h			**
    **  Chieh-An Lin		**
-   **  Version 2015.12.09	**
+   **  Version 2016.03.20	**
    *******************************/
 
 
 #ifndef __main__
 #define __main__
 
-#include <mpi.h>
-
 #include "commonHeader.h"
-#include "FITSFunctions.h"
 #include "peakParameters.h"
 #include "haloSampling.h"
 #include "rayTracing.h"
@@ -22,17 +19,16 @@
 #include "constraint.h"
 #include "ABC.h"
 
-#define __releaseMenu__
-
-//#include "FSL10.h"
-//#include "paperI.h"
-//#include "paperII.h"
-//#include "paperIII.h"
+#ifndef __releaseMenu__
+  #include <mpi.h>
+  #include "FITSFunctions.h"
+  #include "paperIII.h"
+#endif
 
 
 int main(int argc, char *argv[]);
 void printInstructions(int task, int printHeader);
-void MPI_finalize(int MPISize, int MPIInd);
+void MPI_terminate(int MPISize, int MPIInd);
 void sandbox(cosmo_hm *cmhm, peak_param *peak, error **err);
 
 

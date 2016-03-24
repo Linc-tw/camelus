@@ -3,7 +3,7 @@
   /*******************************
    **  peakParameters.c		**
    **  Chieh-An Lin		**
-   **  Version 2015.12.08	**
+   **  Version 2016.02.02	**
    *******************************/
 
 
@@ -30,7 +30,7 @@ cosmo_hm *initialize_cosmo_hm_default(error **err)
 				      -0.13, 0.9, 1.0e10, -1, 0.0,
 				      0.0, 0.0,
 				      hamana04, 60.0, err);
-  forwardError(*err, __LINE__,);
+  forwardError(*err, __LINE__, NULL);
   return cmhm;
 }
 
@@ -131,29 +131,24 @@ void outputCosmoParam(FILE *file, cosmo_hm *cmhm, peak_param *peak)
   return;
 }
 
-cosmo_hm *updateCmhm(cosmo_hm *old, double Omega_m, double sigma_8, double w0_de, error **err)
+cosmo_hm *updateCmhm(cosmo_hm *oldCmhm, double Omega_m, double sigma_8, double w0_de, error **err)
 {
-   cosmo_hm *new, *buffer = old;
-   new = init_parameters_hm(Omega_m, 1-Omega_m, w0_de,
-			    old->cosmo->w1_de,  old->cosmo->w_poly_de, old->cosmo->N_poly_de,
-			    old->cosmo->h_100,  old->cosmo->Omega_b,
-			    old->cosmo->Omega_nu_mass, old->cosmo->Neff_nu_mass,
-			    sigma_8, old->cosmo->n_spec,
-			    old->redshift->Nzbin,  old->redshift->Nnz, old->redshift->nofz,
-			    old->redshift->par_nz,
-			    old->zmin,             old->zmax,
-			    old->cosmo->nonlinear, old->cosmo->transfer,
-			    old->cosmo->growth,    old->cosmo->de_param, 
-			    old->cosmo->normmode,  old->c0,  old->alpha_NFW, old->beta_NFW,
-			    old->massfct,  old->halo_bias,   old->M_min,     old->M1, 
-			    old->M0,       old->sigma_log_M, old->alpha, 
-			    old->Mstar0,   old->beta,     old->delta,        old->gamma,        old->B_cut, old->B_sat, 
-			    old->beta_cut, old->beta_sat, old->Mstellar_min, old->Mstellar_max, old->eta,
-			    old->fcen1, old->fcen2,
-			    old->hod,   old->pi_max, err);
-   forwardError(*err, __LINE__,);
-   free_parameters_hm(&buffer);
-   return new;
+  cosmo_hm *buffer   = oldCmhm; //-- To free
+  cosmo *oldCm       = oldCmhm->cosmo;
+  redshift_t * oldRs = oldCmhm->redshift;
+  cosmo_hm *newCmhm  = init_parameters_hm(Omega_m,           1-Omega_m,          w0_de,                 oldCm->w1_de,          oldCm->w_poly_de,         oldCm->N_poly_de,
+					  oldCm->h_100,      oldCm->Omega_b,     oldCm->Omega_nu_mass,  oldCm->Neff_nu_mass,   sigma_8,                  oldCm->n_spec,
+					  oldRs->Nzbin,      oldRs->Nnz,         oldRs->nofz,           oldRs->par_nz,         oldCmhm->zmin,            oldCmhm->zmax,
+					  oldCm->nonlinear,  oldCm->transfer,    oldCm->growth,         oldCm->de_param,       oldCmhm->cosmo->normmode,  
+					  oldCmhm->c0,       oldCmhm->alpha_NFW, oldCmhm->beta_NFW,     oldCmhm->massfct,      oldCmhm->halo_bias,   
+					  oldCmhm->M_min,    oldCmhm->M1,        oldCmhm->M0,           oldCmhm->sigma_log_M,  oldCmhm->alpha, 
+					  oldCmhm->Mstar0,   oldCmhm->beta,      oldCmhm->delta,        oldCmhm->gamma,        oldCmhm->B_cut,           oldCmhm->B_sat, 
+					  oldCmhm->beta_cut, oldCmhm->beta_sat,  oldCmhm->Mstellar_min, oldCmhm->Mstellar_max, oldCmhm->eta,
+					  oldCmhm->fcen1,    oldCmhm->fcen2,
+					  oldCmhm->hod,      oldCmhm->pi_max,    err);
+  forwardError(*err, __LINE__, NULL);
+  free_parameters_hm(&buffer);
+  return newCmhm;
 }
 
 //----------------------------------------------------------------------
@@ -161,18 +156,21 @@ cosmo_hm *updateCmhm(cosmo_hm *old, double Omega_m, double sigma_8, double w0_de
 
 void free_peak_param(peak_param *peak)
 {
-  if (peak->filter)        {free(peak->filter);            peak->filter = NULL;}
-  if (peak->scale)         {free(peak->scale);             peak->scale = NULL;}
-  if (peak->nu_bin)        {free(peak->nu_bin);            peak->nu_bin = NULL;}
-  if (peak->generator)     {gsl_rng_free(peak->generator); peak->generator = NULL;}
-  if (peak->linFilter)     {free(peak->linFilter);         peak->linFilter = NULL;}
-  if (peak->linScale)      {free(peak->linScale);          peak->linScale = NULL;}
-  if (peak->nonlinScale)   {free(peak->nonlinScale);       peak->nonlinScale = NULL;}
-  if (peak->sigma_noise)   {free(peak->sigma_noise);       peak->sigma_noise = NULL;}
-  if (peak->scale_invSq)   {free(peak->scale_invSq);       peak->scale_invSq = NULL;}
-  if (peak->cut_sq)        {free(peak->cut_sq);            peak->cut_sq = NULL;}
-  if (peak->linScaleInPix) {free(peak->linScaleInPix);     peak->linScaleInPix = NULL;}
-  if (peak->weight)        {free(peak->weight);            peak->weight = NULL;}
+  if (peak->FFT_filter)      {free(peak->FFT_filter);        peak->FFT_filter      = NULL;}
+  if (peak->FFT_scale)       {free(peak->FFT_scale);         peak->FFT_scale       = NULL;}
+  if (peak->DC_filter)       {free(peak->DC_filter);         peak->DC_filter       = NULL;}
+  if (peak->DC_scale)        {free(peak->DC_scale);          peak->DC_scale        = NULL;}
+  if (peak->nu_bin)          {free(peak->nu_bin);            peak->nu_bin          = NULL;}
+  if (peak->kappa_bin)       {free(peak->kappa_bin);         peak->kappa_bin       = NULL;}
+  if (peak->ABC_doParam)     {free(peak->ABC_doParam);       peak->ABC_doParam     = NULL;}
+  if (peak->generator)       {gsl_rng_free(peak->generator); peak->generator       = NULL;}
+  if (peak->filter)          {free(peak->filter);            peak->filter          = NULL;}
+  if (peak->FFT_sigma_noise) {free(peak->FFT_sigma_noise);   peak->FFT_sigma_noise = NULL;}
+  if (peak->DC_sigma_noise)  {free(peak->DC_sigma_noise);    peak->DC_sigma_noise  = NULL;}
+  if (peak->DC_scale_invSq)  {free(peak->DC_scale_invSq);    peak->DC_scale_invSq  = NULL;}
+  if (peak->DC_cut_sq)       {free(peak->DC_cut_sq);         peak->DC_cut_sq       = NULL;}
+  if (peak->FFT_scaleInPix)  {free(peak->FFT_scaleInPix);    peak->FFT_scaleInPix  = NULL;}
+  if (peak->DC_scaleInPix)   {free(peak->DC_scaleInPix);     peak->DC_scaleInPix   = NULL;}
   free(peak);
   return;
 }
@@ -181,54 +179,89 @@ void read_peak_param(char name[], peak_param *peak, error **err)
 {
   //-- peak should have been initialized.
   
-  struct {char strField[STRING_LENGTH_MAX], strFilter[16][STRING_LENGTH_MAX];} string;
+  struct {char strField[STRING_LENGTH_MAX], FFT_strFilter[16][STRING_LENGTH_MAX], DC_strFilter[16][STRING_LENGTH_MAX];} string;
   config_element c = {0, 0.0, ""};
   char buffer[STRING_LENGTH_MAX];
   int i, j;
   
-  FILE *file = fopen_err(name, "r", err);                                              forwardError(*err, __LINE__,);
+  FILE *file = fopen_err(name, "r", err);                                                    forwardError(*err, __LINE__,);
   
   //-- Halos
-  CONFIG_READ(peak, z_halo_max, d, file, c, err);                                      forwardError(*err, __LINE__,);
-  CONFIG_READ(peak, N_z_halo, i, file, c, err);                                        forwardError(*err, __LINE__,);
-  CONFIG_READ(peak, M_min, d, file, c, err);                                           forwardError(*err, __LINE__,);
-  CONFIG_READ(peak, M_max, d, file, c, err);                                           forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, z_halo_max, d, file, c, err);                                            forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, N_z_halo, i, file, c, err);                                              forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, M_min, d, file, c, err);                                                 forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, M_max, d, file, c, err);                                                 forwardError(*err, __LINE__,);
   
   //-- Galaxies
-  CONFIG_READ(peak, z_s, d, file, c, err);                                             forwardError(*err, __LINE__,);
-  CONFIG_READ(peak, doRandGalPos, i, file, c, err);                                    forwardError(*err, __LINE__,);
-  CONFIG_READ(peak, n_gal, d, file, c, err);                                           forwardError(*err, __LINE__,);
-  CONFIG_READ(peak, sigma_eps, d, file, c, err);                                       forwardError(*err, __LINE__,);
-  CONFIG_READ(peak, doKappa, i, file, c, err);                                         forwardError(*err, __LINE__,);
-  CONFIG_READ(peak, doMask, i, file, c, err);                                          forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, z_s, d, file, c, err);                                                   forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, doRandGalPos, i, file, c, err);                                          forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, n_gal, d, file, c, err);                                                 forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, sigma_eps, d, file, c, err);                                             forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, doKappa, i, file, c, err);                                               forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, doMask, i, file, c, err);                                                forwardError(*err, __LINE__,);
+  CONFIG_READ_S(peak, maskPath, s, file, c, err);                                            forwardError(*err, __LINE__,);
   
-  //-- Field. map, & filter
-  CONFIG_READ_S(&string, strField, s, file, c, err);                                   forwardError(*err, __LINE__,);
-  STRING2ENUM(peak->field, string.strField, field_t, STR_FIELD_T, i, NB_FIELD_T, err); forwardError(*err, __LINE__,);
-  CONFIG_READ_ARR(peak, Omega, d, i, 2, buffer, file, c, err);                         forwardError(*err, __LINE__,);
-  CONFIG_READ(peak, theta_pix, d, file, c, err);                                       forwardError(*err, __LINE__,);
-  CONFIG_READ(peak, nbFilters, i, file, c, err);                                       forwardError(*err, __LINE__,);
-  peak->filter = (filter_t*)malloc_err(peak->nbFilters * sizeof(filter_t), err);       forwardError(*err, __LINE__,);
-  CONFIG_READ_S_ARR(&string, strFilter, buffer, i, peak->nbFilters, file, c, err);     forwardError(*err, __LINE__,);
-  for (j=0; j<peak->nbFilters; j++) {STRING2ENUM(peak->filter[j], string.strFilter[j], filter_t, STR_FILTER_T, i, NB_FILTER_T, err); forwardError(*err, __LINE__,);}
-  peak->scale = (double*)malloc_err(peak->nbFilters * sizeof(double), err);            forwardError(*err, __LINE__,);
-  CONFIG_READ_ARR(peak, scale, d, i, peak->nbFilters, buffer, file, c, err);           forwardError(*err, __LINE__,);
+  //-- Field & map
+  CONFIG_READ_S(&string, strField, s, file, c, err);                                         forwardError(*err, __LINE__,);
+  STRING2ENUM(peak->field, string.strField, field_t, STR_FIELD_T, i, NB_FIELD_T, err);       forwardError(*err, __LINE__,);
+  CONFIG_READ_ARR(peak, Omega, d, i, 2, buffer, file, c, err);                               forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, theta_pix, d, file, c, err);                                             forwardError(*err, __LINE__,);
+  
+  //-- Filter
+  CONFIG_READ(peak, doSmoothing, i, file, c, err);                                           forwardError(*err, __LINE__,);
+  
+  CONFIG_READ(peak, FFT_nbFilters, i, file, c, err);                                         forwardError(*err, __LINE__,);
+  if (peak->FFT_nbFilters != 0) {
+    peak->FFT_filter = (filter_t*)malloc_err(peak->FFT_nbFilters * sizeof(filter_t), err);   forwardError(*err, __LINE__,);
+    CONFIG_READ_S_ARR(&string, FFT_strFilter, buffer, i, peak->FFT_nbFilters, file, c, err); forwardError(*err, __LINE__,);
+    for (j=0; j<peak->FFT_nbFilters; j++) {STRING2ENUM(peak->FFT_filter[j], string.FFT_strFilter[j], filter_t, STR_FILTER_T, i, NB_FILTER_T, err); forwardError(*err, __LINE__,);}
+    peak->FFT_scale  = (double*)malloc_err(peak->FFT_nbFilters * sizeof(double), err);       forwardError(*err, __LINE__,);
+    CONFIG_READ_ARR(peak, FFT_scale, d, i, peak->FFT_nbFilters, buffer, file, c, err);       forwardError(*err, __LINE__,);
+  }
+  else {
+    peak->FFT_filter = NULL;
+    read_element(file, "", c, c_s, 1, err);                                                  forwardError(*err, __LINE__,);
+    peak->FFT_scale  = NULL;
+    read_element(file, "", c, c_s, 1, err);                                                  forwardError(*err, __LINE__,);
+  }
+  
+  CONFIG_READ(peak, DC_nbFilters, i, file, c, err);                                          forwardError(*err, __LINE__,);
+  if (peak->DC_nbFilters != 0) {
+    peak->DC_filter = (filter_t*)malloc_err(peak->DC_nbFilters * sizeof(filter_t), err);     forwardError(*err, __LINE__,);
+    CONFIG_READ_S_ARR(&string, DC_strFilter, buffer, i, peak->DC_nbFilters, file, c, err);   forwardError(*err, __LINE__,);
+    for (j=0; j<peak->DC_nbFilters; j++) {STRING2ENUM(peak->DC_filter[j], string.DC_strFilter[j], filter_t, STR_FILTER_T, i, NB_FILTER_T, err); forwardError(*err, __LINE__,);}
+    peak->DC_scale  = (double*)malloc_err(peak->DC_nbFilters * sizeof(double), err);         forwardError(*err, __LINE__,);
+    CONFIG_READ_ARR(peak, DC_scale, d, i, peak->DC_nbFilters, buffer, file, c, err);         forwardError(*err, __LINE__,);
+  }
+  else {
+    peak->DC_filter = NULL;
+    read_element(file, "", c, c_s, 1, err);                                                  forwardError(*err, __LINE__,);
+    peak->DC_scale  = NULL;
+    read_element(file, "", c, c_s, 1, err);                                                  forwardError(*err, __LINE__,);
+  }
+  
+  CONFIG_READ(peak, MRLens_nbScales, i, file, c, err);                                       forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, MRLens_FDR, d, file, c, err);                                            forwardError(*err, __LINE__,);
   
   //-- Peak historgram
-  CONFIG_READ(peak, N_nu, i, file, c, err);                                            forwardError(*err, __LINE__,);
-  peak->nu_bin = (double*)malloc_err((peak->N_nu+1) * sizeof(double), err);            forwardError(*err, __LINE__,);
-  CONFIG_READ_ARR(peak, nu_bin, d, i, peak->N_nu+1, buffer, file, c, err);             forwardError(*err, __LINE__,);
-  CONFIG_READ(peak, N_kappa, i, file, c, err);                                         forwardError(*err, __LINE__,);
-  peak->kappa_bin = (double*)malloc_err((peak->N_kappa+1) * sizeof(double), err);      forwardError(*err, __LINE__,);
-  CONFIG_READ_ARR(peak, kappa_bin, d, i, peak->N_kappa+1, buffer, file, c, err);       forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, N_nu, i, file, c, err);                                                  forwardError(*err, __LINE__,);
+  peak->nu_bin = (double*)malloc_err((peak->N_nu+1) * sizeof(double), err);                  forwardError(*err, __LINE__,);
+  CONFIG_READ_ARR(peak, nu_bin, d, i, peak->N_nu+1, buffer, file, c, err);                   forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, N_kappa, i, file, c, err);                                               forwardError(*err, __LINE__,);
+  peak->kappa_bin = (double*)malloc_err((peak->N_kappa+1) * sizeof(double), err);            forwardError(*err, __LINE__,);
+  CONFIG_READ_ARR(peak, kappa_bin, d, i, peak->N_kappa+1, buffer, file, c, err);             forwardError(*err, __LINE__,);
   
   //-- ABC
-  CONFIG_READ(peak, ABC_Q, i, file, c, err);                                           forwardError(*err, __LINE__,);
-  CONFIG_READ(peak, ABC_r_stop, d, file, c, err);                                      forwardError(*err, __LINE__,);
-  CONFIG_READ_S(peak, ABC_summ, s, file, c, err);                                      forwardError(*err, __LINE__,);
+  CONFIG_READ_S(peak, ABC_obsPath, s, file, c, err);                                         forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, ABC_f, i, file, c, err);                                                 forwardError(*err, __LINE__,);
+  peak->ABC_doParam = (int*)malloc_err(peak->ABC_f * sizeof(int), err);                      forwardError(*err, __LINE__,);
+  CONFIG_READ_ARR(peak, ABC_doParam, i, i, peak->ABC_f, buffer, file, c, err);               forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, ABC_Q, i, file, c, err);                                                 forwardError(*err, __LINE__,);
+  CONFIG_READ(peak, ABC_r_stop, d, file, c, err);                                            forwardError(*err, __LINE__,);
+  CONFIG_READ_S(peak, ABC_summ, s, file, c, err);                                            forwardError(*err, __LINE__,);
   
   //-- Label
-  peak->simulName = "default";
+  sprintf(peak->simulName, "default");
   fclose(file);
   return;
 }
@@ -236,9 +269,11 @@ void read_peak_param(char name[], peak_param *peak, error **err)
 void set_peak_param(cosmo_hm *cmhm, peak_param *peak, error **err)
 {
   //-- Default part
-  peak->dlogM         = 0.001; //-- Bin width for mass function
-  peak->dz_gal        = 0.01;
-  peak->theta_CCD_inv = 60.0;
+  peak->dlogM  = 0.001; //-- Bin width for mass function
+  peak->dz_gal = 0.01;
+  peak->theta_CCD_inv[0] = 60.0;
+  peak->theta_CCD_inv[1] = 60.0;
+  sprintf(peak->tempPath, "%s", "");
   
   //-- Precomputed part, area
   switch (peak->field) {
@@ -272,77 +307,130 @@ void set_peak_param(cosmo_hm *cmhm, peak_param *peak, error **err)
   peak->sigma_pix     = peak->sigma_half / sqrt(peak->n_gal * SQ(peak->theta_pix));
   peak->generator     = initializeGenerator();
   
-  //-- Filter-related, allocation
-  peak->linFilter   = (filter_t*)malloc_err(peak->nbFilters * sizeof(filter_t), err); forwardError(*err, __LINE__,);
-  peak->linScale    = (double*)malloc_err(peak->nbFilters * sizeof(double), err);     forwardError(*err, __LINE__,);
-  peak->sigma_noise = (double*)malloc_err(peak->nbFilters * sizeof(double), err);     forwardError(*err, __LINE__,);
-  peak->scale_invSq = (double*)malloc_err(peak->nbFilters * sizeof(double), err);     forwardError(*err, __LINE__,);
-  peak->cut_sq      = (double*)malloc_err(peak->nbFilters * sizeof(double), err);     forwardError(*err, __LINE__,);
-  peak->nonlinScale = (int*)malloc_err(peak->nbFilters * sizeof(int), err);           forwardError(*err, __LINE__,);
-  
-  //-- Filter-related, computation
-  peak->nbLinFilters    = 0;
-  peak->nbNonlinFilters = 0;
+  //-- Filter-related
+  if ((peak->doSmoothing / 1) % 2 == 0) peak->FFT_nbFilters = 0;
+  if ((peak->doSmoothing / 2) % 2 == 0) peak->DC_nbFilters = 0;
+  peak->doNonlinear  = (peak->doSmoothing / 4) % 2;
+  peak->nbFilters    = peak->FFT_nbFilters + peak->DC_nbFilters + peak->doNonlinear;
+  peak->smootherSize = MAX(peak->FFT_nbFilters, 1); //-- Keep at least one table for inversion
+  peak->filter       = (filter_t*)malloc_err(peak->nbFilters * sizeof(filter_t), err); forwardError(*err, __LINE__,);
+  int count = 0;
   int i;
-  for (i=0; i<peak->nbFilters; i++) {
-    if (peak->filter[i] == gauss) {
-      peak->linFilter[peak->nbLinFilters]   = peak->filter[i];
-      peak->linScale[peak->nbLinFilters]    = peak->scale[i];
-      peak->sigma_noise[peak->nbLinFilters] = peak->sigma_half / sqrt(peak->n_gal * TWO_PI * SQ(peak->scale[i]));
-      peak->scale_invSq[peak->nbLinFilters] = 1.0 / (SQ(peak->scale[i]));
-      peak->cut_sq[peak->nbLinFilters]      = SQ(CUTOFF_FACTOR_FILTER * peak->scale[i]);
-      peak->nbLinFilters++;
-    }
-    else if (peak->filter[i] == star) {
-      peak->linFilter[peak->nbLinFilters]   = peak->filter[i];
-      peak->linScale[peak->nbLinFilters]    = peak->scale[i];
-      peak->sigma_noise[peak->nbLinFilters] = peak->sigma_half / sqrt(peak->n_gal * SQ(peak->scale[i])) * (STARLET_NORM2 / STARLET_NORM1);
-      peak->scale_invSq[peak->nbLinFilters] = 1.0 / (SQ(peak->scale[i]));
-      peak->cut_sq[peak->nbLinFilters]      = SQ(CUTOFF_FACTOR_FILTER * peak->scale[i]);
-      peak->nbLinFilters++;
-    }
-    else if (peak->filter[i] == mrlens) {
-      peak->nonlinScale[peak->nbNonlinFilters] = (int)round(peak->scale[i]);
-      peak->nbNonlinFilters++;
+  for (i=0; i<peak->FFT_nbFilters; i++) {
+    peak->filter[count] = peak->FFT_filter[i]; 
+    count++;
+  }
+  for (i=0; i<peak->DC_nbFilters; i++) {
+    peak->filter[count] = peak->DC_filter[i];
+    count++;
+  }
+  if (peak->doNonlinear) {
+    peak->filter[count] = mrlens;
+    count++;
+  }
+  
+  //-- Filter-related, FFT
+  if (peak->FFT_nbFilters) {
+    peak->FFT_sigma_noise = (double*)malloc_err(peak->FFT_nbFilters * sizeof(double), err); forwardError(*err, __LINE__,);
+    peak->FFT_scaleInPix  = (double*)malloc_err(peak->FFT_nbFilters * sizeof(double), err); forwardError(*err, __LINE__,);
+    for (i=0; i<peak->FFT_nbFilters; i++) {
+      //-- See DC_sigma_noise for notes on sigma_noise
+      if (peak->FFT_filter[i] == gauss) {
+	peak->FFT_sigma_noise[i] = peak->sigma_half / (sqrt(peak->n_gal) * peak->FFT_scale[i]) * (1.0 / sqrt(TWO_PI));
+      }
+      else if (peak->FFT_filter[i] == star) {
+	peak->FFT_sigma_noise[i] = peak->sigma_half / (sqrt(peak->n_gal) * peak->FFT_scale[i]) * (NORM2_STARLET / NORM1_STARLET);
+      }
+      else {
+	*err = addError(peak_unknown, "Invalid filter type for FFT", *err, __LINE__);
+	forwardError(*err, __LINE__,);
+      }
     }
   }
-  peak->smootherSize = MAX(peak->nbLinFilters, 1); //-- Keep at least one table for inversion
+  else {
+    //-- Prevent crashes in free functions
+    peak->FFT_sigma_noise = NULL;
+    peak->FFT_scaleInPix  = NULL;
+  }
+  
+  if (peak->DC_nbFilters) {
+    peak->DC_sigma_noise = (double*)malloc_err(peak->DC_nbFilters * sizeof(double), err); forwardError(*err, __LINE__,);
+    peak->DC_scale_invSq = (double*)malloc_err(peak->DC_nbFilters * sizeof(double), err); forwardError(*err, __LINE__,);
+    peak->DC_cut_sq      = (double*)malloc_err(peak->DC_nbFilters * sizeof(double), err); forwardError(*err, __LINE__,);
+    peak->DC_scaleInPix  = (double*)malloc_err(peak->DC_nbFilters * sizeof(double), err); forwardError(*err, __LINE__,);
+    for (i=0; i<peak->DC_nbFilters; i++) {
+      //-- Let W(x) be a kernel with || W ||_L1 = NORM1 and || W ||_L2^2 = NORM2^2.
+      //-- The scale-dependent kernel should be defined as W_s(i) = W(i/s) / s^2 with
+      //--     || W_s ||_L1   = || W ||_L1         = NORM1
+      //-- and || W_s ||_L2^2 = || W ||_L2^2 / s^2 = NORM2^2 / s^2.
+      //--
+      //-- Thus, sigma_noise^2 = (sigma_epsilon^2 / 2 n_gal) (|| W_s ||_L2 / || W_s ||_L1)^2
+      //--                     = (sigma_half^2 / n_gal) (NORM2 / NORM1 s)^2
+      //-- So, sigma_noise = (sigma_half / sqrt(n_gal) s) (NORM2 / NORM1)
+      //--
+      //-- Gaussian:  W(x) = exp(-x^2),    NORM1 = pi,        NORM2^2 = pi / 2, NORM2 / NORM1 = 1 / sqrt(2 pi)
+      //-- Starlet:   W(x, y) = psi(x, y), NORM1 = numerical, NORM2^2 = 5 I2^2 - 2 I3^2
+      //-- M_ap tanh: W(x) = tanh(x / 0.1) / [x (1 + exp(5 - 150 x) + exp(-47 + 50 x))], 
+      //--                                 NORM1 = numerical, NORM2^2 = numerical
+      if (peak->DC_filter[i] == gauss) {
+	peak->DC_sigma_noise[i] = peak->sigma_half / (sqrt(peak->n_gal) * peak->DC_scale[i]) * (1.0 / sqrt(TWO_PI));
+	peak->DC_scale_invSq[i] = 1.0 / (SQ(peak->DC_scale[i]));
+	peak->DC_cut_sq[i]      = SQ(CUTOFF_FACTOR_GAUSSIAN * peak->DC_scale[i]);
+      }
+      else if (peak->DC_filter[i] == star) {
+	peak->DC_sigma_noise[i] = peak->sigma_half / (sqrt(peak->n_gal) * peak->DC_scale[i]) * (NORM2_STARLET / NORM1_STARLET);
+	peak->DC_scale_invSq[i] = 1.0 / peak->DC_scale[i]; //-- Not squared for the starlet
+	peak->DC_cut_sq[i]      = 2.0 * peak->DC_scale[i]; //-- Not squared for the starlet
+      }
+      else if (peak->DC_filter[i] == M_ap_tanh) {
+	peak->DC_sigma_noise[i] = peak->sigma_half / (sqrt(peak->n_gal) * peak->DC_scale[i]) * (NORM2_M_AP_TANH / NORM1_M_AP_TANH);
+	peak->DC_scale_invSq[i] = 1.0 / (SQ(peak->DC_scale[i]));
+	peak->DC_cut_sq[i]      = SQ(CUTOFF_FACTOR_M_AP_TANH * peak->DC_scale[i]);
+      }
+      else {
+	*err = addError(peak_unknown, "Invalid filter type for DC", *err, __LINE__);
+	forwardError(*err, __LINE__,);
+      }
+    }
+  }
+  else {
+    //-- Prevent crashes in free functions
+    peak->DC_sigma_noise = NULL;
+    peak->DC_scale_invSq = NULL;
+    peak->DC_cut_sq      = NULL;
+    peak->DC_scaleInPix  = NULL;
+  }
   
   //-- Only used if field = rectangle
   double bufferSize   = 0.0;
-  peak->linScaleInPix = (double*)malloc_err(peak->nbFilters * sizeof(double), err); forwardError(*err, __LINE__,);
   if (peak->field == rectangle) {
     peak->resol[0]    = (int)round(peak->Omega[0] / peak->theta_pix);
     peak->resol[1]    = (int)round(peak->Omega[1] / peak->theta_pix);
-    if (peak->nbLinFilters > 0) {
-      for (i=0; i<peak->nbLinFilters; i++) {
-	peak->linScaleInPix[i] = peak->linScale[i] * peak->theta_pix_inv;
-	if      (peak->linFilter[i] == gauss) bufferSize = MAX(bufferSize, CUTOFF_FACTOR_FILTER * peak->linScaleInPix[i]);
-	else if (peak->linFilter[i] == star)  bufferSize = MAX(bufferSize, 2.0 * peak->linScaleInPix[i]);
-      }
+    for (i=0; i<peak->FFT_nbFilters; i++) {
+      peak->FFT_scaleInPix[i] = peak->FFT_scale[i] * peak->theta_pix_inv;
+      if      (peak->FFT_filter[i] == gauss) bufferSize = MAX(bufferSize, CUTOFF_FACTOR_GAUSSIAN * peak->FFT_scaleInPix[i]);
+      else if (peak->FFT_filter[i] == star)  bufferSize = MAX(bufferSize, 2.0 * peak->FFT_scaleInPix[i]);
     }
-    else bufferSize = 8.0 * 2.0; //-- 8 pixels
-    peak->bufferSize    = (int)ceil(bufferSize) + 1;                                  //-- Buffer size for filter
-    peak->FFTSize       = MAX(peak->resol[0], peak->resol[1]) + peak->bufferSize + 1; //-- FFT size with buffer area
-    peak->FFTSize      += 256 - (peak->FFTSize % 256);                                //-- Round the size to a multiple of 256
+    for (i=0; i<peak->DC_nbFilters; i++) {
+      peak->DC_scaleInPix[i] = peak->DC_scale[i] * peak->theta_pix_inv;
+      if      (peak->DC_filter[i] == gauss)     bufferSize = MAX(bufferSize, CUTOFF_FACTOR_GAUSSIAN * peak->DC_scaleInPix[i]);
+      else if (peak->DC_filter[i] == star)      bufferSize = MAX(bufferSize, 2.0 * peak->DC_scaleInPix[i]);
+      else if (peak->DC_filter[i] == M_ap_tanh) bufferSize = MAX(bufferSize, CUTOFF_FACTOR_M_AP_TANH * peak->DC_scaleInPix[i]);
+    }
+    if (peak->doNonlinear) bufferSize = MAX(bufferSize, 8.0 * 2.0); //-- 8 pixels
+    peak->bufferSize    = (int)ceil(bufferSize);                                  //-- Buffer size for filter
+    peak->FFTSize       = MAX(peak->resol[0], peak->resol[1]) + peak->bufferSize; //-- FFT size with buffer area
+    peak->FFTSize      += 256 - (peak->FFTSize % 256);                            //-- Round the size to a multiple of 256
     peak->FFTNormFactor = 1.0 / (double)(SQ(peak->FFTSize));
-    peak->limits[0] = 0;
-    peak->limits[1] = peak->Omega[0];
-    peak->limits[2] = 0;
-    peak->limits[3] = peak->Omega[1];
+    peak->limit[0] = 0;
+    peak->limit[1] = peak->Omega[0];
+    peak->limit[2] = 0;
+    peak->limit[3] = peak->Omega[1];
   }
-  
-  //-- Running part
-  //WARNING only used in direct convolution
-  //peak->weight         = (double*)malloc_err(peak->nbLinFilters * sizeof(double), err); forwardError(*err, __LINE__,);
-  //for (i=0; i<peak->nbLinFilters; i++) peak->weight[i]; //-- Should not be initialized here
   
   //-- Running part, mode
   peak->printMode   = 0; //-- 0 = detailed, 1 = no flush, 2 = line mode, 3 = MPI
   peak->doNoise     = 1; //-- 0 = noiseless, 1 = noisy
-  if (peak->nbLinFilters > 0)    peak->doSmoothing  = 1; //-- 1 = FFT smoothing
-  else                           peak->doSmoothing  = 0; //-- 0 = without
-  if (peak->nbNonlinFilters > 0) peak->doSmoothing += 3; //-- 3 = nonlinear filtering, 4 = FFT + nonlinear
   
   //-- Running part, pipeline index
   peak->cosmoInd; //-- Should not be initialized here
@@ -361,7 +449,20 @@ void set_peak_param(cosmo_hm *cmhm, peak_param *peak, error **err)
 //----------------------------------------------------------------------
 //-- Functions related to print
 
-void printLineDoubleArray(double *array, int length, int digit)
+void printIntArray(int *array, int length)
+{
+  if (length == 0) {
+    printf("NULL");
+    return;
+  }
+  
+  int i;
+  printf("%d", array[0]);
+  for (i=1; i<length; i++) printf(", %d", array[i]);
+  return;
+}
+
+void printDoubleArray(double *array, int length, int digit)
 {
   if (length == 0) {
     printf("NULL");
@@ -404,6 +505,19 @@ void printGalaxyInfo(peak_param *peak)
   return;
 }
 
+void printFilterArray(filter_t *array, int length)
+{
+  if (length == 0) {
+    printf("NULL");
+    return;
+  }
+  
+  int i;
+  printf("%s", STR_FILTER_T(array[0]));
+  for (i=1; i<length; i++) printf(", %s", STR_FILTER_T(array[i]));
+  return;
+}
+
 void printParam(cosmo_hm *cmhm, peak_param *peak)
 {
   printf("Cosmological parameters\n");
@@ -413,34 +527,24 @@ void printParam(cosmo_hm *cmhm, peak_param *peak)
   printf("\n");
   printf("Peak parameters\n");
   printGalaxyInfo(peak);
-  printf("Omega       = (%.1f, %.1f) [arcmin]\n", peak->Omega[0], peak->Omega[1]);
-  printf("theta_pix   = %.3f [arcmin]\n", peak->theta_pix);
-  printf("Resolution  = (%d, %d) [pix]\n", peak->resol[0], peak->resol[1]);
-  printf("Buffer size = %d [pix]\n", peak->bufferSize);
-  printf("Peak field  = (%d, %d) [pix]\n", peak->resol[0] - 2*peak->bufferSize, peak->resol[1] - 2*peak->bufferSize);
-  printf("doKappa     = %d\n", peak->doKappa);
-  printf("Filters     = %s", STR_FILTER_T(peak->filter[0])); int i; for (i=1; i<peak->nbFilters; i++) printf(", %s", STR_FILTER_T(peak->filter[i])); printf("\n");
-  printf("Scales      = "); printLineDoubleArray(peak->scale, peak->nbFilters, 3); printf(" [arcmin]\n");
-  printf("------------------------------------------------------------------------\n");
-  return;
-}
-
-void printParam_ABC(cosmo_hm *cmhm, peak_param *peak)
-{
-  printf("Peak parameters\n");
-  printGalaxyInfo(peak);
-  printf("Omega       = (%.1f, %.1f) [arcmin]\n", peak->Omega[0], peak->Omega[1]);
-  printf("Resolution  = (%d, %d) [pix]\n", peak->resol[0], peak->resol[1]);
-  printf("Buffer size = %d\n", peak->bufferSize);
-  printf("Peak field  = (%d, %d) [pix]\n", peak->resol[0] - 2*peak->bufferSize, peak->resol[1] - 2*peak->bufferSize);
-  printf("doKappa     = %d\n", peak->doKappa);
-  printf("Filters     = %s", STR_FILTER_T(peak->filter[0])); int i; for (i=1; i<peak->nbFilters; i++) printf(", %s", STR_FILTER_T(peak->filter[i])); printf("\n");
-  printf("Scales      = "); printLineDoubleArray(peak->scale, peak->nbFilters, 3); printf(" [arcmin]\n");
-  printf("\n");
-  printf("ABC parameters\n");
-  printf("Number of particles  = %d\n", peak->ABC_Q);
-  printf("Shutoff success rate = %.3f\n", peak->ABC_r_stop);
-  printf("Summary type         = %s\n", peak->ABC_summ);
+  printf("Omega           = (%.1f, %.1f) [arcmin]\n", peak->Omega[0], peak->Omega[1]);
+  printf("theta_pix       = %.3f [arcmin]\n", peak->theta_pix);
+  printf("Resolution      = (%d, %d) [pix]\n", peak->resol[0], peak->resol[1]);
+  printf("Buffer size     = %d [pix]\n", peak->bufferSize);
+  printf("Peak field      = (%d, %d) [pix]\n", peak->resol[0] - 2*peak->bufferSize, peak->resol[1] - 2*peak->bufferSize);
+  printf("doKappa         = %d\n", peak->doKappa);
+  if (peak->FFT_nbFilters) {
+    printf("FFT_filter      = "); printFilterArray(peak->FFT_filter, peak->FFT_nbFilters); printf("\n");
+    printf("FFT_scale       = "); printDoubleArray(peak->FFT_scale, peak->FFT_nbFilters, 3); printf(" [arcmin]\n");
+  }
+  if (peak->DC_nbFilters) {
+    printf("DC_filter       = "); printFilterArray(peak->DC_filter, peak->DC_nbFilters); printf("\n");
+    printf("DC_scale        = "); printDoubleArray(peak->DC_scale, peak->DC_nbFilters, 3); printf(" [arcmin]\n");
+  }
+  if (peak->doNonlinear) {
+    printf("MRLens_nbScales = %d\n", peak->MRLens_nbScales);
+    printf("MRLens_FDR      = %f\n", peak->MRLens_FDR);
+  }
   printf("------------------------------------------------------------------------\n");
   return;
 }
@@ -452,7 +556,7 @@ void printParam_complete(cosmo_hm *cmhm, peak_param *peak)
   printf("Omega_m         = %.2f [-]\n", cmhm->cosmo->Omega_m);
   printf("sigma_8         = %.2f [-]\n", cmhm->cosmo->sigma_8);
   printf("w0_de           = %.2f [-]\n", cmhm->cosmo->w0_de);
-  printf("par_nz          = "); printLineDoubleArray(cmhm->redshift->par_nz, cmhm->redshift->Nnz_max, 1); printf("\n");
+  printf("par_nz          = "); printDoubleArray(cmhm->redshift->par_nz, cmhm->redshift->Nnz_max, 1); printf("\n");
   printGalaxyInfo(peak);
   printf("\n");
   printf("Peak parameters, customized part\n");
@@ -467,29 +571,41 @@ void printParam_complete(cosmo_hm *cmhm, peak_param *peak)
   printf("sigma_eps       = %.3f [-]\n", peak->sigma_eps);
   printf("doKappa         = %d\n", peak->doKappa);
   printf("doMask          = %d\n", peak->doMask);
-  printf("------ Field, map, & filter ------\n");
+  printf("maskPath        = \"%s\"\n", peak->maskPath);
+  printf("------ Field & map ------\n");
   printf("field           = %s\n", STR_FIELD_T(peak->field));
   printf("Omega           = (%.1f, %.1f) [arcmin]\n", peak->Omega[0], peak->Omega[1]);
   printf("theta_pix       = %.3f [arcmin]\n", peak->theta_pix);
-  printf("nbFilters       = %d\n", peak->nbFilters);
-  printf("filter          = %s", STR_FILTER_T(peak->filter[0])); for (i=1; i<peak->nbFilters; i++) printf(", %s", STR_FILTER_T(peak->filter[i])); printf("\n");
-  printf("scale           = "); printLineDoubleArray(peak->scale, peak->nbFilters, 3); printf(" [arcmin, -]\n");
+  printf("------ Filter ------\n");
+  printf("doSmoothing     = %d\n", peak->doSmoothing);
+  printf("FFT_nbFilters   = %d\n", peak->FFT_nbFilters);
+  printf("FFT_filter      = "); printFilterArray(peak->FFT_filter, peak->FFT_nbFilters); printf("\n");
+  printf("FFT_scale       = "); printDoubleArray(peak->FFT_scale, peak->FFT_nbFilters, 3); printf(" [arcmin]\n");
+  printf("DC_nbFilters    = %d\n", peak->DC_nbFilters);
+  printf("DC_filter       = "); printFilterArray(peak->DC_filter, peak->DC_nbFilters); printf("\n");
+  printf("DC_scale        = "); printDoubleArray(peak->DC_scale, peak->DC_nbFilters, 3); printf(" [arcmin]\n");
+  printf("MRLens_nbScales = %d\n", peak->MRLens_nbScales);
+  printf("MRLens_FDR      = %f\n", peak->MRLens_FDR);
   printf("------ Peak historgram ------\n");
   printf("N_nu            = %d\n", peak->N_nu);
-  printf("nu_bin          = "); printLineDoubleArray(peak->nu_bin, peak->N_nu+1, 3); printf("\n");
+  printf("nu_bin          = "); printDoubleArray(peak->nu_bin, peak->N_nu+1, 3); printf("\n");
   printf("N_kappa         = %d\n", peak->N_kappa);
-  printf("kappa_bin       = "); printLineDoubleArray(peak->kappa_bin, peak->N_kappa+1, 3); printf("\n");
+  printf("kappa_bin       = "); printDoubleArray(peak->kappa_bin, peak->N_kappa+1, 3); printf("\n");
   printf("------ ABC ------\n");
+  printf("ABC_obsPath     = \"%s\"\n", peak->ABC_obsPath);
+  printf("ABC_f           = %d\n", peak->ABC_f);
+  printf("ABC_doParam     = "); printIntArray(peak->ABC_doParam, peak->ABC_f); printf("\n");
   printf("ABC_Q           = %d\n", peak->ABC_Q);
   printf("ABC_r_stop      = %f\n", peak->ABC_r_stop);
   printf("ABC_summ        = %s\n", peak->ABC_summ);
-  printf("------ ------ Label\n");
+  printf("------ Label ------\n");
   printf("simulName       = %s\n", peak->simulName);
   printf("\n");
   printf("Peak parameters, default part\n");
   printf("dlogM           = %.3f [-]\n", peak->dlogM);
   printf("dz_gal          = %.3f [-]\n", peak->dz_gal);
-  printf("theta_CCD_inv   = %f [arcmin^-1]\n", peak->theta_CCD_inv);
+  printf("theta_CCD_inv   = %f, %f [arcmin^-1]\n", peak->theta_CCD_inv[0], peak->theta_CCD_inv[1]);
+  printf("tempPath        = \"%s\"\n", peak->tempPath);
   printf("\n");
   printf("Peak parameters, precomputed part\n");
   printf("area            = %.3f [arcmin^2]\n", peak->area);
@@ -502,30 +618,27 @@ void printParam_complete(cosmo_hm *cmhm, peak_param *peak)
   printf("theta_pix_inv   = %.3f [arcmin^-1]\n", peak->theta_pix_inv);
   printf("sigma_pix       = %f [-]\n", peak->sigma_pix);
   printf("------ Filter-related ------\n");
-  printf("nbLinFilters    = %d\n", peak->nbLinFilters);
-  printf("nbNonlinFilters = %d\n", peak->nbNonlinFilters);
+  printf("doNonlinear     = %d\n", peak->doNonlinear);
+  printf("nbFilters       = %d\n", peak->nbFilters);
   printf("smootherSize    = %d\n", peak->smootherSize);
-  if (peak->nbLinFilters == 0) printf("linFilter       = NULL\n");
-  else {printf("linFilter       = %s", STR_FILTER_T(peak->linFilter[0])); for (i=1; i<peak->nbLinFilters; i++) printf(", %s", STR_FILTER_T(peak->linFilter[i])); printf("\n");}
-  printf("linScale        = "); printLineDoubleArray(peak->linScale, peak->nbLinFilters, 3); printf(" [arcmin]\n");
-  if (peak->nbNonlinFilters == 0) printf("nonlinScale   = NULL [-]\n");
-  else {printf("nonlinScale     = %d", peak->nonlinScale[0]); for (i=1; i<peak->nbNonlinFilters; i++) printf(", %d", peak->nonlinScale[i]); printf(" [-]\n");}
-  printf("sigma_noise     = "); printLineDoubleArray(peak->sigma_noise, peak->nbLinFilters, 0); printf(" [-]\n");
-  printf("scale_invSq     = "); printLineDoubleArray(peak->scale_invSq, peak->nbLinFilters, 3); printf(" [arcmin^-2]\n");
-  printf("cut_sq          = "); printLineDoubleArray(peak->cut_sq, peak->nbLinFilters, 3); printf(" [arcmin^2]\n");
+  printf("filter          = "); printFilterArray(peak->filter, peak->nbFilters); printf("\n");
+  printf("FFT_sigma_noise = "); printDoubleArray(peak->FFT_sigma_noise, peak->FFT_nbFilters, 0); printf(" [-]\n");
+  printf("DC_sigma_noise  = "); printDoubleArray(peak->DC_sigma_noise, peak->DC_nbFilters, 0); printf(" [-]\n");
+  printf("DC_scale_invSq  = "); printDoubleArray(peak->DC_scale_invSq, peak->DC_nbFilters, 3); printf(" [arcmin^-2]\n");
+  printf("DC_cut_sq       = "); printDoubleArray(peak->DC_cut_sq, peak->DC_nbFilters, 3); printf(" [arcmin^2]\n");
   printf("------ Only used if field = rectangle ------\n");
   printf("resol           = (%d, %d) [pix]\n", peak->resol[0], peak->resol[1]);
-  printf("linScaleInPix   = "); printLineDoubleArray(peak->linScaleInPix, peak->nbLinFilters, 3); printf(" [pix]\n");
+  printf("FFT_scaleInPix  = "); printDoubleArray(peak->FFT_scaleInPix, peak->FFT_nbFilters, 3); printf(" [pix]\n");
+  printf("DC_scaleInPix   = "); printDoubleArray(peak->DC_scaleInPix, peak->DC_nbFilters, 3); printf(" [pix]\n");
   printf("bufferSize      = %d [pix]\n", peak->bufferSize);
   printf("FFTSize         = %d [pix]\n", peak->FFTSize);
   printf("FFTNormFactor   = %.9f [-]\n", peak->FFTNormFactor);
-  printf("limits          = (%.1f, %.1f, %.1f, %.1f) [arcmin]\n", peak->limits[0], peak->limits[1], peak->limits[2], peak->limits[3]);
+  printf("limit           = (%.1f, %.1f, %.1f, %.1f) [arcmin]\n", peak->limit[0], peak->limit[1], peak->limit[2], peak->limit[3]);
   printf("\n");
   printf("Peak parameters, running part\n");
   printf("------ Mode ------\n");
   printf("printMode       = %d\n", peak->printMode);
   printf("doNoise         = %d\n", peak->doNoise);
-  printf("doSmoothing     = %d\n", peak->doSmoothing);
   printf("------------------------------------------------------------------------\n");
   return;
 }

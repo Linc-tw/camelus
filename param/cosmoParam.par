@@ -1,14 +1,14 @@
 ### Cosmological parameters ###
 
-Omega_m		0.28		# Matter density, cold dark matter + baryons
-Omega_de	0.72		# Dark-energy density
+Omega_m		0.25		# Matter density, cold dark matter + baryons
+Omega_de	0.75		# Dark-energy density
 w0_de		-1.0		# Dark-energy equation of state parameter (constant term)
 w1_de		 0.0	  	# Dark-energy equation of state parameter (linear term)
-h_100		0.78		# Dimensionless Hubble parameter
-Omega_b		0.047		# Baryon density
+h_100		0.70		# Dimensionless Hubble parameter
+Omega_b		0.044		# Baryon density
 Omega_nu_mass	0.0		# Massive neutrino density (so far only for CMB)
 Neff_nu_mass	0.0		# Effective number of massive neutrinos (only CMB)
-normalization	0.82		# This is sigma_8 if normmode=0 below
+normalization	0.80		# This is sigma_8 if normmode=0 below
 n_spec		0.95 		# Scalar power-spectrum index
 
 

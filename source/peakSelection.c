@@ -3,7 +3,7 @@
   /***************************************
    **  peakSelection.c			**
    **  Chieh-An Lin, François Lanusse	**
-   **  Version 2015.12.09		**
+   **  Version 2016.03.20		**
    ***************************************/
 
 
@@ -15,11 +15,13 @@
 
 void fillGaussianKernelForVariance(fftw_complex *kernel, int length, int M, double scaleInPix)
 {
+  //-- If K = sum(w_i kappa_i), then variance = sum(w_i^2 sigma_i^2) / sum(sigma_i) ^2.
+  
   //-- Initialization
   reset_fftw_complex(kernel, length);
   
-  double scaleInPix_invSq = 1.0 / (SQ(scaleInPix));       //-- [pix^2]
-  double relay       = CUTOFF_FACTOR_FILTER * scaleInPix; //-- CUTOFF_FACTOR_FILTER set to 2.2 in peakParameters.h, equivalent to a Gaussian trunked at 3-sigma
+  double scaleInPix_invSq = 1.0 / (SQ(scaleInPix));         //-- [pix^2]
+  double relay       = CUTOFF_FACTOR_GAUSSIAN * scaleInPix; //-- CUTOFF_FACTOR_GAUSSIAN set to 2.2 in peakParameters.h, equivalent to a Gaussian trunked at 3-sigma
   int cutInPix       = (int)ceil(relay);
   double cutInPix_sq = SQ(relay);
   double sum         = 0.0;
@@ -72,10 +74,10 @@ void makeKernelForVariance(peak_param *peak, FFT_arr *variance)
 {
   FFT_t *var;
   int i;
-  for (i=0; i<peak->nbLinFilters; i++) {
+  for (i=0; i<peak->FFT_nbFilters; i++) {
     var = variance->array[i];
-    if (peak->linFilter[i] == gauss)     fillGaussianKernelForVariance(var->kernel, var->length, var->N, peak->linScaleInPix[i]);
-    else if (peak->linFilter[i] == star) fillStarletKernelForVariance(var->kernel, var->length, var->N, peak->linScaleInPix[i]);
+    if (peak->FFT_filter[i] == gauss)     fillGaussianKernelForVariance(var->kernel, var->length, var->N, peak->FFT_scaleInPix[i]);
+    else if (peak->FFT_filter[i] == star) fillStarletKernelForVariance(var->kernel, var->length, var->N, peak->FFT_scaleInPix[i]);
     fftw_execute(var->kernel_f); //-- To Fourier space
   }
   return;
@@ -116,6 +118,8 @@ void computeLocalVariance(gal_map *gMap, FFT_t *var, double sigma_half_sq)
 
 void computeLocalVariance_arr(peak_param *peak, gal_map *gMap, FFT_arr *variance)
 {
+  if (peak->FFT_nbFilters == 0) return;
+  
   double sigma_half_sq = SQ(peak->sigma_half);
   FFT_t *var           = variance->array[0];
   
@@ -134,7 +138,7 @@ void computeLocalVariance_arr(peak_param *peak, gal_map *gMap, FFT_arr *variance
   return;
 }
 
-void kappaToSNR(peak_param *peak, gal_map *gMap, FFT_t *smoo, map_t *kMap, FFT_t *var)
+void kappaToSNR_FFT(peak_param *peak, gal_map *gMap, FFT_t *FFTSmoo, map_t *kMap, FFT_t *var)
 {
   //-- Retrieve kappa from smoo_table, divide it by sigma_noise (becoming SNR),
   //-- and stock SNR in kMap->value1.
@@ -144,8 +148,9 @@ void kappaToSNR(peak_param *peak, gal_map *gMap, FFT_t *smoo, map_t *kMap, FFT_t
   int M  = var->N;
   double threshold = gMap->fillingThreshold;
   double *SNR      = kMap->value1;
-  fftw_complex *smoo_table = (peak->doSmoothing == 2) ? smoo->before : smoo->after;
-  fftw_complex *var_after  = var->after;
+  fftw_complex *FFTSmoo_table = FFTSmoo->after;
+  fftw_complex *var_after     = var->after; //-- Contain the variance
+  
   int i, j, jN1, jM, index_kMap, size;
   
   for (j=0; j<N2; j++) {
@@ -154,8 +159,47 @@ void kappaToSNR(peak_param *peak, gal_map *gMap, FFT_t *smoo, map_t *kMap, FFT_t
     for (i=0; i<N1; i++) {
       index_kMap = i + jN1;
       size = gMap->map[index_kMap]->size;
-      if (size == 0 || (double)size < threshold) SNR[index_kMap] = -DBL_MAX;
-      else                                       SNR[index_kMap] = smoo_table[i+jM][0] / sqrt(var_after[i+jM][0]);
+      SNR[index_kMap] = ((double)size < threshold) ? -DBL_MAX : (FFTSmoo_table[i+jM][0] / sqrt(var_after[i+jM][0]));
+    }
+  }
+  return;
+}
+
+void kappaToSNR_DC(peak_param *peak, gal_map *gMap, FFT_t *DCSmoo, map_t *kMap)
+{
+  //-- Retrieve kappa from smoo_table, divide it by sigma_noise (becoming SNR),
+  //-- and stock SNR in kMap->value1.
+  
+  int N1 = gMap->N1;
+  int N2 = gMap->N2;
+  int M  = DCSmoo->N;
+  int bufferSize   = peak->bufferSize;
+  double threshold = 0.0;
+  fftw_complex *DCSmoo_kernel = DCSmoo->kernel; //-- Contain the variance and the filling factor
+  
+  int i, j, jM;
+  
+  //-- Compute the filling threshold
+  for (j=bufferSize; j<N2-bufferSize; j++) { 
+    jM = j * M;
+    for (i=bufferSize; i<N1-bufferSize; i++) threshold += DCSmoo_kernel[i+jM][1];
+  }
+  threshold /= (double)((N1 - 2*bufferSize) * (N2 - 2*bufferSize)); //-- Average filling factor
+  threshold *= FILLING_THRESHOLD_RATIO;                             //-- Set threshold to the half of average
+  
+  fftw_complex *DCSmoo_before = DCSmoo->before;
+  double *SNR = kMap->value1;
+  double filling;
+  int jN1, index_kMap, index_FFT;
+  
+  for (j=0; j<N2; j++) {
+    jN1 = j * N1;
+    jM  = j * M;
+    for (i=0; i<N1; i++) {
+      index_kMap = i + jN1;
+      index_FFT  = i + jM;
+      filling = DCSmoo_kernel[index_FFT][1];
+      SNR[index_kMap] = (filling < threshold) ? -DBL_MAX : (DCSmoo_before[index_FFT][0] / sqrt(DCSmoo_kernel[index_FFT][0]));
     }
   }
   return;
@@ -213,15 +257,12 @@ void selectPeaks(peak_param *peak, map_t *kMap, double_arr *peakList, error **er
   //-- kMap should have been turned into S/N map.
   //-- Mask has been taken into account in kappaToSNR.
   
-  int bufferSize = peak->bufferSize;
-  testErrorRet(bufferSize<=0, peak_badValue, "Buffer size should be at least 1.", *err, __LINE__,);
-  
   int N1    = kMap->N1;
   int N2    = kMap->N2;
   int count = 0;
-  //double factor = 1.0 / peak->sigma_noise[peak->scaleInd];
-  double *SNR  = kMap->value1;
-  double *fArr = peakList->array;
+  int bufferSize = peak->bufferSize;
+  double *SNR    = kMap->value1;
+  double *fArr   = peakList->array;
   int i, j, jN1;
   
   for (j=bufferSize; j<N2-bufferSize; j++) {
@@ -240,6 +281,7 @@ void selectPeaks(peak_param *peak, map_t *kMap, double_arr *peakList, error **er
 
 void selectPeaks_mrlens(char name[], peak_param *peak, gal_map *gMap, double_arr *peakList)
 {
+#ifndef __releaseMenu__
   //-- This fuction selects peak from an image stocked in a float*.
   //-- Peaks are kappa peaks not S/N peaks.
   
@@ -254,7 +296,7 @@ void selectPeaks_mrlens(char name[], peak_param *peak, gal_map *gMap, double_arr
   //-- Masking 
   for (i=0; i<gMap->length; i++) {
     size = gMap->map[i]->size;
-    if (size == 0 || (double)size < threshold) kappa[i] = -DBL_MAX;
+    if ((double)size < threshold) kappa[i] = -DBL_MAX;
   }
   
   int N1    = peak->resol[0];
@@ -276,6 +318,7 @@ void selectPeaks_mrlens(char name[], peak_param *peak, gal_map *gMap, double_arr
   
   peakList->length = count;
   free(kappa);
+#endif
   return;
 }
 
@@ -300,8 +343,10 @@ void outputPeakList(char name[], peak_param *peak, double_arr *peakList)
   fprintf(file, "# Peak list\n");
   fprintf(file, "# Field = %s, Omega = (%g, %g) [arcmin], theta_pix = %g [arcmin]\n", STR_FIELD_T(peak->field), peak->Omega[0], peak->Omega[1], peak->theta_pix);
   fprintf(file, "# n_gal = %g [arcmin^-2], z_s = %g\n", peak->n_gal, peak->z_s);
-  fprintf(file, "# Filter = %s, theta_G = %g [arcmin], s = %g [pix]\n", STR_FILTER_T(peak->filter[0]), peak->scale[0], peak->linScaleInPix[0]);
-  fprintf(file, "# sigma_eps = %g, sigma_pix = %g, sigma_noise = %g\n", peak->sigma_eps, peak->sigma_pix, peak->sigma_noise[0]);
+  if (peak->FFT_nbFilters) fprintf(file, "# FFT filter = %s, FFT scale = %g [arcmin] = %g [pix]\n", STR_FILTER_T(peak->FFT_filter[0]), peak->FFT_scale[0], peak->FFT_scaleInPix[0]);
+  if (peak->DC_nbFilters)  fprintf(file, "# DC filter = %s, DC scale = %g [arcmin] = %g [pix]\n", STR_FILTER_T(peak->DC_filter[0]),  peak->DC_scale[0],  peak->DC_scaleInPix[0]);
+  if (peak->doNonlinear)   fprintf(file, "# Filter = %s, number of scales = %d [-], FDR = %g [-]\n", STR_FILTER_T(mrlens), peak->MRLens_nbScales, peak->MRLens_FDR);
+  fprintf(file, "# sigma_eps = %g, sigma_pix = %g, sigma_noise = %g\n", peak->sigma_eps, peak->sigma_pix, peak->FFT_sigma_noise[0]);
   fprintf(file, "# Buffer size = %d [pix]\n", peak->bufferSize);
   fprintf(file, "#\n");
   fprintf(file, "# Number of pixels = %d\n", peakList->length); 
@@ -318,20 +363,25 @@ void outputPeakList(char name[], peak_param *peak, double_arr *peakList)
 }
 
 void peakListFromMassFct(cosmo_hm *cmhm, peak_param *peak, sampler_arr *sampArr, halo_map *hMap, sampler_t *galSamp, gal_map *gMap, short_mat *CCDMask,
-			 FFT_arr *smoother, map_t *kMap, FFT_arr *variance, double_arr *peakList, error **err)
+			 FFT_arr *FFTSmoother, FFT_arr *DCSmoother, map_t *kMap, FFT_arr *variance, double_arr *peakList, error **err)
 {
+  //-- Allow only one filter
+  //-- Priority: nonlinear > direct convolution > FFT
+  
   makeFastSimul(cmhm, peak, sampArr, hMap, err);                  forwardError(*err, __LINE__,);
   cleanOrMakeOrResample(cmhm, peak, galSamp, gMap, CCDMask, err); forwardError(*err, __LINE__,);
   lensingCatalogue(cmhm, peak, hMap, gMap, err);                  forwardError(*err, __LINE__,);
-  makeMap(peak, gMap, smoother, kMap, err);                       forwardError(*err, __LINE__,);
+  makeMap(peak, gMap, FFTSmoother, DCSmoother, kMap, err);        forwardError(*err, __LINE__,);
   computeLocalVariance_arr(peak, gMap, variance);
   
-  if (peak->filter[0] == mrlens) {
-    selectPeaks_mrlens("kappaMap_mrlens.fits", peak, gMap, peakList);
+  if (peak->doNonlinear) selectPeaks_mrlens("kappaMap_mrlens.fits", peak, gMap, peakList);
+  else if (peak->DC_nbFilters) {
+    kappaToSNR_DC(peak, gMap, DCSmoother->array[0], kMap);
+    selectPeaks(peak, kMap, peakList, err);                       forwardError(*err, __LINE__,);
   }
-  else {
-    kappaToSNR(peak, gMap, smoother->array[0], kMap, variance->array[0]);
-    selectPeaks(peak, kMap, peakList, err);                         forwardError(*err, __LINE__,);
+  else if (peak->FFT_nbFilters) {
+    kappaToSNR_FFT(peak, gMap, FFTSmoother->array[0], kMap, variance->array[0]);
+    selectPeaks(peak, kMap, peakList, err);                       forwardError(*err, __LINE__,);
   }
   return;
 }
@@ -339,7 +389,7 @@ void peakListFromMassFct(cosmo_hm *cmhm, peak_param *peak, sampler_arr *sampArr,
 //----------------------------------------------------------------------
 //-- Functions related to histogram
 
-void setHist(peak_param *peak, hist_t *hist)
+void setHist_nu(peak_param *peak, hist_t *hist)
 {
   int i;
   for (i=0; i<hist->length; i++) {
@@ -352,7 +402,7 @@ void setHist(peak_param *peak, hist_t *hist)
   return;
 }
 
-void setHist2(peak_param *peak, hist_t *hist)
+void setHist_kappa(peak_param *peak, hist_t *hist)
 {
   int i;
   for (i=0; i<hist->length; i++) {
@@ -402,65 +452,66 @@ void outputHist(char name[], hist_t *hist)
 
 void doPeakList(char fileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
 {
-  int N1_mask = (int)(peak->Omega[0] * peak->theta_CCD_inv);
-  int N2_mask = (int)(peak->Omega[1] * peak->theta_CCD_inv);
   int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
   
   halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
   sampler_t *galSamp   = initialize_sampler_t(peak->N_z_gal);
   setGalaxySampler(cmhm, peak, galSamp, err);                                                       forwardError(*err, __LINE__,);
   gal_map *gMap        = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
-  short_mat *CCDMask   = initialize_short_mat(N1_mask, N2_mask);
-  if (peak->doMask == 1) fillMask_CFHTLenS_W1(peak, CCDMask);
-  FFT_arr *smoother    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
-  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernel(peak, smoother);
+  short_mat *CCDMask   = initializeMask(peak, err);                                                 forwardError(*err, __LINE__,);
+  FFT_arr *FFTSmoother = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->FFT_nbFilters) makeKernel(peak, FFTSmoother);
+  FFT_arr *DCSmoother  = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
   map_t *kMap          = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
   FFT_arr *variance    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
-  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernelForVariance(peak, variance);
+  if (peak->FFT_nbFilters) makeKernelForVariance(peak, variance);
   double_arr *peakList = initialize_double_arr(length);
-  hist_t *hist         = initialize_hist_t(peak->N_nu);
-  setHist(peak, hist);
+  hist_t *nuHist       = initialize_hist_t(peak->N_nu);
+  setHist_nu(peak, nuHist);
   
   if (fileName == NULL) {
     //-- Carry out fast simulation
     sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
-    setMassSamplers(cmhm, peak, sampArr, err);                         forwardError(*err, __LINE__,);
-    makeFastSimul(cmhm, peak, sampArr, hMap, err);                     forwardError(*err, __LINE__,);
+    setMassSamplers(cmhm, peak, sampArr, err);                               forwardError(*err, __LINE__,);
+    makeFastSimul(cmhm, peak, sampArr, hMap, err);                           forwardError(*err, __LINE__,);
     outputFastSimul("haloCat", cmhm, peak, hMap);
     free_sampler_arr(sampArr);
   }
   else {
-    read_halo_map(fileName, cmhm, hMap, err);                          forwardError(*err, __LINE__,);
+    read_halo_map(fileName, cmhm, hMap, err);                                forwardError(*err, __LINE__,);
   }
   
-  cleanOrMakeOrResample(cmhm, peak, galSamp, gMap, CCDMask, err);      forwardError(*err, __LINE__,);
-  lensingCatalogueAndOutputAll(cmhm, peak, hMap, gMap, err);           forwardError(*err, __LINE__,);
-  makeMapAndOutputAll(cmhm, peak, gMap, smoother, kMap, err);          forwardError(*err, __LINE__,);
-  kappaToSNR(peak, gMap, smoother->array[0], kMap, variance->array[0]);
-  selectPeaks(peak, kMap, peakList, err);                              forwardError(*err, __LINE__,);
+  cleanOrMakeOrResample(cmhm, peak, galSamp, gMap, CCDMask, err);            forwardError(*err, __LINE__,);
+  lensingCatalogueAndOutputAll(cmhm, peak, hMap, gMap, err);                 forwardError(*err, __LINE__,);
+  makeMapAndOutputAll(cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err); forwardError(*err, __LINE__,);
+  computeLocalVariance_arr(peak, gMap, variance);
+   
+  if (peak->doNonlinear)       selectPeaks_mrlens("kappaMap_mrlens.fits", peak, gMap, peakList);
+  else if (peak->DC_nbFilters) kappaToSNR_DC(peak, gMap, DCSmoother->array[0], kMap);
+  else                         kappaToSNR_FFT(peak, gMap, FFTSmoother->array[0], kMap, variance->array[0]);
+  
+  selectPeaks(peak, kMap, peakList, err);                                    forwardError(*err, __LINE__,);
   outputPeakList("peakList", peak, peakList);
   int silent = 1;
-  makeHist(peakList, hist, silent);
-  outputHist("peakHist", hist);
+  makeHist(peakList, nuHist, silent);
+  outputHist("peakHist", nuHist);
   
   free_halo_map(hMap);
   free_sampler_t(galSamp);
   free_gal_map(gMap);
   free_short_mat(CCDMask);
-  free_FFT_arr(smoother);
+  free_FFT_arr(FFTSmoother);
+  free_FFT_arr(DCSmoother);
   free_map_t(kMap);
   free_FFT_arr(variance);
   free_double_arr(peakList);
-  free_hist_t(hist);
+  free_hist_t(nuHist);
   printf("------------------------------------------------------------------------\n");
   return;
 }
 
 void doPeakList_repeat(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
 {
-  char name[STRING_LENGTH_MAX];
-  int N1_mask = (int)(peak->Omega[0] * peak->theta_CCD_inv);
-  int N2_mask = (int)(peak->Omega[1] * peak->theta_CCD_inv);
   int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
   peak->printMode = 1; //-- 0 = detailed, 1 = no flush, 2 = line mode, 3 = MPI
   
@@ -470,20 +521,22 @@ void doPeakList_repeat(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
   sampler_t *galSamp   = initialize_sampler_t(peak->N_z_gal);
   setGalaxySampler(cmhm, peak, galSamp, err);                                                       forwardError(*err, __LINE__,);
   gal_map *gMap        = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
-  short_mat *CCDMask   = initialize_short_mat(N1_mask, N2_mask);
-  if (peak->doMask == 1) fillMask_CFHTLenS_W1(peak, CCDMask);
-  FFT_arr *smoother    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
-  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernel(peak, smoother);
+  short_mat *CCDMask   = initializeMask(peak, err);                                                 forwardError(*err, __LINE__,);
+  FFT_arr *FFTSmoother = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->FFT_nbFilters) makeKernel(peak, FFTSmoother);
+  FFT_arr *DCSmoother  = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
   map_t *kMap          = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
   FFT_arr *variance    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
-  if (peak->doSmoothing == 1 || peak->doSmoothing == 4) makeKernelForVariance(peak, variance);
+  if (peak->FFT_nbFilters) makeKernelForVariance(peak, variance);
   double_arr *peakList = initialize_double_arr(length);
   
+  char name[STRING_LENGTH_MAX];
   int i;
+  
   for (i=0; i<N; i++) {
     clock_t start = clock();
     printf("\n-- Making peak lists: %d / %d realizations\n", i+1, N);
-    peakListFromMassFct(cmhm, peak, sampArr, hMap, galSamp, gMap, CCDMask, smoother, kMap, variance, peakList, err); forwardError(*err, __LINE__,);
+    peakListFromMassFct(cmhm, peak, sampArr, hMap, galSamp, gMap, CCDMask, FFTSmoother, DCSmoother, kMap, variance, peakList, err); forwardError(*err, __LINE__,);
     //-- Output
     sprintf(name, "peakList_%d", i+1);
     outputPeakList(name, peak, peakList);
@@ -495,7 +548,8 @@ void doPeakList_repeat(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
   free_sampler_t(galSamp);
   free_gal_map(gMap);
   free_short_mat(CCDMask);
-  free_FFT_arr(smoother);
+  free_FFT_arr(FFTSmoother);
+  free_FFT_arr(DCSmoother);
   free_map_t(kMap);
   free_FFT_arr(variance);
   free_double_arr(peakList);

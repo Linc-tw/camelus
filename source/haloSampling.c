@@ -3,7 +3,7 @@
   /*******************************
    **  haloSampling.c		**
    **  Chieh-An Lin		**
-   **  Version 2015.10.30	**
+   **  Version 2016.03.03	**
    *******************************/
 
 
@@ -52,15 +52,15 @@ void set_halo_t(cosmo_hm *cmhm, halo_t *h, double z, double M, double pos[2], er
 
 halo_node *initialize_halo_node(error **err)
 {
-  halo_node *hNode = (halo_node*)malloc_err(sizeof(halo_node), err); forwardError(*err, __LINE__,);
-  hNode->h         = (halo_t*)malloc_err(sizeof(halo_t), err);       forwardError(*err, __LINE__,);
+  halo_node *hNode = (halo_node*)malloc_err(sizeof(halo_node), err); forwardError(*err, __LINE__, NULL);
+  hNode->h         = (halo_t*)malloc_err(sizeof(halo_t), err);       forwardError(*err, __LINE__, NULL);
   hNode->next      = NULL;
   return hNode;
 }
 
 halo_list *initialize_halo_list(error **err)
 {
-  halo_list *hList = (halo_list*)malloc_err(sizeof(halo_list), err); forwardError(*err, __LINE__,);
+  halo_list *hList = (halo_list*)malloc_err(sizeof(halo_list), err); forwardError(*err, __LINE__, NULL);
   hList->length    = 0;
   hList->size      = 0;
   hList->first     = NULL;
@@ -114,7 +114,7 @@ void append_halo_list(cosmo_hm *cmhm, halo_list *hList, double z, double M, doub
 
 halo_map *initialize_halo_map(int N1, int N2, double theta_pix, error **err)
 {
-  halo_map *hMap  = (halo_map*)malloc_err(sizeof(halo_map), err);                    forwardError(*err, __LINE__,);
+  halo_map *hMap  = (halo_map*)malloc_err(sizeof(halo_map), err);                    forwardError(*err, __LINE__, NULL);
   hMap->N1        = N1;
   hMap->N2        = N2;
   hMap->length    = N1 * N2;
@@ -129,7 +129,7 @@ halo_map *initialize_halo_map(int N1, int N2, double theta_pix, error **err)
   hMap->center[0] = 0.5 * hMap->limits[1];
   hMap->center[1] = 0.5 * hMap->limits[3];
   
-  hMap->map       = (halo_list**)malloc_err(hMap->length * sizeof(halo_list*), err); forwardError(*err, __LINE__,);
+  hMap->map       = (halo_list**)malloc_err(hMap->length * sizeof(halo_list*), err); forwardError(*err, __LINE__, NULL);
   int i;
   for (i=0; i<hMap->length; i++) hMap->map[i] = initialize_halo_list(err);
   return hMap;
@@ -227,7 +227,7 @@ void output_halo_map(FILE *file, peak_param *peak, halo_map *hMap)
 
 double massFct(cosmo_hm_params *cANDp, double mass, error **err)
 {
-  double dn = LN_10 * dn_dlnM(mass, (void*)cANDp, err); forwardError(*err, __LINE__,);
+  double dn = LN_10 * dn_dlnM(mass, (void*)cANDp, err); forwardError(*err, __LINE__, -1.0);
   return dn;
 }
 
@@ -266,12 +266,21 @@ void outputMassFct(char name[], cosmo_hm *cmhm, peak_param *peak, double z, erro
   fprintf(file, "# Model = %s, redshift = %g\n", smassfct_t(cmhm->massfct), z);
   outputCosmoParam(file, cmhm, peak);
   fprintf(file, "#\n");
+  //fprintf(file, "#          M      dn/dlogM         deltac     sigma*D+    nu    f(nu)   dnu/dlnM\n");
   fprintf(file, "#          M      dn/dlogM\n");
   fprintf(file, "#   [M_sol/h]  [(Mpc/h)^-3]\n");
   
   double M, dn;
   for (M=peak->M_min; M<=peak->M_max; M*=1.01) {
+//       double deltac = 0.161000E+01; //delta_c(cmhm->cosmo, cANDp->a, err);
+//       double     dp = D_plus(cmhm->cosmo, cANDp->a, 1, err);
+//       double     sM = sqrt(sigmasqr_M(cmhm, M, err));
+//       double     nu = deltac/(dp*sM); 
+//       double    nfn = nufnu_val(nu);
+//       double dnudlnM= dnu_dlnM(cmhm, M, cANDp->a, err);
+    
     dn = massFct(cANDp, M, err); forwardError(*err, __LINE__,);
+    //fprintf(file, " %12.6e  %12.6e  %12.6e  %12.6e  %12.6e  %12.6e  %12.6e\n", M, dn, deltac, sM, nu, nfn, dnudlnM/nu);
     fprintf(file, " %12.6e  %12.6e\n", M, dn);
   }
   
@@ -288,10 +297,10 @@ double dVol(cosmo_hm *cmhm, peak_param *peak, double z, double ww, double dz, er
 {
   //-- Comoving volume between z and z+dz, peak->area in [arcmin^2]
   double dV, A;
-  double fK = f_K(cmhm->cosmo, ww, err);                   forwardError(*err, __LINE__, 0.0);
+  double fK = f_K(cmhm->cosmo, ww, err);                   forwardError(*err, __LINE__, -1.0);
   dV  = HUBBLE_DISTANCE * SQ(fK);
   dV *= peak->area * ARCMIN_SQ_TO_RADIAN_SQ;
-  dV *= dz / sqrt(Esqr(cmhm->cosmo, 1.0/(1.0+z), 0, err)); forwardError(*err, __LINE__, 0.0); //-- wOmegar = 0
+  dV *= dz / sqrt(Esqr(cmhm->cosmo, 1.0/(1.0+z), 0, err)); forwardError(*err, __LINE__, -1.0); //-- wOmegar = 0
   return dV;
 }
 
@@ -548,7 +557,7 @@ void doMassSheet(cosmo_hm *cmhm, peak_param *peak, double z_halo_max, double M_m
   
   printf("kappa_0 = %f\n", sheet[0]);
   printf("kappa_1 = %f\n", sheet[1]);
-  printf("sigma_noise = %f\n", peak->sigma_noise[0]);
+  //printf("sigma_noise = %f\n", peak->sigma_noise[0]);
   
   free_sampler_t(samp);
   free_interpolator_t(a_inter);

@@ -3,10 +3,12 @@
   /***************************************************************
    **  rayTracing.c						**
    **  Chieh-An Lin, Martin Kilbinger, François Lanusse		**
-   **  Version 2015.12.09					**
+   **  Version 2016.03.22					**
    **								**
    **  References:						**
+   **  - Baltz et al. (2009) - JCAP, 1, 15			**
    **  - Bartelmann & Schneider (2001) - Phys. Rep., 340, 291	**
+   **  - Oguri & Hamana (2011) - MNRAS, 414, 1851		**
    **  - Takada & Jain (2003a) - MNRAS, 340, 580		**
    **  - Takada & Jain (2003b) - MNRAS, 344, 857		**
    **  - Wright & Brainerd (2000) - ApJ, 534, 34		**
@@ -32,8 +34,7 @@ void set_gal_t(cosmo_hm *cmhm, gal_t *g, double z, double w_s, double D_s, doubl
   
   if (w_s < 0) {
     //-- Use z to compute w_s and D_s
-    int wOmegar = 0;
-    g->w   = w(cmhm->cosmo, a, wOmegar, err); forwardError(*err, __LINE__,);
+    g->w   = w(cmhm->cosmo, a, 0, err);       forwardError(*err, __LINE__,); //-- wOmegar = 0
     g->D_s = a * f_K(cmhm->cosmo, g->w, err); forwardError(*err, __LINE__,);
   }
   else {
@@ -210,7 +211,7 @@ void gammaOrGMean_gal_list(gal_list *gList, double threshold)
 
 gal_map *initialize_gal_map(int N1, int N2, double theta_pix, error **err)
 {
-  gal_map *gMap          = (gal_map*)malloc_err(sizeof(gal_map), err);                    forwardError(*err, __LINE__,);
+  gal_map *gMap          = (gal_map*)malloc_err(sizeof(gal_map), err);                    forwardError(*err, __LINE__, NULL);
   gMap->N1               = N1;
   gMap->N2               = N2;
   gMap->length           = N1 * N2;
@@ -225,7 +226,7 @@ gal_map *initialize_gal_map(int N1, int N2, double theta_pix, error **err)
   gMap->center[0]        = 0.5 * gMap->limits[1];
   gMap->center[1]        = 0.5 * gMap->limits[3];
   
-  gMap->map              = (gal_list**)malloc_err(gMap->length * sizeof(gal_list*), err); forwardError(*err, __LINE__,);
+  gMap->map              = (gal_list**)malloc_err(gMap->length * sizeof(gal_list*), err); forwardError(*err, __LINE__, NULL);
   int i;
   for (i=0; i<gMap->length; i++) gMap->map[i] = initialize_gal_list(err);
   
@@ -310,7 +311,7 @@ void setFillingThreshold(peak_param *peak, gal_map *gMap, error **err)
     for (i=bufferSize; i<N1-bufferSize; i++) threshold += gMap->map[i+jN1]->size;
   }
   threshold /= (double)((N1 - 2*bufferSize) * (N2 - 2*bufferSize)); //-- Average filling factor
-  threshold *= 0.5;                                                 //-- Set threshold to the half of average
+  threshold *= FILLING_THRESHOLD_RATIO;                             //-- Set threshold to the half of average
   gMap->fillingThreshold = threshold;
   
   if      (peak->printMode < 2)   printf("Filling threshold = %.2f\n", threshold);
@@ -407,9 +408,8 @@ void updateCosmo_gal_map(cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, error 
 {
   double w_s, D_s;
   if (peak->z_s > 0) {
-    int wOmegar = 0;
-    w_s  = w(cmhm->cosmo, 1.0/(1.0 + peak->z_s), wOmegar, err); forwardError(*err, __LINE__,);
-    D_s  = f_K(cmhm->cosmo, w_s, err);                          forwardError(*err, __LINE__,);
+    w_s  = w(cmhm->cosmo, 1.0/(1.0 + peak->z_s), 0, err); forwardError(*err, __LINE__,); //-- wOmegar = 0
+    D_s  = f_K(cmhm->cosmo, w_s, err);                    forwardError(*err, __LINE__,);
     D_s /= 1.0 + peak->z_s;
   }
   else {
@@ -433,318 +433,386 @@ void updateCosmo_gal_map(cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, error 
 }
 
 //----------------------------------------------------------------------
-//-- Functions related to projected NFW mass
+//-- Functions related to projected mass
 
 #define EPS 1e-10
-double G_exactNFW_kappa(double x_sq, double c, double c_sq, error **err)
+double G_NFW_kappa(double u_sq, double c, double c_sq, error **err)
 {
   //-- See Wright & Brainerd (2000), Eq. (11)
-  //-- Sigma = 2 rho_s r_s G(x)
-  //-- G(x) = -1/arg3 + 2 artanh(arg2) / arg3^(3/2), if x < 1;
-  //--         1/3,                                  if x = 1;
-  //--        +1/arg3 - 2 arctan(arg2) / arg3^(3/2), if x > 1;
+  //-- Sigma = 2 rho_s r_s G(u)
+  //-- G(u) = -1/arg1 + arcosh(1/u) / arg1^(3/2)  if u < 1,
+  //--         1/3                                if u = 1,
+  //--         1/arg1 - arccos(1/u) / arg1^(3/2)  if u > 1,
   //-- where
-  //--   arg2 = sqrt(|1 - x| / (1 + x)) = sqrt(arg3) / (1 + x),
-  //--   arg3 = |1 - x^2|.
+  //--   arg1 = |1 - u^2|.
+  //-- Note that
+  //--   arcosh(1 / u) = 2 artanh(p),
+  //--   arccos(1 / u) = 2 arctan(p),
+  //-- where
+  //--   p = sqrt(|1 - u| / (1 + u)) = sqrt(arg1) / (1 + u).
   
-  if (x_sq < EPS) x_sq = EPS;
+  if (u_sq < EPS) u_sq = EPS;
   
-  double arg3 = fabs(x_sq - 1.0);
+  double arg1 = fabs(u_sq - 1.0);
   double value;
   
-  if (arg3 < EPS) value = 1.0 / 3.0;
+  if (arg1 < EPS) value = 1.0 / 3.0;
   else {
-    double arg2 = sqrt(arg3) / (1.0 + sqrt(x_sq));
-    if (x_sq < 1.0) {
-      value  = -1.0 + 2.0 * atanh(arg2) / sqrt(arg3);
-      value /= arg3;
+    if (u_sq < 1.0) {
+      value  = -1.0 + acosh(1.0 / sqrt(u_sq)) / sqrt(arg1);
+      value /= arg1;
     }
     else {
-      value  = 1.0 - 2.0 * atan(arg2) / sqrt(arg3);
-      value /= arg3;
+      value  = 1.0 - acos(1.0 / sqrt(u_sq)) / sqrt(arg1);
+      value /= arg1;
     }
   }
   
   return value;
 }
 
-double G_truncatedNFW_kappa(double x_sq, double c, double c_sq, error **err)
-{
-  //-- See Takada & Jain (2003a), Eq. (27)
-  //-- G(x) = -arg1/arg3 + arcosh(arg2) / arg3^(3/2), if x < 1;
-  //--        1/3 * arg1 * (1 + 1 / (c + 1)),         if x = 1;
-  //--        +arg1/arg3 - arccos(arg2) / arg3^(3/2), if 1 < x <= c;
-  //--        0,                                      if x > c;
-  //-- where
-  //--   arg1 = sqrt(c^2 - x^2) / (c + 1),
-  //--   arg2 = (x^2 + c) / (x(c + 1)),
-  //--   arg3 = |1 - x^2|.
-  
-  if (x_sq > c_sq - EPS) return 0;
-  if (x_sq < EPS) x_sq = EPS;
-  
-  double p_inv = 1.0 / (c + 1.0);
-  double arg1  = sqrt(c_sq - x_sq) * p_inv;
-  double arg3  = fabs(x_sq - 1.0);
-  double value;
-  
-  if (arg3 < EPS) value = arg1 * (1.0 + p_inv) / 3.0;
-  else {
-    double arg2 = (x_sq + c) * p_inv / sqrt(x_sq);
-    if (x_sq < 1.0) {
-      testErrorRet(arg2<1.0, peak_badValue, "Out of range for acosh", *err, __LINE__, 0.0);
-      value  = -arg1 + acosh(arg2) / sqrt(arg3);
-      value /= arg3;
-    }
-    else {
-      testErrorRet(arg2>1.0, peak_badValue, "Out of range for acos", *err, __LINE__, 0.0);
-      value  = arg1 - acos(arg2) / sqrt(arg3);
-      value /= arg3;
-    }
-  }
-  
-  return value;
-}
-
-double G_exactNFW_gamma(double x_sq, double c, double c_sq, double f, error **err)
+double G_NFW_gamma(double u_sq, double c, double c_sq, double f, error **err)
 {
   //-- See Wright & Brainerd (2000), Eqs. (15) and (16)
-  //-- G(x) = 1/arg3 * (1 - arg1) + 2 x^-2 (arg1 + arg4),   if x < 1;
-  //--        5 / 3 + 2 ln(1/2),                             if x = 1;
-  //--        1/arg3 * (-1 + arg5) + 2 x^-2 (arg5 + arg4)], if x > 1;
+  //-- G(u) = 1/arg1 * (1 - arg3) + 2 u^-2 (arg2 + arg3)    if u < 1,
+  //--        5/3 + 2 ln(1/2)                               if u = 1,
+  //--        1/arg1 * (-1 + arg4) + 2 u^-2 (arg2 + arg4)]  if u > 1,
   //-- where
-  //--   arg1 = 2 artanh(arg2) / r,
-  //--   arg2 = sqrt(|1 - x| / (1 + x)) = r / (1 + x),
-  //--   arg3 = |1 - x^2|,
-  //--   arg4 = ln(x / 2),
-  //--   arg5 = 2 arctan(arg2) / r,
+  //--   arg1 = |1 - u^2|,
+  //--   arg2 = ln(u / 2),
+  //--   arg3 = arcosh(1/u) / q,
+  //--   arg4 = arccos(1/u) / q,
   //-- and
-  //--   r = sqrt(|1 - x^2|) = sqrt(arg3).
+  //--   q = sqrt(|1 - u^2|) = sqrt(arg1).
+  //-- Note that
+  //--   arcosh(1 / u) = 2 artanh(p),
+  //--   arccos(1 / u) = 2 arctan(p),
+  //-- where
+  //--   p = sqrt(|1 - u| / (1 + u)) = sqrt(arg1) / (1 + u).
   
-  if (x_sq < EPS) x_sq = EPS;
+  if (u_sq < EPS) u_sq = EPS;
   
-  double arg3 = fabs(x_sq - 1.0);
+  double arg1 = fabs(u_sq - 1.0);
   double value;
   
-  if (arg3 < EPS) {
+  if (arg1 < EPS) {
     value = 5.0 / 3.0 + 2.0 * log(0.5);
   }
   else {
-    double x    = sqrt(x_sq);
-    double r    = sqrt(arg3);
-    double arg2 = r / (1.0 + x);
-    double arg4 = log(0.5 * x);
-    if (x_sq < 1.0) {
-      double arg1 = 2.0 * atanh(arg2) / r;
-      value = (1.0 - arg1) / arg3 + 2.0 / x_sq * (arg1 + arg4);
+    double u    = sqrt(u_sq);
+    double q    = sqrt(arg1);
+    double arg2 = log(0.5 * u);
+    if (u_sq < 1.0) {
+      double arg3 = acosh(1.0 / u) / q;
+      value = (1.0 - arg3) / arg1 + 2.0 / u_sq * (arg2 + arg3);
     }
     else {
-      double arg5 = 2.0 * atan(arg2) / r;
-      value = (-1.0 + arg5) / arg3 + 2.0 / x_sq * (arg5 + arg4);
+      double arg4 = acos(1.0 / u) / q;
+      value = (-1.0 + arg4) / arg1 + 2.0 / u_sq * (arg2 + arg4);
     }
   }
   
   return value;
 }
 
-double G_truncatedNFW_gamma(double x_sq, double c, double c_sq, double f, error **err)
+void G_NFW_both(double u_sq, double c, double c_sq, double f, double G_NFW[2], error **err)
 {
-  //-- See Takada & Jain (2003b), Eq. (17)
-  //-- G(x) = x^-2 [arg1 + 2 ln(arg2) + arg3 * arcosh(arg4)], if x < 1;
-  //--        x^-2 [arg5 + 2 ln(arg2)],                       if x = 1;
-  //--        x^-2 [arg1 + 2 ln(arg2) + arg3 * arccos(arg4)], if 1 < x <= c;
-  //--        x^-2 * 2/f,                                     if x > c;
-  //-- where
-  //--   arg1 = [(q + 1) r / q - 2c] / p,
-  //--   arg2 = x p / (c + r),
-  //--   arg3 = (3q - 1) / q sqrt|q|,
-  //--   arg4 = (x^2 + c) / x p,
-  //--   arg5 = [(c + 10p) r / p - 6c] / 3p,
-  //-- and
-  //--   p = c + 1,
-  //--   q = 1 - x^2,
-  //--   r = sqrt(c^2 - x^2).
+  if (u_sq < EPS) u_sq = EPS;
   
-  if (x_sq > c_sq - EPS) return 2.0 / (f * x_sq);
-  if (x_sq < EPS) x_sq = EPS;
-  
-  double p     = c + 1.0;
-  double p_inv = 1.0 / (c + 1.0);
-  double q     = 1.0 - x_sq;
-  double r     = sqrt(c_sq - x_sq);
-  double x     = sqrt(x_sq);
-  double arg2  = x * p / (c + r);
+  double arg1 = fabs(u_sq - 1.0);
   double value;
   
-  if (fabs(q) < EPS) {
-    value  = ((10.0 + c * p_inv) * r - 6*c) * p_inv / 3.0 + 2 * log(arg2);
-    value /= x_sq;
-    return value;
-  }
-  
-  double q_inv = 1.0 / q;
-  double arg1  = ((1.0 + q_inv) * r - 2 * c) * p_inv;
-  double arg3  = (3.0 - q_inv) / sqrt(fabs(q));
-  double arg4  = (x_sq + c) * p_inv / x;
-  
-  if (q > 0) {
-    testErrorRet(arg4<1.0, peak_badValue, "Out of range for acosh", *err, __LINE__, 0.0);
-    value  = arg1 + 2 * log(arg2) + arg3 * acosh(arg4);
-    value /= x_sq;
-  }
-  else {
-    testErrorRet(arg4>1.0, peak_badValue, "Out of range for acos", *err, __LINE__, 0.0);
-    value  = arg1 + 2 * log(arg2) + arg3 * acos(arg4);
-    value /= x_sq;
-  }
-  
-  return value;
-}
-
-void G_exactNFW_both(double x_sq, double c, double c_sq, double f, double G_NFW[2], error **err)
-{
-  if (x_sq < EPS) x_sq = EPS;
-  
-  double arg3 = fabs(x_sq - 1.0);
-  double value;
-  
-  if (arg3 < EPS) {
+  if (arg1 < EPS) {
     G_NFW[0] = 1.0 / 3.0;
     G_NFW[1] = 5.0 / 3.0 + 2.0 * log(0.5);
   }
   else {
-    double x    = sqrt(x_sq);
-    double r    = sqrt(arg3);
-    double arg2 = r / (1.0 + x);
-    double arg4 = log(0.5 * x);
-    if (x_sq < 1.0) {
-      double arg1 = 2.0 * atanh(arg2) / r;
-      G_NFW[0] = (-1.0 + arg1) / arg3;
-      G_NFW[1] = -G_NFW[0] + 2.0 / x_sq * (arg1 + arg4);
+    double u    = sqrt(u_sq);
+    double q    = sqrt(arg1);
+    double arg2 = log(0.5 * u);
+    if (u_sq < 1.0) {
+      double arg3 = acosh(1.0 / u) / q;
+      G_NFW[0] = (-1.0 + arg3) / arg1;
+      G_NFW[1] = -G_NFW[0] + 2.0 / u_sq * (arg2 + arg3);
     }
     else {
-      double arg5 = 2.0 * atan(arg2) / r;
-      G_NFW[0] = (1.0 - arg5) / arg3;
-      G_NFW[1] = -G_NFW[0] + 2.0 / x_sq * (arg5 + arg4);
+      double arg4 = acos(1.0 / u) / q;
+      G_NFW[0] = (1.0 - arg4) / arg1;
+      G_NFW[1] = -G_NFW[0] + 2.0 / u_sq * (arg2 + arg4);
     }
   }
   
   return;
 }
 
-void G_truncatedNFW_both(double x_sq, double c, double c_sq, double f, double G_NFW[2], error **err)
+double G_TJ_kappa(double u_sq, double c, double c_sq, error **err)
 {
-  if (x_sq > c_sq - EPS) {
-    G_NFW[0] = 0.0;
-    G_NFW[1] = 2.0 / (f * x_sq);
-    return;
-  }
-  if (x_sq < EPS) x_sq = EPS;
+  //-- See Takada & Jain (2003a), Eq. (27)
+  //-- G(u) = -arg2/arg1 + arcosh(arg3) / arg1^(3/2)  if u < 1,
+  //--         arg2/3 * (1 + 1/p)                     if u = 1,
+  //--         arg2/arg1 - arccos(arg3) / arg1^(3/2)  if 1 < u <= c,
+  //--        0                                       if u > c,
+  //-- where
+  //--   arg1 = |q|,
+  //--   arg2 = r / p,
+  //--   arg3 = (u^2 + c) / u p,
+  //-- and
+  //--   p = c + 1,
+  //--   q = 1 - u^2,
+  //--   r = sqrt(c^2 - u^2).
   
-  double p     = c + 1;
-  double p_inv = 1.0 / p;
-  double q     = 1 - x_sq;
-  double r     = sqrt(c_sq - x_sq);
-  double x     = sqrt(x_sq);
-  double arg2  = x * p / (c + r);
-  double arg5  = r * p_inv;
-  double arg6  = fabs(q);
+  
+  if (u_sq > c_sq - EPS) return 0;
+  if (u_sq < EPS) u_sq = EPS;
+  
+  double p_inv = 1.0 / (c + 1.0);
+  double arg1  = fabs(u_sq - 1.0);
+  double arg2  = sqrt(c_sq - u_sq) * p_inv;
   double value;
   
-  if (arg6 < EPS) {
+  if (arg1 < EPS) value = arg2 * (1.0 + p_inv) / 3.0;
+  else {
+    double arg3 = (u_sq + c) * p_inv / sqrt(u_sq);
+    if (u_sq < 1.0) {
+      testErrorRet(arg3<1.0, peak_badValue, "Out of range for acosh", *err, __LINE__, -1.0);
+      value  = -arg2 + acosh(arg3) / sqrt(arg1);
+      value /= arg1;
+    }
+    else {
+      testErrorRet(arg3>1.0, peak_badValue, "Out of range for acos", *err, __LINE__, -1.0);
+      value  = arg2 - acos(arg3) / sqrt(arg1);
+      value /= arg1;
+    }
+  }
+  
+  return value;
+}
+
+double G_TJ_gamma(double u_sq, double c, double c_sq, double f, error **err)
+{
+  //-- See Takada & Jain (2003b), Eq. (17)
+  //-- G(x) = u^-2 [arg4 + 2 ln(arg5) + arg6 * arcosh(arg3)]  if u < 1,
+  //--        u^-2 [arg7 + 2 ln(arg5)]                        if u = 1,
+  //--        u^-2 [arg4 + 2 ln(arg5) + arg6 * arccos(arg3)]  if 1 < u <= c,
+  //--        u^-2 * 2/f                                      if u > c,
+  //-- where
+  //--   arg3 = (u^2 + c) / u p,
+  //--   arg4 = [(q + 1) r / q - 2c] / p,
+  //--   arg5 = u p / (c + r),
+  //--   arg6 = (3q - 1) / q sqrt|q|,
+  //--   arg7 = [(c + 10p) r / p - 6c] / 3p,
+  //-- and
+  //--   p = c + 1,
+  //--   q = 1 - u^2,
+  //--   r = sqrt(c^2 - u^2).
+  
+  if (u_sq > c_sq - EPS) return 2.0 / (f * u_sq);
+  if (u_sq < EPS) u_sq = EPS;
+  
+  double p     = c + 1.0;
+  double p_inv = 1.0 / p;
+  double q     = 1.0 - u_sq;
+  double r     = sqrt(c_sq - u_sq);
+  double u     = sqrt(u_sq);
+  double arg5  = u * p / (c + r);
+  double value;
+  
+  if (fabs(q) < EPS) {
+    value  = ((10.0 + c * p_inv) * r - 6.0*c) * p_inv / 3.0 + 2.0 * log(arg5);
+    value /= u_sq;
+    return value;
+  }
+  
+  double q_inv = 1.0 / q;
+  double arg3  = (u_sq + c) * p_inv / u;
+  double arg4  = ((1.0 + q_inv) * r - 2.0 * c) * p_inv;
+  double arg6  = (3.0 - q_inv) / sqrt(fabs(q));
+  
+  if (q > 0) {
+    testErrorRet(arg3<1.0, peak_badValue, "Out of range for acosh", *err, __LINE__, -1.0);
+    value  = arg4 + 2.0 * log(arg5) + arg6 * acosh(arg3);
+    value /= u_sq;
+  }
+  else {
+    testErrorRet(arg3>1.0, peak_badValue, "Out of range for acos", *err, __LINE__, -1.0);
+    value  = arg4 + 2.0 * log(arg5) + arg6 * acos(arg3);
+    value /= u_sq;
+  }
+  
+  return value;
+}
+
+void G_TJ_both(double u_sq, double c, double c_sq, double f, double G_TJ[2], error **err)
+{
+  if (u_sq > c_sq - EPS) {
+    G_TJ[0] = 0.0;
+    G_TJ[1] = 2.0 / (f * u_sq);
+    return;
+  }
+  if (u_sq < EPS) u_sq = EPS;
+  
+  double p     = c + 1.0;
+  double p_inv = 1.0 / p;
+  double q     = 1.0 - u_sq;
+  double r     = sqrt(c_sq - u_sq);
+  double u     = sqrt(u_sq);
+  double arg1  = fabs(q);
+  double arg2  = r * p_inv;
+  double arg5  = u * p / (c + r);
+  double value;
+  
+  if (arg1 < EPS) {
     value     = p_inv / 3.0;
-    G_NFW[0]  = r * (1 + p_inv) * value;
-    G_NFW[1]  = ((10 + c * p_inv) * r - 6*c) * value + 2 * log(arg2);
-    G_NFW[1] /= x_sq;
+    G_TJ[0]  = r * (1.0 + p_inv) * value;
+    G_TJ[1]  = ((10.0 + c * p_inv) * r - 6.0*c) * value + 2.0 * log(arg5);
+    G_TJ[1] /= u_sq;
     return;
   }
   
   double q_inv = 1.0 / q;
-  double arg1  = ((1 + q_inv) * r - 2 * c) * p_inv;
-  double arg3  = 3 - q_inv;
-  double arg4  = (x_sq + c) * p_inv / x;
+  double arg3  = (u_sq + c) * p_inv / u;
+  double arg4  = ((1.0 + q_inv) * r - 2.0 * c) * p_inv;
   
   if (q > 0) {
-    testErrorRet(arg4<1.0, peak_badValue, "Out of range for acosh", *err, __LINE__,);
-    value     = acosh(arg4) / sqrt(arg6);
-    G_NFW[0]  = -arg5 + value;
-    G_NFW[0] /= arg6;
-    G_NFW[1]  = arg1 + 2 * log(arg2) + arg3 * value;
-    G_NFW[1] /= x_sq;
+    testErrorRet(arg3<1.0, peak_badValue, "Out of range for acosh", *err, __LINE__,);
+    value    = acosh(arg3) / sqrt(arg1);
+    G_TJ[0]  = -arg2 + value;
+    G_TJ[0] /= arg1;
+    G_TJ[1]  = arg4 + 2.0 * log(arg5) + (3.0 - q_inv) * value;
+    G_TJ[1] /= u_sq;
   }
   else {
-    testErrorRet(arg4>1.0, peak_badValue, "Out of range for acos", *err, __LINE__,);
-    value     = acos(arg4) / sqrt(arg6);
-    G_NFW[0]  = arg5 - value;
-    G_NFW[0] /= arg6;
-    G_NFW[1]  = arg1 + 2 * log(arg2) + arg3 * value;
-    G_NFW[1] /= x_sq;
+    testErrorRet(arg3>1.0, peak_badValue, "Out of range for acos", *err, __LINE__,);
+    value    = acos(arg3) / sqrt(arg1);
+    G_TJ[0]  = arg2 - value;
+    G_TJ[0] /= arg1;
+    G_TJ[1]  = arg4 + 2.0 * log(arg5) + (3.0 - q_inv) * value;
+    G_TJ[1] /= u_sq;
   }
   
   return;
 }
+
+double G_BMO_kappa(double u_sq, double tau, double tau_sq, error **err)
+{
+  //-- See Baltz et al. (2009), Eq. (A.28)
+  //-- G(x) = factor * [arg5 (-1 + arg6) + 8 arg6 + arg1 - arg2 + (arg3 + arg4) L]  if u < 1,
+  //--        factor * [2p / 3           + 8      + arg1 - arg2 + (arg3 + arg4) L]  if u = 1,
+  //--        factor * [arg5 (1 - arg7)  + 8 arg7 + arg1 - arg2 + (arg3 + arg4) L]  if u > 1,
+  //-- where
+  //--   arg1 = q / tau^2 r^2,
+  //--   arg2 = pi (4 r^2 + p) / r^3,
+  //--   arg3 = q / tau r^3,
+  //--   arg4 = (3q - 6p + 8) / tau^3 r,
+  //--   arg5 = 2 p / s,
+  //--   arg6 = arcosh(1/u) / sqrt(s),
+  //--   arg7 = arccos(1/u) / sqrt(s),
+  //-- and
+  //--   p = tau^2 + 1,
+  //--   q = tau^4 - 1,
+  //--   r = sqrt(tau^2 + u^2),
+  //--   s = |1 - u^2|,
+  //--   L = ln(u / (r + tau)),
+  //--   factor = (q + 1) / 2 p^3.
+  
+  if (u_sq < EPS) u_sq = EPS;
+  
+  double p = tau_sq + 1.0;
+  double q = tau_sq * tau_sq - 1.0;
+  double r_sq = tau_sq + u_sq;
+  double r = sqrt(r_sq);
+  double s = r * tau;
+  double t = fabs(1.0 - u_sq);
+  double u = sqrt(u_sq);
+  
+  double L    = log(u / (r + tau));
+  double arg1 = q / (s * s);
+  double arg2 = PI * (4.0*r_sq + p) / (r_sq * r);
+  double arg3 = q / (r_sq * s);
+  double arg4 = (3.0*q - 6.0*p + 8.0) / (tau_sq * s);
+  
+  double value = arg1 - arg2 + (arg3 + arg4) * L;
+  
+  if (t < EPS) value += 2.0*p / 3.0 + 8.0;
+  else {
+    double arg5 = 2.0 * p / t;
+    if (u_sq < 1.0) {
+      double arg6 = acosh(1.0 / u) / sqrt(t);
+      value += arg5 * (-1.0 + arg6) + 8.0 * arg6;
+    }
+    else {
+      double arg7 = acos(1.0 / u) / sqrt(t);
+      value += arg5 * (1.0 - arg7) + 8.0 * arg7;
+    }
+  }
+  
+  double factor = 0.5 * (q + 1) / (p * (2.0*p + q));
+  value *= factor;
+  return value;
+}
+
 #undef EPS
 
-double kappa_truncatedNFW(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, error **err)
+double kappa_TJ(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, error **err)
 {
   //-- See Bartelmann & Schneider (2001), Eq. (3.7)
-  //-- kappa_truncatedNFW = Sigma / Sigma_crit
+  //-- kappa_TJ = Sigma / Sigma_crit
   //-- where
   //--   Sigma_crit = (c^2 / 4 pi G) * (D_s / D_l D_ls), where (4 pi G / c^2) = 3 / (2 CRITICAL_DENSITY D_H^2 ) = 6.01e-19 [Mpc/M_sol]
   //--   Sigma = projected mass
-  //--         = 2 rho_s r_s * G_truncatedNFW_kappa(theta / theta_s)
-  //--         = 2 * (rho_bar * Delta f c_NFW^3 / 3) * (r_vir / c_NFW) * G_truncatedNFW_kappa(c_NFW theta / theta_vir)
-  //--         = 2 * (rho_bar * Delta * 4 pi r_vir^3 / 3) * (f c_NFW^3 / 4 pi r_vir^3) * (r_vir / c_NFW) * G_truncatedNFW_kappa(c_NFW theta / theta_vir)
-  //--         = M * (f c_NFW^2 / 2 pi r_vir^2) * G_truncatedNFW_kappa(c_NFW theta / theta_vir)
+  //--         = 2 rho_s r_s * G_TJ_kappa(theta / theta_s)
+  //--         = 2 * (rho_bar * Delta f_NFW c_NFW^3 / 3) * (r_vir / c_NFW) * G_TJ_kappa(c_NFW theta / theta_vir)
+  //--         = 2 * (rho_bar * Delta * 4 pi r_vir^3 / 3) * (f_NFW c_NFW^3 / 4 pi r_vir^3) * (r_vir / c_NFW) * G_TJ_kappa(c_NFW theta / theta_vir)
+  //--         = M * (f_NFW c_NFW^2 / 2 pi r_vir^2) * G_TJ_kappa(c_NFW theta / theta_vir)
   //-- 
   //-- Similarly, in Takada & Jain (2003a), Eqs. (26) and (28), one finds
-  //-- kappa_truncatedNFW = W(w_l, w_s) * (M / rho_bar) * Sigma_m(theta)
-  //--                    = (3 Omega_m H_0^2 / 2) * (D_l D_ls / D_s a_l) * (M / rho_bar) * Sigma_m
-  //--                    = (4 pi G) * (D_l D_ls / D_s a_l) * M * (f c_NFW^2 / 2 pi R_vir^2) * G_truncatedNFW_kappa(c_NFW theta / theta_vir)
+  //-- kappa_TJ = W(w_l, w_s) * (M / rho_bar) * Sigma_m(theta)
+  //--          = (3 Omega_m H_0^2 / 2) * (D_l D_ls / D_s a_l) * (M / rho_bar) * Sigma_m
+  //--          = (4 pi G) * (D_l D_ls / D_s a_l) * M * (f_NFW c_NFW^2 / 2 pi R_vir^2) * G_TJ_kappa(c_NFW theta / theta_vir)
   //-- However, their convention is different. First, they have omitted c^(-2).
   //-- Second, their D_l, D_ls, D_s are actually f_K: f_l, f_ls, f_s.
   //-- Finally, their R_vir is defined as a comoving distance, not the physical size of the halo, so it should be the real r_vir divided by a_l.
   //-- Therefore, the correct equation for Takada & Jain (2003a) is
-  //-- kappa_truncatedNFW = (4 pi G / c^2) * (f_l f_ls / f_s a_l) * M * (f c_NFW^2 a_l^2 / 2 pi r_vir^2) * G_truncatedNFW_kappa(c_NFW theta / theta_vir)
+  //-- kappa_TJ = (4 pi G / c^2) * (f_l f_ls / f_s a_l) * M * (f_NFW c_NFW^2 a_l^2 / 2 pi r_vir^2) * G_TJ_kappa(c_NFW theta / theta_vir)
   //-- 
   //-- Since (f_l f_ls) / (f_s a_l) = (D_l D_ls) / (D_s a_l^2), one finds
-  //-- kappa_truncatedNFW = (4 pi G / c^2) * (D_l D_ls / D_s a_l^2) * M * (f c_NFW^2 a_l^2 / 2 pi r_vir^2) * G_truncatedNFW_kappa(c_NFW theta / theta_vir)
-  //--                    = (4 pi G / c^2) * (D_l D_ls / D_s) * M * (f c_NFW^2 / 2 pi r_vir^2) * G_truncatedNFW_kappa(c_NFW theta / theta_vir)
-  //--                    = Sigma / Sigma_crit
+  //-- kappa_TJ = (4 pi G / c^2) * (D_l D_ls / D_s a_l^2) * M * (f_NFW c_NFW^2 a_l^2 / 2 pi r_vir^2) * G_TJ_kappa(c_NFW theta / theta_vir)
+  //--          = (4 pi G / c^2) * (D_l D_ls / D_s) * M * (f_NFW c_NFW^2 / 2 pi r_vir^2) * G_TJ_kappa(c_NFW theta / theta_vir)
+  //--          = Sigma / Sigma_crit
   //-- Notice also that their Sigma_m is dimensionless, so that Sigma = M * Sigma_m.
   //-- 
   //-- For computation purposes, we write
-  //-- kappa_truncatedNFW = (4 pi G / c^2) * (D_l D_ls M f c_NFW^2 / 2 pi D_s r_vir^2) * G_truncatedNFW_kappa(c_NFW theta / theta_vir)
-  //--                    = (4 pi G / c^2) * (D_l M f c_NFW^2 / 2 pi r_vir^2) * (D_ls / D_s) * G_truncatedNFW_kappa(c_NFW theta / theta_vir)
-  //--                    = factor * (D_ls / D_s) * G_truncatedNFW_kappa(c_NFW theta / theta_vir)
-  //-- where factor = FOUR_PI_G_OVER_C2 * (D_l M f c_NFW^2 / 2 pi r_vir^2)
+  //-- kappa_TJ = (4 pi G / c^2) * (D_l D_ls M f_NFW c_NFW^2 / 2 pi D_s r_vir^2) * G_TJ_kappa(c_NFW theta / theta_vir)
+  //--          = (4 pi G / c^2) * (D_l M f_NFW c_NFW^2 / 2 pi r_vir^2) * (D_ls / D_s) * G_TJ_kappa(c_NFW theta / theta_vir)
+  //--          = factor * (D_ls / D_s) * G_TJ_kappa(c_NFW theta / theta_vir)
+  //-- where factor = FOUR_PI_G_OVER_C2 * (D_l M f_NFW c_NFW^2 / 2 pi r_vir^2)
   
-  double x_sq  = h->c_sq * theta_sq / h->theta_vir_sq; //-- x^2 = theta^2 / theta_s^2
-  double D_ls  = g->a * f_K(cmhm->cosmo, g->w-h->w, err);                           forwardError(*err, __LINE__, 0.0);
-  double kappa = h->factor * D_ls / g->D_s * G_truncatedNFW_kappa(x_sq, h->c, h->c_sq, err); forwardError(*err, __LINE__, 0.0);
+  double u_sq  = h->c_sq * theta_sq / h->theta_vir_sq; //-- u^2 = theta^2 / theta_s^2
+  double D_ls  = g->a * f_K(cmhm->cosmo, g->w-h->w, err);                          forwardError(*err, __LINE__, -1.0);
+  double kappa = h->factor * D_ls / g->D_s * G_TJ_kappa(u_sq, h->c, h->c_sq, err); forwardError(*err, __LINE__, -1.0);
   return kappa;
 }
 
-void gamma_truncatedNFW(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, error **err)
+void gamma_TJ(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, error **err)
 {
-  //-- See TJ03b (16, 18)
-  //-- |gamma_truncatedNFW| = R / Sigma_crit
+  //-- See Takada & Jain (2003b), Eqs. (16) and (18)
+  //-- |gamma_TJ| = R / Sigma_crit
   //-- where
   //--   Sigma_crit = (c^2 / 4 pi G) * (D_s / D_l D_ls), where (4 pi G / c^2) = 3 / (2 CRITICAL_DENSITY D_H^2 ) = 6.01e-19 [Mpc/M_sol]
-  //--   R = M * (f c_NFW^2 / 2 pi r_vir^2) * G_truncatedNFW_gamma(c_NFW theta / theta_vir)
+  //--   R = M * (f c_NFW^2 / 2 pi r_vir^2) * G_TJ_gamma(c_NFW theta / theta_vir)
   //-- 
   //-- For computation purposes, we write
-  //-- |gamma_truncatedNFW| = (4 pi G / c^2) * (D_l D_ls M f c_NFW^2 / 2 pi D_s r_vir^2) * G_truncatedNFW_gamma(c_NFW theta / theta_vir)
-  //--                      = factor * (D_ls / D_s) * G_truncatedNFW_kappa(c_NFW theta / theta_vir)
+  //-- |gamma_TJ| = (4 pi G / c^2) * (D_l D_ls M f c_NFW^2 / 2 pi D_s r_vir^2) * G_TJ_gamma(c_NFW theta / theta_vir)
+  //--            = factor * (D_ls / D_s) * G_TJ_kappa(c_NFW theta / theta_vir)
   //-- where factor = FOUR_PI_G_OVER_C2 * (D_l M f c_NFW^2 / 2 pi r_vir^2)
   //--
   //-- gamma1  = -|gamma| cos(2 phi) = -|gamma| (1 - t^2) / (1 + t^2)
   //-- gamma2  = -|gamma| sin(2 phi) = -|gamma|       2t  / (1 + t^2)
   //-- where t = tan(phi)
   
-  double x_sq       = h->c_sq * theta_sq / h->theta_vir_sq; //-- x^2 = theta^2 / theta_s^2
-  double D_ls       = g->a * f_K(cmhm->cosmo, g->w-h->w, err);                                 forwardError(*err, __LINE__,);
-  double gamma_norm = h->factor * D_ls / g->D_s * G_truncatedNFW_gamma(x_sq, h->c, h->c_sq, h->f, err); forwardError(*err, __LINE__,);
+  double u_sq       = h->c_sq * theta_sq / h->theta_vir_sq; //-- u^2 = theta^2 / theta_s^2
+  double D_ls       = g->a * f_K(cmhm->cosmo, g->w-h->w, err);                                forwardError(*err, __LINE__,);
+  double gamma_norm = h->factor * D_ls / g->D_s * G_TJ_gamma(u_sq, h->c, h->c_sq, h->f, err); forwardError(*err, __LINE__,);
   
   double t     = tan(atan2(g->pos[1]-h->pos[1], g->pos[0]-h->pos[0]));
   double t_sq  = SQ(t);
@@ -755,46 +823,122 @@ void gamma_truncatedNFW(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, er
   return;
 }
 
-void both_truncatedNFW(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, error **err)
+void both_TJ(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, error **err)
 {
-  //-- g = gamma / (1 - kappa)
+  double u_sq   = h->c_sq * theta_sq / h->theta_vir_sq; //-- u^2 = theta^2 / theta_s^2
+  double G_TJ[2];
+  G_TJ_both(u_sq, h->c, h->c_sq, h->f, G_TJ, err);         forwardError(*err, __LINE__,);
   
-  double x_sq   = h->c_sq * theta_sq / h->theta_vir_sq; //-- x^2 = theta^2 / theta_s^2
-  double G_NFW[2];
-  G_truncatedNFW_both(x_sq, h->c, h->c_sq, h->f, G_NFW, err); forwardError(*err, __LINE__,);
-  
-  double D_ls   = g->a * f_K(cmhm->cosmo, g->w-h->w, err);    forwardError(*err, __LINE__,);
+  double D_ls   = g->a * f_K(cmhm->cosmo, g->w-h->w, err); forwardError(*err, __LINE__,);
   double factor = h->factor * D_ls / g->D_s;
-  g->kappa     += factor * G_NFW[0]; //-- kappa_proj
-  G_NFW[1]     *= factor;            //-- gamma_norm
+  g->kappa     += factor * G_TJ[0]; //-- kappa_TJ
+  G_TJ[1]      *= factor;           //-- gamma_norm
   
   double t     = tan(atan2(g->pos[1]-h->pos[1], g->pos[0]-h->pos[0]));
   double t_sq  = t * t;
   double tcos  = (1.0 - t_sq) / (1.0 + t_sq);
   double tsin  =       2 * t  / (1.0 + t_sq);
-  g->gamma[0] += -G_NFW[1] * tcos;
-  g->gamma[1] += -G_NFW[1] * tsin;
+  g->gamma[0] += -G_TJ[1] * tcos;
+  g->gamma[1] += -G_TJ[1] * tsin;
   return;
 }
 
 //----------------------------------------------------------------------
 //-- Functions related to drawing a profile
 
-void computeProfile(cosmo_hm *cmhm, halo_t *h, gal_t *g, double_mat *profile, error **err)
+void fillOneHaloTerm(cosmo_hm *cmhm, halo_t *h, gal_t *g, double_mat *profile, error **err)
 {
   int N_gal     = profile->N1;
   double D_ls   = g->a * f_K(cmhm->cosmo, g->w-h->w, err); forwardError(*err, __LINE__,);
   double factor = h->factor * D_ls / g->D_s;
-  double theta_sq, x_sq, G_NFW[2];
+  double theta_sq, u_sq, tau, G_halo[2];
   int i;
   
   for (i=0; i<N_gal; i++) {
     theta_sq = SQ(profile->matrix[i]);
-    x_sq = h->c_sq * theta_sq / h->theta_vir_sq; //-- x^2 = theta^2 / theta_s^2
-    G_exactNFW_both(x_sq, h->c, h->c_sq, h->f, G_NFW, err); forwardError(*err, __LINE__,);
-    profile->matrix[i+N_gal]   = factor * G_NFW[0]; //-- kappa_proj
-    profile->matrix[i+2*N_gal] = factor * G_NFW[1]; //-- gamma_norm
+    u_sq = h->c_sq * theta_sq / h->theta_vir_sq;    //-- u^2 = theta^2 / theta_s^2
+    
+    tau = 2.5 * h->c; //-- Value suggested by Oguri & Hamana (2011)
+    profile->matrix[i+N_gal]   = factor * G_BMO_kappa(u_sq, tau, SQ(tau), err); forwardError(*err, __LINE__,); //-- kappa_halo
+    profile->matrix[i+2*N_gal] = 0.0; //-- gamma_norm
+    
+    //-- For NFW
+    //G_NFW_both(u_sq, h->c, h->c_sq, h->f, G_halo, err); forwardError(*err, __LINE__,);
+    //profile->matrix[i+N_gal]   = factor * G_halo[0]; //-- kappa_halo
+    //profile->matrix[i+2*N_gal] = factor * G_halo[1]; //-- gamma_norm
+    
+    if (i % 125 == 0) {
+      printf("Computing the one-halo term: %6.2f%% \r", 100.0 * i / (double)N_gal);
+      fflush(stdout);
+    }
   }
+  printf("One-halo term done                       \n");
+  return;
+}
+
+double factorForTwoHaloTerm(cosmo_hm *cmhm, halo_t *h, gal_t *g, error **err)
+{
+  //-- Oguri & Hamana (2011), Eq. (13)
+  //-- kappa_2h(theta) = \int dl [(l/2pi) * factor * J_0(l*theta) * P_L(k_l, z)]
+  //-- where k_l = l / f_K(w(z))
+  //-- where factor = (rho_bar(z) b_h(M)) / ((1+z)^3 Sigma_crit D_l^2)
+  //--              = (rho_bar(z) / (1+z)^3) * b_h(M) / ((c^2 / 4 pi G) * (D_s / D_l D_ls) * D_l^2)
+  //--              = rho_bar(0) * b_h(M) / ((c^2 / 4 pi G) * (D_s D_l / D_ls))
+  //--              = (CRITICAL_DENSITY * Omega_m) * b_h(M) * FOUR_PI_G_OVER_C2 * D_ls / (D_s D_l)
+  //--              = (FOUR_PI_G_OVER_C2 CRITICAL_DENSITY Omega_m b_h(M) D_ls) / (D_s D_l)
+  
+  double D_l    = h->a * f_K(cmhm->cosmo, h->w, err);      forwardError(*err, __LINE__, -1.0);
+  double D_ls   = g->a * f_K(cmhm->cosmo, g->w-h->w, err); forwardError(*err, __LINE__, -1.0);
+  double b_h    = halo_bias(cmhm, h->M, h->a, 2, err);     forwardError(*err, __LINE__, -1.0); //-- order = 2 for bias_sc
+  double factor = FOUR_PI_G_OVER_C2 * CRITICAL_DENSITY * cmhm->cosmo->Omega_m * b_h * D_ls / (g->D_s * D_l);
+  return factor;
+}
+
+double integrandForTwoHaloTerm(double l, void *inteParam, error **err)
+{
+  //-- Oguri & Hamana (2011), Eq. (13)
+  //-- kappa_2h(theta) = \int dl [(l / 2 pi) * factor * J_0(l*theta) * P_L(k_l, z)]
+  //--                 = (factor / 2 pi) * \int dl [l * J_0(l*theta) * P_L(k_l, z)]
+  //-- where k_l = l / f_K(w(z))
+  //-- where factor = (rho_bar(z) b_h(M)) / ((1+z)^3 Sigma_crit D_l^2)
+  //-- The integrand is l * J_0(l*theta) * P_L(k_l, z)
+  
+  profile_inteParam *param = (profile_inteParam*)inteParam;
+  double k_l = l / param->f_K;
+  double value = l * bessj0(l*param->theta) * P_L(param->cosmo, param->a, k_l, err); forwardError(*err, __LINE__, -1.0);
+  return value;
+}
+
+double twoHaloTerm(cosmo_hm *cmhm, halo_t *h, double theta, double factor, error **err)
+{
+  profile_inteParam *inteParam = (profile_inteParam*)malloc_err(sizeof(profile_inteParam), err); forwardError(*err, __LINE__, -1.0);
+  inteParam->theta = theta;
+  inteParam->a     = h->a;
+  inteParam->f_K   = f_K(cmhm->cosmo, h->w, err); forwardError(*err, __LINE__, -1.0);
+  inteParam->cosmo = cmhm->cosmo;
+  double l_maxx    = 500.0;
+  double eps       = 1e-9;
+  double totFactor = 0.5 * PI_INV * factor;
+  double sum       = sm2_qromberg(integrandForTwoHaloTerm, (void*)inteParam, 0.0, l_maxx, eps, err) * totFactor;
+  free(inteParam);
+  return sum;
+}
+
+void fillTwoHaloTerm(cosmo_hm *cmhm, halo_t *h, double factor, double_mat *profile, error **err)
+{
+  int N_gal = profile->N1;
+  double theta;
+  int i;
+  
+  for (i=0; i<N_gal; i++) {
+    theta = profile->matrix[i] * ARCMIN_TO_RADIAN; //-- Conversion
+    profile->matrix[i+3*N_gal] = twoHaloTerm(cmhm, h, theta, factor, err); forwardError(*err, __LINE__,); //-- 2-halo term kappa
+    if (i % 25 == 0) {
+      printf("Computing the two-halo term: %6.2f%% \r", 100.0 * i / (double)N_gal);
+      fflush(stdout);
+    }
+  }
+  printf("Two-halo term done                       \n");
   return;
 }
 
@@ -803,109 +947,27 @@ void outputProfile(char name[], cosmo_hm *cmhm, peak_param *peak, halo_t *h, dou
   FILE *file = fopen(name, "w");
   outputCosmoParam(file, cmhm, peak);
   fprintf(file, "#\n");
-  fprintf(file, "#     theta           r          kappa        gamma           g\n");
-  fprintf(file, "#   [arcmin]      [Mpc/h]          [-]          [-]          [-]\n");
+  fprintf(file, "#     theta           r          kappa        gamma           g      kappa_2h\n");
+  fprintf(file, "#   [arcmin]      [Mpc/h]          [-]          [-]          [-]          [-]\n");
   
   int N_gal  = profile->N1;
   double D_l = h->a * f_K(cmhm->cosmo, h->w, err); forwardError(*err, __LINE__,);
-  double theta, kappa, gamma;
+  double theta, kappa, gamma, kappa_2h;
   int i;
   
   for (i=0; i<N_gal; i++) {
-    theta = profile->matrix[i];
-    kappa = profile->matrix[i+N_gal];
-    gamma = profile->matrix[i+2*N_gal];
-    fprintf(file, " %11.5e  %11.5e  %11.5e  %11.5e  %11.5e\n", theta, theta*D_l, kappa, gamma, gamma/(1.0-kappa));
+    theta    = profile->matrix[i];
+    kappa    = profile->matrix[i+N_gal];
+    gamma    = profile->matrix[i+2*N_gal];
+    kappa_2h = profile->matrix[i+3*N_gal];
+    fprintf(file, " %11.5e  %11.5e  %11.5e  %11.5e  % 11.5e  %11.5e\n", theta, theta*ARCMIN_TO_RADIAN*D_l, kappa, gamma, gamma/(1.0-kappa), kappa_2h);
   }
   
   fclose(file);
   printf("\"%s\" made\n", name);
   return;
 }
-/*
-double *wtheta_halo(cosmo_hm *model, pofk_t pofk, double *theta, int Ntheta, int i_bin, int j_bin, error **err)
-{
-  //-- Take the 3D 2PCF (xi), project it using Limber equation (at mean z ?), 
-  //-- and return the angular correlation function (w(theta))
-  
-  //-- WARNING Below to verify
-  //-- See Bartelmann & Schneider (2001) eq. (2.79)
-  //-- Theta in degree
-  //-- N is the number of points that sample xi. The speed of the code is basically inversely proportional to this number.
-  
-  testErrorRetVA(MIN(i_bin, j_bin)<0 || MAX(i_bin, j_bin)>=model->redshift->Nzbin, redshift_Nzbin,
-		 "Requested redshift bins (%d, %d) out of range [0; %d]",
-		 *err, __LINE__, NULL, i_bin, j_bin, model->redshift->Nzbin-1);
-  
-  double *result  = malloc_err(Ntheta*sizeof(double),err); 
-  forwardError(*err, __LINE__, NULL);
-  
-  //-- tabulate xi(r)
-  int i, N = 40;
-  double umin = 0.001;
-  double umax = 800;
-  
-  double *u    = malloc_err(N*sizeof(double), err);  forwardError(*err, __LINE__, NULL);
-  double *logu = malloc_err(N*sizeof(double), err);  forwardError(*err, __LINE__, NULL);
-  double dlogu = log(umax / umin) / (double)N;
-  
-  for(i=0; i<N; i++) {
-    logu[i] = log(umin) + dlogu * (double)i;
-    u[i]    = exp(logu[i]);
-  }
-  
-  double *xi = xi_P_NL(model, a, r, N, err); forwardError(*err, __LINE__, NULL);
-  //xiofr(model, pofk, u, N, GG, err); forwardError(*err, __LINE__, NULL);
-  
-  //-- interpolate xi(r)
-  gsl_interp_accel *acc = gsl_interp_accel_alloc();
-  gsl_spline *spline    = gsl_spline_alloc(gsl_interp_cspline, N);
-  gsl_spline_init(spline, logu, xi, N);
-  
-  Nz_hist *nz1 = get_nz(model->redshift, i_bin, err); forwardError(*err, __LINE__, NULL);
 
-  int wOmegar = 0;
-  double deg_to_rad_sqr = dsqr(PI / 180.0);
-  double ww, r, fK, sum, a;
-  int j, k;
-  double nsqr_dzdr;
-  
-  //-- Limber equation - project xi to get w
-  for(i=0;i<Ntheta;i++){ //-- loop over theta
-    result[i] = 0.0;
-    
-    //-- loop over z
-    for (j=0; j<nz1->nbins; j++) {
-      
-      a   = 1.0 / (1.0 + nz1->z[j]);
-      ww  = w(model->cosmo, a, wOmegar, err);                 forwardError(*err, __LINE__, NULL);
-      fK  = f_K(model->cosmo, ww, err);                       forwardError(*err, __LINE__, NULL);
-      sum = 0.0;
-      
-      //-- loop over u
-      for (k=0; k<N; k++) { 
-	r = sqrt(u[k] * u[k] + fK * fK * theta[i] * theta[i] * deg_to_rad_sqr);
-	//-- to unsure log(r) lies within interpolation limits
-	if (log(r) < logu[N-1]) sum += u[k] * gsl_spline_eval(spline, log(r), acc);
-      }
-      nsqr_dzdr = 1.0 / drdz(model->cosmo, a, err); forwardError(*err, __LINE__, NULL);
-      result[i] += nsqr_dzdr * sum;
-    }
-
-    result[i] *= 2.0 * dlogu;
-    testErrorRetVA(!finite(result[i]), ce_infnan, "inf or nan in w(theta_%d=%g)", *err, __LINE__, NULL, i, theta[i]/arcmin);
-  }
-  
-  free(xi);
-  free(u);
-  free(logu);
-  free_nz(nz1);
-  gsl_spline_free(spline);
-  gsl_interp_accel_free(acc);
-  
-  return result;
-}
-*/
 //----------------------------------------------------------------------
 //-- Functions related to lensing
 
@@ -919,17 +981,17 @@ void lensingForPair(cosmo_hm *cmhm, halo_t *h, gal_t *g, int doKappa, error **er
   if (doKappa == 1) {
     //-- Compute projected kappa
     if (theta_sq > h->theta_vir_sq) return; //-- Too far
-    g->kappa += kappa_truncatedNFW(cmhm, h, g, theta_sq, err); forwardError(*err, __LINE__,);
+    g->kappa += kappa_TJ(cmhm, h, g, theta_sq, err); forwardError(*err, __LINE__,);
   }
   else if (doKappa >= 2) {
     //-- Compute projected kappa and gamma
     if (theta_sq > CUTOFF_FACTOR_HALO_SQ * h->theta_vir_sq) return; //-- Too far
-    both_truncatedNFW(cmhm, h, g, theta_sq, err); forwardError(*err, __LINE__,);
+    both_TJ(cmhm, h, g, theta_sq, err); forwardError(*err, __LINE__,);
   }
   else {
     //-- Compute projected gamma
     if (theta_sq > CUTOFF_FACTOR_HALO_SQ * h->theta_vir_sq) return; //-- Too far
-    gamma_truncatedNFW(cmhm, h, g, theta_sq, err); forwardError(*err, __LINE__,);
+    gamma_TJ(cmhm, h, g, theta_sq, err); forwardError(*err, __LINE__,);
   }
   return;
 }
@@ -1004,6 +1066,47 @@ void lensingForMap(cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, gal_m
 //----------------------------------------------------------------------
 //-- Functions related to mask
 
+
+short_mat *initializeMask(peak_param *peak, error **err)
+{
+  short_mat *CCDMask;
+  if (peak->doMask == 0) {
+    CCDMask = initialize_short_mat(2, 2);
+    return CCDMask;
+  }
+  
+#ifndef __releaseMenu__
+  FITS_t *fits = initializeImageReader_FITS_t(peak->maskPath);
+  
+  peak->theta_CCD_inv[0] = 1.0 / (60.0 * readKeyword_double(fits, "CD1_1")); //-- [arcmin^-1]
+  peak->theta_CCD_inv[1] = 1.0 / (60.0 * readKeyword_double(fits, "CD2_2"));
+  int N_x      = readKeyword_int(fits, "NAXIS1");
+  int N_y      = readKeyword_int(fits, "NAXIS2");
+  int N1_mask  = (int)ceil(peak->Omega[0] * peak->theta_CCD_inv[0] - EPS_MIN);
+  int N2_mask  = (int)ceil(peak->Omega[1] * peak->theta_CCD_inv[1] - EPS_MIN);
+  testErrorRet(N1_mask > N_x || N2_mask > N_y, peak_geometry, "Mask too small", *err, __LINE__, NULL);
+  
+  CCDMask = initialize_short_mat(N1_mask, N2_mask);
+  
+  int limits[4];
+  limits[0] = (N_x - N1_mask) / 2;
+  limits[1] = limits[0] + N1_mask;
+  limits[2] = (N_y - N2_mask) / 2;
+  limits[3] = limits[2] + N2_mask;
+  
+  short *image = (short*)read2DSubImage(fits, limits);
+  int i;
+  for (i=0; i<CCDMask->length; i++) CCDMask->matrix[i] = image[i];
+  free(image);
+  free_FITS_t(fits);
+  return CCDMask;
+  
+#else
+  CCDMask = initialize_short_mat(2, 2);
+  return CCDMask;
+#endif
+}
+
 #define THETA_PIX 1.666666666666667e-2 //-- [arcmin]
 #define THETA_PIX_INV 60.0 //-- [arcmin^-1]
 
@@ -1013,29 +1116,44 @@ void lensingForMap(cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, gal_m
 #define W1_I_MAX 31700 //-- [pix]
 #define W1_J_MIN   800 //-- [pix]
 #define W1_J_MAX 27800 //-- [pix]
-void fillMask_CFHTLenS_W1(peak_param *peak, short_mat *CCDMask)
+short_mat *initializeMask_CFHTLenS_W1(peak_param *peak, error **err)
 {
-  peak->theta_CCD_inv = THETA_PIX_INV;
+  short_mat *CCDMask;
+  if (peak->doMask == 0) {
+    CCDMask = initialize_short_mat(2, 2);
+    return CCDMask;
+  }
+  
+#ifndef __releaseMenu__
+  FITS_t *fits = initializeImageReader_FITS_t("../../../91_Data/cfhtlens/mask/W1.16bit.small.reg2.fits");
   
   double Omega_x = peak->Omega[0];
   double Omega_y = peak->Omega[1];
-  if (Omega_x > W1_OMEGA_X || Omega_y > W1_OMEGA_Y) return;
+  testErrorRet(Omega_x > W1_OMEGA_X || Omega_y > W1_OMEGA_Y, peak_geometry, "Mask too small", *err, __LINE__, NULL);
   
-  char name[STRING_LENGTH_MAX];
-  sprintf(name, "../../../91_Data/CFHTLenS/mask/W1.16bit.small.reg2.fits");
-  FITS_t *fits = initializeImageReader_FITS_t(name);
+  peak->theta_CCD_inv[0] = THETA_PIX_INV;
+  peak->theta_CCD_inv[1] = THETA_PIX_INV;
+  int N1_mask = (int)ceil(Omega_x * THETA_PIX_INV - EPS_MIN);
+  int N2_mask = (int)ceil(Omega_y * THETA_PIX_INV - EPS_MIN);
+  CCDMask = initialize_short_mat(N1_mask, N2_mask);
   
   int limits[4];
-  limits[0] = (int)(0.5 * (W1_I_MIN + W1_I_MAX - Omega_x * THETA_PIX_INV));
-  limits[1] = limits[0] + CCDMask->N1;
-  limits[2] = (int)(0.5 * (W1_J_MIN + W1_J_MAX - Omega_y * THETA_PIX_INV));
-  limits[3] = limits[2] + CCDMask->N2;
+  limits[0] = (W1_I_MIN + W1_I_MAX - N1_mask) / 2;
+  limits[1] = limits[0] + N1_mask;
+  limits[2] = (W1_J_MIN + W1_J_MAX - N2_mask) / 2;
+  limits[3] = limits[2] + N2_mask;
   
   short *image = (short*)read2DSubImage(fits, limits);
   int i;
   for (i=0; i<CCDMask->length; i++) CCDMask->matrix[i] = image[i];
   free(image);
-  return;
+  free_FITS_t(fits);
+  return CCDMask;
+  
+#else
+  CCDMask = initialize_short_mat(2, 2);
+  return CCDMask;
+#endif
 }
 #undef W1_OMEGA_X
 #undef W1_OMEGA_Y
@@ -1050,29 +1168,44 @@ void fillMask_CFHTLenS_W1(peak_param *peak, short_mat *CCDMask)
 #define W3_I_MAX 24600 //-- [pix]
 #define W3_J_MIN  1200 //-- [pix]
 #define W3_J_MAX 24400 //-- [pix]
-void fillMask_CFHTLenS_W3(peak_param *peak, short_mat *CCDMask)
+short_mat *initializeMask_CFHTLenS_W3(peak_param *peak, error **err)
 {
-  peak->theta_CCD_inv = THETA_PIX_INV;
+  short_mat *CCDMask;
+  if (peak->doMask == 0) {
+    CCDMask = initialize_short_mat(2, 2);
+    return CCDMask;
+  }
+  
+#ifndef __releaseMenu__
+  FITS_t *fits = initializeImageReader_FITS_t("../../../91_Data/cfhtlens/mask/W3.16bit.small.reg2.fits");
   
   double Omega_x = peak->Omega[0];
   double Omega_y = peak->Omega[1];
-  if (Omega_x > W3_OMEGA_X || Omega_y > W3_OMEGA_Y) return;
+  testErrorRet(Omega_x > W3_OMEGA_X || Omega_y > W3_OMEGA_Y, peak_geometry, "Mask too small", *err, __LINE__, NULL);
   
-  char name[STRING_LENGTH_MAX];
-  sprintf(name, "../../../91_Data/CFHTLenS/mask/W3.16bit.small.reg2.fits");
-  FITS_t *fits = initializeImageReader_FITS_t(name);
+  peak->theta_CCD_inv[0] = THETA_PIX_INV;
+  peak->theta_CCD_inv[1] = THETA_PIX_INV;
+  int N1_mask = (int)ceil(Omega_x * THETA_PIX_INV - EPS_MIN);
+  int N2_mask = (int)ceil(Omega_y * THETA_PIX_INV - EPS_MIN);
+  CCDMask = initialize_short_mat(N1_mask, N2_mask);
   
   int limits[4];
-  limits[0] = (int)(0.5 * (W3_I_MIN + W3_I_MAX - Omega_x * THETA_PIX_INV));
-  limits[1] = limits[0] + CCDMask->N1;
-  limits[2] = (int)(0.5 * (W3_J_MIN + W3_J_MAX - Omega_y * THETA_PIX_INV));
-  limits[3] = limits[2] + CCDMask->N2;
+  limits[0] = (W3_I_MIN + W3_I_MAX - N1_mask) / 2;
+  limits[1] = limits[0] + N1_mask;
+  limits[2] = (W3_J_MIN + W3_J_MAX - N2_mask) / 2;
+  limits[3] = limits[2] + N2_mask;
   
   short *image = (short*)read2DSubImage(fits, limits);
   int i;
   for (i=0; i<CCDMask->length; i++) CCDMask->matrix[i] = image[i];
   free(image);
-  return;
+  free_FITS_t(fits);
+  return CCDMask;
+  
+#else
+  CCDMask = initialize_short_mat(2, 2);
+  return CCDMask;
+#endif
 }
 #undef W3_OMEGA_X
 #undef W3_OMEGA_Y
@@ -1084,10 +1217,10 @@ void fillMask_CFHTLenS_W3(peak_param *peak, short_mat *CCDMask)
 #undef THETA_PIX
 #undef THETA_PIX_INV
 
-short inCCDMask(short_mat *CCDMask, double pos[2], double theta_CCD_inv)
+short inCCDMask(short_mat *CCDMask, double pos[2], double theta_CCD_inv[2])
 {
-  int i = (int)(pos[0] * theta_CCD_inv);
-  int j = (int)(pos[1] * theta_CCD_inv);
+  int i = (int)(pos[0] * theta_CCD_inv[0]);
+  int j = (int)(pos[1] * theta_CCD_inv[1]);
   return CCDMask->matrix[i+j*CCDMask->N1];
 }
 
@@ -1186,7 +1319,7 @@ void makeMaskedRandomGalaxies(cosmo_hm *cmhm, peak_param *peak, sampler_t *galSa
   double z_s = peak->z_s;
   double w_s = peak->w_s;
   double D_s = peak->D_s;
-  double theta_CCD_inv = peak->theta_CCD_inv;
+  double *theta_CCD_inv = peak->theta_CCD_inv;
   double p, z, pos[2];
   
   int i;
@@ -1431,15 +1564,13 @@ void outputGalaxies(char name[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap
 
 void doRayTracing(char fileName[], cosmo_hm *cmhm, peak_param *peak, int doNoise, error **err)
 {
-  int N1_mask = (int)(peak->Omega[0] * peak->theta_CCD_inv);
-  int N2_mask = (int)(peak->Omega[1] * peak->theta_CCD_inv);
   peak->doNoise = doNoise;
   
   halo_map *hMap     = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
   sampler_t *galSamp = initialize_sampler_t(peak->N_z_gal);
   setGalaxySampler(cmhm, peak, galSamp, err);                                                     forwardError(*err, __LINE__,);
   gal_map *gMap      = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
-  short_mat *CCDMask = initialize_short_mat(N1_mask, N2_mask);
+  short_mat *CCDMask = initializeMask(peak, err);                                                 forwardError(*err, __LINE__,);
   
   if (fileName == NULL) {
     //-- Carry out fast simulation
@@ -1465,24 +1596,12 @@ void doRayTracing(char fileName[], cosmo_hm *cmhm, peak_param *peak, int doNoise
 
 void doProfile(char fileName[], cosmo_hm *cmhm, peak_param *peak, double z_l, double M, double z_s,  error **err)
 {
-  printf("z_l = %f\n", z_l);
-  printf("M   = %f\n", log10(M));
-  printf("z_s = %f\n", z_s);
+  printf("z_l           = %f\n", z_l);
+  printf("log(Mh/M_sol) = %f\n", log10(M));
+  printf("z_s           = %f\n", z_s);
   
   peak->z_halo_max = z_s;
   peak->dz_halo    = peak->z_s / (double)(peak->N_z_halo);
-  
-  /*
-  int N_a = 4000;
-  double sheet[2];
-  sampler_t *samp = initialize_sampler_t(peak->N_M);
-  interpolator_t *a_inter = initialize_interpolator_t(N_a+1);
-  makeAInterpolator(cmhm, a_inter, peak->z_halo_max, err); forwardError(*err, __LINE__,);
-  massSheet(cmhm, peak, samp, a_inter, sheet, err);        forwardError(*err, __LINE__,);
-  printf("kappa_0 = %f\n", sheet[0]);
-  free_sampler_t(samp);
-  free_interpolator_t(a_inter);
-  */
   
   double theta_maxx = 200.0; //-- [arcmin]
   double dtheta     = 0.01;  //-- [arcmin]
@@ -1493,19 +1612,14 @@ void doProfile(char fileName[], cosmo_hm *cmhm, peak_param *peak, double z_l, do
   halo_t *h       = (halo_t*)malloc_err(sizeof(halo_t), err); forwardError(*err, __LINE__,);
   set_halo_t(cmhm, h, z_l, M, pos, err);                      forwardError(*err, __LINE__,);
   
-  /*
-  double c = 5.0;
-  h->c        = c;
-  h->c_sq     = SQ(c);
-  h->f        = 1.0 / (log(1.0 + c) - c/(1.0 + c));
-  */
-  
   gal_t *g        = (gal_t*)malloc_err(sizeof(gal_t), err);   forwardError(*err, __LINE__,);
   set_gal_t(cmhm, g, z_s, -1, -1, NULL, err);                 forwardError(*err, __LINE__,);
-  double_mat *profile = initialize_double_mat(N_gal, 3);
+  double_mat *profile = initialize_double_mat(N_gal, 4);
   for (i=0; i<N_gal; i++) profile->matrix[i] = (i + 1) * dtheta;
-  computeProfile(cmhm, h, g, profile, err);                   forwardError(*err, __LINE__,);
-  //for (i=N_gal; i<2*N_gal; i++) profile->matrix[i] -= sheet[0];
+  double factor = factorForTwoHaloTerm(cmhm, h, g, err);      forwardError(*err, __LINE__,);
+  
+  fillOneHaloTerm(cmhm, h, g, profile, err);                  forwardError(*err, __LINE__,);
+  fillTwoHaloTerm(cmhm, h, factor, profile, err);             forwardError(*err, __LINE__,);
   outputProfile(fileName, cmhm, peak, h, profile, err);       forwardError(*err, __LINE__,);
   
   free(h);

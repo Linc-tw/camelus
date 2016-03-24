@@ -2,8 +2,8 @@
 
   
 ### Halos
-z_halo_max	3.0		# Maxmimum redshift for halos
-N_z_halo	60		# Number of sampling redshift bins
+z_halo_max	1.5		# Maxmimum redshift for halos
+N_z_halo	30		# Number of sampling redshift bins
 M_min		5e+12		# [M_sol/h] Minimum sampling mass
 M_max		1e+17		# [M_sol/h] Maximum sampling mass
 
@@ -15,26 +15,42 @@ doRandGalPos	1		# 0 = regular, 1 = random
 n_gal		12.0		# [arcmin^-2] Galaxy number density
 sigma_eps	0.4		# Ellipticity dispersion
 doKappa		3		# 0 = gamma, 1 = kappa, 2 = g, 3 = g with linear KS
-doMask		0		# 0 = without (only 0 is available in this version)
+doMask		0		# 0 = without (only 0 is available)
+maskPath	-		# Path of the mask
   
-### Field, map, & filter
+### Field & map
 strField 	rectangle	# Geometry: 'rectangle'
-Omega		393.6  393.6	# [arcmin] Field size (theta_x, theta_y)
-theta_pix	0.8		# [arcmin] Pixel size
-nbFilters	5		# Number of filters
-strFilter	gauss gauss star star star
-scale		 1.2   2.4  2.0  4.0  8.0
+Omega		180.0  180.0	# [arcmin] Field size (theta_x, theta_y)
+theta_pix	1.0		# [arcmin] Pixel size
+
+### Filter
+doSmoothing	1		# 0 = without, 1 = binning and FFT, 2 = direct convolution, 4 = nonlinear filtering (not available), 
+#				# Sum for performing simultaneously multiple techniques, e.g. 5 = FFT + nonlinear
+FFT_nbFilters	2		# Number of linear filters for FFT
+FFT_strFilter	gauss gauss
+FFT_scale	 1.2   2.4
 #				# Filter type: 'gauss', 'star'
 #				# [arcmin] Filter size in arcmin
+DC_nbFilters	2		# Number of linear filters for direct convolution
+DC_strFilter	gauss gauss
+DC_scale	 1.2   2.4
+#				# Filter type: 'gauss', 'star'
+#				# [arcmin] Filter size in arcmin
+MRLens_nbScales	5		# Number of scales for MRLens (not available)
+MRLens_FDR	0.05		# False detection rate for MRLens (not available)
 
 ### Peak historgram
 N_nu		9		# Number of S/N bins
 nu_bin		1.0  1.5  2.0  2.5  3.0  3.5  4.0  4.5  5.0  1e+15
-N_kappa		6		# Number of kappa bins
+N_kappa		6		# Number of kappa bins (for nonlinear filtering)
 kappa_bin	0.02  0.03  0.04  0.06  0.10  0.16  1e+15
 
 ### ABC
-ABC_Q		100		# Number of particles
+ABC_obsPath	../demo/x_obs	# Path of the observation data
+ABC_f		3		# Dimension of parameter set
+ABC_doParam	0  5  6		# 0 = Omega_m, 1 = Omega_de, 2 = Omega_b, 3 = n_s, 4 = h_100,
+#				# 5 = sigma_8, 6 = w0_de,    7 = w1_de,   8 = c_0, 9 = beta_NFW
+ABC_Q		1200		# Number of particles
 ABC_r_stop	0.03		# Shutoff success rate
-ABC_summ	summ_gauss	# Summary type: 'summ_gauss', 'summ_star'
+ABC_summ	summ_gauss	# Summary type: 'summ_gauss'
 

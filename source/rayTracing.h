@@ -3,7 +3,7 @@
   /*******************************
    **  rayTracing.h		**
    **  Chieh-An Lin		**
-   **  Version 2015.12.09	**
+   **  Version 2016.03.20	**
    *******************************/
 
 
@@ -11,9 +11,12 @@
 #define __rayTrac__
 
 #include "commonHeader.h"
-#include "FITSFunctions.h"
 #include "peakParameters.h"
 #include "haloSampling.h"
+
+#ifndef __releaseMenu__
+  #include "FITSFunctions.h"
+#endif
 
 
 typedef struct {
@@ -59,6 +62,11 @@ typedef struct {
   mapType_t type;          //-- Map type (defined in peakParameters.h)
 } gal_map;
 
+typedef struct {
+  double f_K, a, theta;
+  cosmo *cosmo;
+} profile_inteParam;
+
 
 //-- Functions related to gal_t, gal_node, gal_list
 void set_gal_t(cosmo_hm *cmhm, gal_t *g, double z, double w_s, double D_s, double *pos, error **err);
@@ -86,19 +94,24 @@ void output_gal_map(FILE *file, peak_param *peak, gal_map *gMap);
 void read_gal_map(char name[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, error **err);
 void updateCosmo_gal_map(cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, error **err);
 
-//-- Functions related to projected NFW mass
-double G_exactNFW_kappa(double x_sq, double c, double c_sq, error **err);
-double G_truncatedNFW_kappa(double x_sq, double c, double c_sq, error **err);
-double G_exactNFW_gamma(double x_sq, double c, double c_sq, double f, error **err);
-double G_truncatedNFW_gamma(double x_sq, double c, double c_sq, double f, error **err);
-void G_exactNFW_both(double x_sq, double c, double c_sq, double f, double G_NFW[2], error **err);
-void G_truncatedNFW_both(double x_sq, double c, double c_sq, double f, double G_NFW[2], error **err);
-double kappa_truncatedNFW(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, error **err);
-void gamma_truncatedNFW(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, error **err);
-void both_truncatedNFW(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, error **err);
+//-- Functions related to projected mass
+double G_NFW_kappa(double u_sq, double c, double c_sq, error **err);
+double G_NFW_gamma(double u_sq, double c, double c_sq, double f, error **err);
+void G_NFW_both(double u_sq, double c, double c_sq, double f, double G_NFW[2], error **err);
+double G_TJ_kappa(double u_sq, double c, double c_sq, error **err);
+double G_TJ_gamma(double u_sq, double c, double c_sq, double f, error **err);
+void G_TJ_both(double u_sq, double c, double c_sq, double f, double G_TJ[2], error **err);
+double G_BMO_kappa(double u_sq, double tau, double tau_sq, error **err);
+double kappa_TJ(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, error **err);
+void gamma_TJ(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, error **err);
+void both_TJ(cosmo_hm *cmhm, halo_t *h, gal_t *g, double theta_sq, error **err);
 
 //-- Functions related to drawing a profile
-void computeProfile(cosmo_hm *cmhm, halo_t *h, gal_t *g, double_mat *profile, error **err);
+void fillOneHaloTerm(cosmo_hm *cmhm, halo_t *h, gal_t *g, double_mat *profile, error **err);
+double factorForTwoHaloTerm(cosmo_hm *cmhm, halo_t *h, gal_t *g, error **err);
+double integrandForTwoHaloTerm(double l, void *inteParam, error **err);
+double twoHaloTerm(cosmo_hm *cmhm, halo_t *h, double theta, double factor, error **err);
+void fillTwoHaloTerm(cosmo_hm *cmhm, halo_t *h, double factor, double_mat *profile, error **err);
 void outputProfile(char name[], cosmo_hm *cmhm, peak_param *peak, halo_t *h, double_mat *profile, error **err);
 
 //-- Functions related to lensing
@@ -107,9 +120,10 @@ void lensingForHalo(cosmo_hm *cmhm, halo_t *h, gal_map *gMap, int doKappa, error
 void lensingForMap(cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, gal_map *gMap, error **err);
 
 //-- Functions related to mask
-void fillMask_CFHTLenS_W1(peak_param *peak, short_mat *CCDMask);
-void fillMask_CFHTLenS_W3(peak_param *peak, short_mat *CCDMask);
-short inCCDMask(short_mat *CCDMask, double pos[2], double theta_CCD_inv);
+short_mat *initializeMask(peak_param *peak, error **err);
+short_mat *initializeMask_CFHTLenS_W1(peak_param *peak, error **err);
+short_mat *initializeMask_CFHTLenS_W3(peak_param *peak, error **err);
+short inCCDMask(short_mat *CCDMask, double pos[2], double theta_CCD_inv[2]);
 
 //-- Functions related to making galaxies
 void makeRegularGalaxies(cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, error **err);

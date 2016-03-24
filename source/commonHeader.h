@@ -3,7 +3,7 @@
   /*******************************
    **  commonHeader.h		**
    **  Chieh-An Lin		**
-   **  Version 2015.12.09	**
+   **  Version 2015.12.17	**
    *******************************/
 
 
@@ -129,14 +129,6 @@ typedef struct {
 typedef struct {
   int length;
   FFT_t **array;
-  /*
-  int N_array;     //-- Number of kernels
-  int N_type;      //-- Resolution, should be a square
-  int length_type; //-- Number of pixels
-  fftw_complex *before, **kernelArr, **afterArr; //-- fftw_complex elements, transformations are in-place
-  fftw_plan before_f, *kernelArr_f, *afterArr_b; //-- fftw_plan elements
-  fftw_plan *afterArr_f;                         //-- Only used for iterative KS inversion
-  */
 } FFT_arr;
 
 typedef struct {

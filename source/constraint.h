@@ -3,7 +3,7 @@
   /*******************************
    **  constraint.h		**
    **  Chieh-An Lin		**
-   **  Version 2015.12.09	**
+   **  Version 2015.12.25	**
    *******************************/
 
 
@@ -42,10 +42,11 @@ typedef struct {
 
 //-- Functions related to data matrix
 void fillMultiscale(peak_param *peak, hist_t *hist, double_mat *multiscale);
-void multiscaleFromMassFct(cosmo_hm *cmhm, peak_param *peak, sampler_arr *sampArr, halo_map *hMap, sampler_t *galSamp, gal_map *gMap, short_mat *CCDMask,
-			   FFT_arr *smoother, map_t *kMap, FFT_arr *varArr, double_arr *peakList, hist_t *hist, hist_t *hist2, double_mat *multiscale, error **err);
+void multiscaleFromMassFct(cosmo_hm *cmhm, peak_param *peak, sampler_arr *sampArr, halo_map *hMap, sampler_t *galSamp, gal_map *gMap, short_mat *CCDMask, 
+			   FFT_arr *FFTSmoother, FFT_arr *DCSmoother, map_t *kMap, FFT_arr *variance, double_arr *peakList, hist_t *nuHist, hist_t *kappaHist, 
+			   double_mat *multiscale, error **err);
 void fillRealization(peak_param *peak, double_mat *multiscale, double *matrix);
-void outputMultiscale(char name[], double_mat *multiscale);
+void outputMultiscale(char name[], peak_param *peak, double_mat *multiscale);
 void outputDataMat(char name[], double_mat *dataMat);
 //void outfitsCosmoParam(FITS_t *fits, cosmo_hm *cmhm, peak_param *peak);
 //void outfits_double_mat(FITS_t *fits, double_mat *dataMat, int N_bin, int nbFilters);

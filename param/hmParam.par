@@ -32,7 +32,7 @@ smassfct		j01
 #  halo_bias_sc		From spherical collapse model, see e.g. Cooray & Sheth (2001) eq. 68.
 #  halo_bias_tinker05	Bias from Tinker et al. (2005) eq A1
 #  halo_bias_tinker10   Bias from Tinker et al. (2010)
-shalo_bias		halo_bias_sc
+shalo_bias		halo_bias_tinker10
 
 # Maximum pi [Mpc/h], for w_p(r_p)
 pi_max 			60.0
