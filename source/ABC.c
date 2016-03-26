@@ -3,7 +3,7 @@
   /***********************************************
    **  ABC.c					**
    **  Chieh-An Lin				**
-   **  Version 2016.03.20			**
+   **  Version 2016.03.26			**
    **						**
    **  References:				**
    **  - Marin et al. (2011)			**
@@ -350,7 +350,10 @@ PMC_ABC_t *initialize_PMC_ABC_t(cosmo_hm *cmhm, peak_param *peak, error **err)
   ABC->Q         = peak->ABC_Q;
   ABC->r_stop    = peak->ABC_r_stop;
   int i;
-  STRING2ENUM(ABC->summ, peak->ABC_summ, summ_t, STR_SUMM_T, i, NB_SUMM_T, err);                  forwardError(*err, __LINE__, NULL);
+  ABC->summ      = -1;
+  for (i=0; i<NB_SUMM_T; i++) if (strcmp(peak->ABC_summ, STR_SUMM_T((summ_t)i))==0) ABC->summ = (summ_t)i;
+  testErrorVA((int)ABC->summ==-1, conf_undef, "Parametrization '%s' not found in type %s, cannot assign value of type %s", \
+		*err, __LINE__, peak->ABC_summ, "STR_SUMM_T", "summ_t");                          forwardError(*err, __LINE__, NULL);
   
   ABC->Q_MPI     = (int)ceil((double)ABC->Q / (double)peak->MPISize);
   
