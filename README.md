@@ -53,6 +53,8 @@ $ ./camelus
 
 Current release: Camelus v1.31
 
+##### Forked version: implementation of shear bias as function of local density - 04/07/2017
+
 ##### New features in v1.31 - Mar 22, 2016:
   - Made installation more friendly by removing the dependency on cfitsio and mpi
   - Added the routine for computing 1-halo & 2-halo terms of the convergence profile
