@@ -310,7 +310,7 @@ void doDataMatrix(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
   FFT_arr *DCSmoother    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
   map_t *kMap            = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
   FFT_arr *variance      = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
-  if (peak->FFT_nbFilters) makeKernel(peak, variance);
+  if (peak->FFT_nbFilters) makeKernelForVariance(peak, variance);
   double_arr *peakList   = initialize_double_arr(length);
   hist_t *nuHist         = initialize_hist_t(peak->N_nu);
   setHist_nu(peak, nuHist);
