@@ -335,7 +335,7 @@ void DCForPair_kappa(peak_param *peak, gal_list *gList, FFT_t **DCSmooArr, doubl
 	pix[0] += SQ(factor);   //-- Compute the smoothed variance
 	pix[1] += fabs(factor); //-- Compute the smoothed number count (sum of weights)
       }
-      else if (peak->DC_filter[j] == M_ap_tanh) ; //-- Do nothing
+      else if (peak->DC_filter[j] == M_ap_tanh); //-- Do nothing
     }
   }
   return;
@@ -955,7 +955,7 @@ void pixelization(peak_param *peak, gal_map *gMap, FFT_arr *FFTSmoother, FFT_arr
     //-- Bin and stock information in smoother->array[0]->before
     signalMean_gal_map(peak, gMap, err); forwardError(*err, __LINE__,);
     galaxyBinning(gMap, FFTSmoother->array[0]); //-- Only in the first one
-    if (peak->printMode < 2) printf("Binned galaxies\n");
+   // if (peak->printMode < 2) printf("Binned galaxies\n");
   }
   
   return;
@@ -1124,6 +1124,107 @@ void makeMapAndOutputAll(cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, FFT_ar
     makeTrueMap("galCat", cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, 0, err); forwardError(*err, __LINE__,);
     outputMapFromTable("kappaMap_truth", cmhm, peak, firstFFTSmoo->before, kappa_map);
   }
+  return;
+}
+
+
+
+ 
+void makeMapAndOutputAll2(char fileName[], char fileName2[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, FFT_arr *FFTSmoother, FFT_arr *DCSmoother, map_t *kMap, error **err)
+{
+  //-- Map making main function: kappa/gamma/g/g-linear, noiseless/noisy, unsmoothed/smoothed
+  //--
+  //-- Bin kappa, FFT (1, 1)                           | DC (1, 2)
+  //--   Catalogue:     kappa          in gMap         |   Catalogue:          kappa          in gMap
+  //--   Binning:       binned kappa   in smoo->before |   Direct convolution: smoothed kappa in smoo->before
+  //--   FFT smoothing: smoothed kappa in smoo->after  |
+  //--                                                 |
+  //-- Bin gamma, linear KS, FFT (0, 1)                | DC, linear KS (0, 2)
+  //--   Catalogue:     gamma          in gMap         |   Catalogue:          gamma          in gMap
+  //--   Binning:       binned gamma   in smoo->before |   Direct convolution: smoothed gamma in smoo->before
+  //--   Linear KS:     binned kappa   in smoo->before |   Linear KS:          smoothed kappa in smoo->before
+  //--   FFT smoothing: smoothed kappa in smoo->after  |
+  //--                                                 |
+  //-- Bin g, iterative KS, FFT (2, 1)                 | DC, iterative KS (2, 2)
+  //--   Catalogue:     g              in gMap         |   Catalogue:          g              in gMap
+  //--   Binning:       binned g       in smoo->before |   Direct convolution: smoothed g     in smoo->before
+  //--   Iterative KS:  kappa          in smoo->before |   Iterative KS:       smoothed kappa in smoo->before
+  //--   FFT smoothing: smoothed kappa in smoo->after  |
+  //--                                                 |
+  //-- Bin g, linear KS, FFT (3, 1)                    | DC, iterative KS (3, 2)
+  //--   Catalogue:     g              in gMap         |   Catalogue:          g              in gMap
+  //--   Binning:       binned g       in smoo->before |   Direct convolution: smoothed g     in smoo->before
+  //--   Linear KS:     kappa          in smoo->before |   Linear KS:          smoothed kappa in smoo->before
+  //--   FFT smoothing: smoothed kappa in smoo->after  |
+  
+  char option[STRING_LENGTH_MAX];
+  int doKappa       = peak->doKappa;
+  int FFT_nbFilters = peak->FFT_nbFilters;
+  int DC_nbFilters  = peak->DC_nbFilters;
+  int doNonlinear   = peak->doNonlinear;
+  int typeForNoise  = peak->doNoise * 2;
+  int typeForG      = (int)(doKappa >= 2) * 6;
+  int outputInd     = 0; //-- This index is changeable.
+  
+  
+  FFT_t *firstFFTSmoo, *outputFFTSmoo, *outputDCSmoo, *trueSmoo;
+  
+  if (DC_nbFilters)                 outputDCSmoo  = DCSmoother->array[outputInd];
+  if (FFT_nbFilters || doNonlinear) outputFFTSmoo = FFTSmoother->array[outputInd];
+  firstFFTSmoo = FFTSmoother->array[0];
+  
+  //-- Mask
+  outputMask("mask", peak, gMap, kMap, err); forwardError(*err, __LINE__,);
+  
+  //-- Pixelization
+  pixelization(peak, gMap, FFTSmoother, DCSmoother, err); forwardError(*err, __LINE__,);
+  if (DC_nbFilters) {
+    if (doKappa == 1)          outputMapFromTable("kappaMap_DC",            cmhm, peak, outputDCSmoo->before, K_map+typeForNoise);
+    else                       outputMapFromTable("gammaOrGMap_DC",         cmhm, peak, outputDCSmoo->before, R_map+typeForG+typeForNoise);
+  }
+  if (FFT_nbFilters || doNonlinear) {
+    if (doKappa == 1)          outputMapFromTable("kappaMap_unsmoothed",    cmhm, peak, firstFFTSmoo->before, kappa_map+typeForNoise);
+    else                       outputMapFromTable("gammaOrGMap_unsmoothed", cmhm, peak, firstFFTSmoo->before, gamma_map+typeForG+typeForNoise);
+  }
+  
+  //-- Inversion
+  if (doKappa == 2) {
+    invertByIterKS_arr(peak, gMap, FFTSmoother, DCSmoother, kMap);
+    if (DC_nbFilters)                  outputMapFromTable("kappaMap_DC",         cmhm, peak, outputDCSmoo->before, K_map+typeForNoise);
+    if (FFT_nbFilters || doNonlinear)  outputMapFromTable("kappaMap_unsmoothed", cmhm, peak, firstFFTSmoo->before, kappa_map+typeForNoise);
+  }
+  else if (doKappa == 0 || doKappa == 3) {
+    invertByLinKS_arr(peak, gMap, FFTSmoother, DCSmoother);
+    if (DC_nbFilters)                  outputMapFromTable("kappaMap_DC",         cmhm, peak, outputDCSmoo->before, K_map+typeForNoise);
+    if (FFT_nbFilters || doNonlinear)  outputMapFromTable("kappaMap_unsmoothed", cmhm, peak, firstFFTSmoo->before, kappa_map+typeForNoise);
+  }
+  
+  if (doNonlinear) {
+    //-- MRLens
+    sprintf(option, "-k -C2 -c2 -s%f -F1 -n%d", peak->MRLens_FDR, peak->MRLens_nbScales);
+    outfitsMapFromTable("kappaMap_unsmoothed.fits", peak, firstFFTSmoo->before, kMap);
+    MRLensFiltering(peak, "../../mrlens/wl_t2_filter", option, "kappaMap_unsmoothed.fits", "kappaMap_mrlens.fits", "> log_mrlens");
+  }
+  
+  if (FFT_nbFilters) {
+    //-- FFT smoothing
+    smoothByFFT_arr(peak, gMap, FFTSmoother);
+    outputMapFromTable("kappaMap_FFT", cmhm, peak, outputFFTSmoo->after, K_map+typeForNoise);
+  }
+  
+  if (doKappa != 1) {
+    //-- Semi-truth
+    makeTrueMap(fileName2, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, 1, err); forwardError(*err, __LINE__,);
+    outputMapFromTable("kappaMap_semiTruth", cmhm, peak, firstFFTSmoo->before, kappa_map);
+  }
+  
+  if (doKappa != 0) {
+    //-- Truth
+    makeTrueMap(fileName2, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, 0, err); forwardError(*err, __LINE__,);
+    outputMapFromTable("kappaMap_truth", cmhm, peak, firstFFTSmoo->before, kappa_map);
+  }
+
+	printf("fin map \n");
   return;
 }
 

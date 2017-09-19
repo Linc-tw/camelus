@@ -1628,6 +1628,30 @@ void doProfile(char fileName[], cosmo_hm *cmhm, peak_param *peak, double z_l, do
   printf("------------------------------------------------------------------------\n");
   return;
 }
+void lensingCatalogueAndOutputAll2(char fileName[],cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, gal_map *gMap, error **err)
+{
+  //-- Lensing
+  lensingForMap(cmhm, peak, hMap, gMap, err); forwardError(*err, __LINE__,);
+  
+  //-- Subtract mean
+  if (peak->doKappa != 0) subtractMean(peak, gMap);
+  
+  //-- gamma to g
+  if (peak->doKappa >= 2) makeG(gMap);
+  outputGalaxies(fileName, cmhm, peak, gMap);
+  
+  //-- Add noise
+  //if (peak->doNoise == 1) {
+  //  addNoiseToGalaxies(peak, gMap);
+  //  if (peak->printMode < 2) printf("Added noise to galaxies\n");
+  //  strcat(fileName,"_noisy");
+  //  outputGalaxies(fileName, cmhm, peak, gMap);
+  //}
+  
+  return;
+}
+
+
 //----------------------------------------------------------------------
 
 

@@ -146,5 +146,9 @@ void doRayTracing(char fileName[], cosmo_hm *cmhm, peak_param *peak, int doNoise
 void doProfile(char fileName[], cosmo_hm *cmhm, peak_param *peak, double z_l, double M, double z_s,  error **err);
 
 
+//-- New function
+void lensingCatalogueAndOutputAll2(char fileName[],cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, gal_map *gMap, error **err);
+
+
 #endif
 

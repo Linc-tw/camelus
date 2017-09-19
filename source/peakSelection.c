@@ -279,6 +279,67 @@ void selectPeaks(peak_param *peak, map_t *kMap, double_arr *peakList, error **er
   return;
 }
 
+void computePeaks2(char name[],peak_param *peak, map_t *kMap, double_arr *peakList, error **err)
+{
+  //-- kMap should have been turned into S/N map.
+  //-- Mask has been taken into account in kappaToSNR.
+
+
+  int N1    = kMap->N1;
+  int N2    = kMap->N2;
+  int count = 0;
+  int bufferSize = peak->bufferSize;
+  double *SNR    = kMap->value1;
+  double *fArr   = peakList->array;
+  int i, j, jN1;
+  double pos[2];
+  double limit[4];
+
+  for (j=bufferSize; j<N2-bufferSize; j++) {
+    jN1 = j * N1;
+    for (i=bufferSize; i<N1-bufferSize; i++) {
+      if (isPeak(SNR, N1, i, j)) {
+		//fArr[count] = SNR[i+jN1];
+		count++;
+      }
+    }
+  }
+
+   FILE *file = fopen(name, "w");
+  fprintf(file, "# Peak list\n");
+  fprintf(file, "# Field = %s, Omega = (%g, %g) [arcmin], theta_pix = %g [arcmin]\n", STR_FIELD_T(peak->field), peak->Omega[0], peak->Omega[1], peak->theta_pix);
+  fprintf(file, "# n_gal = %g [arcmin^-2], z_s = %g\n", peak->n_gal, peak->z_s);
+  if (peak->FFT_nbFilters) fprintf(file, "# FFT filter = %s, FFT scale = %g [arcmin] = %g [pix]\n", STR_FILTER_T(peak->FFT_filter[0]), peak->FFT_scale[0], peak->FFT_scaleInPix[0]);
+  if (peak->DC_nbFilters)  fprintf(file, "# DC filter = %s, DC scale = %g [arcmin] = %g [pix]\n", STR_FILTER_T(peak->DC_filter[0]),  peak->DC_scale[0],  peak->DC_scaleInPix[0]);
+  if (peak->doNonlinear)   fprintf(file, "# Filter = %s, number of scales = %d [-], FDR = %g [-]\n", STR_FILTER_T(mrlens), peak->MRLens_nbScales, peak->MRLens_FDR);
+  fprintf(file, "# sigma_eps = %g, sigma_pix = %g, sigma_noise = %g\n", peak->sigma_eps, peak->sigma_pix, peak->FFT_sigma_noise[0]);
+  fprintf(file, "# Buffer size = %d [pix]\n", peak->bufferSize);
+  fprintf(file, "#\n");
+  fprintf(file, "# Number of pixels = %d\n", peakList->length); 
+  fprintf(file, "#\n");
+  fprintf(file, "#      SNR \t theta_x  \t theta_y  \n");
+  fprintf(file, "#      [-]  \t [arcmin]  \t [arcmin]  \n");
+
+  pos[0]=1;
+  pos[1]=1;
+  bufferSize=0;
+
+  	for (j=bufferSize; j<N2-bufferSize; j++) {
+    		jN1 = j * N1;
+    		for (i=bufferSize; i<N1-bufferSize; i++) {
+      		if (isPeak(SNR, N1, i, j)) {
+	  		getPixPos_map_t(kMap, pos, i, j);
+			getPixPos(pos, limit,peak->theta_pix,i,j);
+  	  		fprintf(file, " %8.5f     %5.3f      %5.3f \n",SNR[i+jN1], pos[0], pos[1]);
+      }
+    }
+  }  
+  fclose(file);
+  printf("\"%s\" made\n", name);
+  return;
+}
+
+
 void selectPeaks_mrlens(char name[], peak_param *peak, gal_map *gMap, double_arr *peakList)
 {
 #ifndef __releaseMenu__
@@ -478,6 +539,7 @@ void doPeakList(char fileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
     free_sampler_arr(sampArr);
   }
   else {
+  	printf("\"%s\" read inpute \n", fileName);
     read_halo_map(fileName, cmhm, hMap, err);                                forwardError(*err, __LINE__,);
   }
   
@@ -553,6 +615,108 @@ void doPeakList_repeat(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
   free_map_t(kMap);
   free_FFT_arr(variance);
   free_double_arr(peakList);
+  printf("------------------------------------------------------------------------\n");
+  return;
+}
+     
+void doPeakList_withInputs(char fileName[], char fileName2[],cosmo_hm *cmhm, peak_param *peak, error **err)
+{
+  int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
+  
+  halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
+  sampler_t *galSamp   = initialize_sampler_t(peak->N_z_gal);
+  setGalaxySampler(cmhm, peak, galSamp, err);                                                       forwardError(*err, __LINE__,);
+  gal_map *gMap        = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
+  short_mat *CCDMask   = initializeMask(peak, err);                                                 forwardError(*err, __LINE__,);
+  FFT_arr *FFTSmoother = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->FFT_nbFilters) makeKernel(peak, FFTSmoother);
+  FFT_arr *DCSmoother  = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  map_t *kMap          = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
+  FFT_arr *variance    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->FFT_nbFilters) makeKernelForVariance(peak, variance);
+  double_arr *peakList = initialize_double_arr(length);
+  hist_t *nuHist       = initialize_hist_t(peak->N_nu);
+  setHist_nu(peak, nuHist);
+ // printf(" read inpute 0 : \"%s\" \n", fileName);
+  if ((fileName == NULL)||(fileName2 == NULL)) {
+    //-- no input files
+    	printf("Problem input files missing \n");
+  }
+  else {
+  	printf(" Input file for halo : \"%s\" \n", fileName);
+  	printf(" Input file for galaxies : \"%s\" \n", fileName2);
+    read_halo_map(fileName, cmhm, hMap, err);                                forwardError(*err, __LINE__,);
+    read_gal_map(fileName2, cmhm,peak, gMap, err);                                forwardError(*err, __LINE__,);
+  }
+  makeMapAndOutputAll2(fileName,fileName2, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err); forwardError(*err, __LINE__,);
+
+  computeLocalVariance_arr(peak, gMap, variance);
+   
+  if (peak->doNonlinear)       selectPeaks_mrlens("kappaMap_mrlens.fits", peak, gMap, peakList);
+  else if (peak->DC_nbFilters) kappaToSNR_DC(peak, gMap, DCSmoother->array[0], kMap);
+  else                         kappaToSNR_FFT(peak, gMap, FFTSmoother->array[0], kMap, variance->array[0]);
+
+  selectPeaks(peak, kMap, peakList, err);   forwardError(*err, __LINE__,);
+  outputPeakList("peakList", peak, peakList);
+  computePeaks2("TEST_TABLE_PEAK",peak,kMap,peakList,err);
+  int silent = 1;
+  makeHist(peakList, nuHist, silent);
+  outputHist("peakHist", nuHist);
+  //computePeaks2("TEST_TABLE_PEAK",peak,kMap,peakList,err);
+  free_halo_map(hMap);
+  free_sampler_t(galSamp);
+  free_gal_map(gMap);
+  free_short_mat(CCDMask);
+  free_FFT_arr(FFTSmoother);
+  free_FFT_arr(DCSmoother);
+  free_map_t(kMap);
+  free_FFT_arr(variance);
+  free_double_arr(peakList);
+  free_hist_t(nuHist);
+  printf("------------------------------------------------------------------------\n");
+  return;
+}
+
+void doProduce_Catalog(char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
+{
+  int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
+  
+  halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
+  sampler_t *galSamp   = initialize_sampler_t(peak->N_z_gal);
+  setGalaxySampler(cmhm, peak, galSamp, err);                                                       forwardError(*err, __LINE__,);
+  gal_map *gMap        = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
+  short_mat *CCDMask   = initializeMask(peak, err);                                                 forwardError(*err, __LINE__,);
+  FFT_arr *FFTSmoother = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->FFT_nbFilters) makeKernel(peak, FFTSmoother);
+  FFT_arr *DCSmoother  = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  map_t *kMap          = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
+  FFT_arr *variance    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->FFT_nbFilters) makeKernelForVariance(peak, variance);
+  double_arr *peakList = initialize_double_arr(length);
+  hist_t *nuHist       = initialize_hist_t(peak->N_nu);
+  setHist_nu(peak, nuHist);
+
+
+    //-- Carry out fast simulation
+   sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
+   setMassSamplers(cmhm, peak, sampArr, err);      forwardError(*err, __LINE__,);
+   makeFastSimul(cmhm, peak, sampArr, hMap, err);    forwardError(*err, __LINE__,);
+   outputFastSimul(HaloFileName, cmhm, peak, hMap);
+   free_sampler_arr(sampArr);
+
+   cleanOrMakeOrResample(cmhm, peak, galSamp, gMap, CCDMask, err);            forwardError(*err, __LINE__,);
+   lensingCatalogueAndOutputAll2(GalFileName,cmhm,peak, hMap,gMap,err);
+
+  free_halo_map(hMap);
+  free_sampler_t(galSamp);
+  free_gal_map(gMap);
+  free_short_mat(CCDMask);
+  free_FFT_arr(FFTSmoother);
+  free_FFT_arr(DCSmoother);
+  free_map_t(kMap);
+  free_FFT_arr(variance);
+  free_double_arr(peakList);
+  free_hist_t(nuHist);
   printf("------------------------------------------------------------------------\n");
   return;
 }

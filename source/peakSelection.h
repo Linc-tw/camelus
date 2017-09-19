@@ -51,6 +51,10 @@ void outputHist(char name[], hist_t *hist);
 void doPeakList(char KNMap[], cosmo_hm *cmhm, peak_param *peak, error **err);
 void doPeakList_repeat(cosmo_hm *cmhm, peak_param *peak, int N, error **err);
 
+//-- New function
+
+void doProduce_Catalog(char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
+void doPeakList_withInputs(char fileName[], char fileName2[],cosmo_hm *cmhm, peak_param *peak, error **err);
 
 #endif
 

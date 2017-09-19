@@ -139,7 +139,20 @@ int main(int argc, char *argv[])
     if (argc != 2) {printInstructions(task, 1); return 1;}
     doABC(cmhm, peak, err); quitOnError(*err, __LINE__, stderr);
   }
-  
+    //-- only catalogue of galaxies and haloes are produced 
+  else if (task == 15) {
+    if (argc != 4) {printInstructions(task, 1); return 1;}
+    char *input_name = arg2;
+    char *input_name2 = arg3;
+    doProduce_Catalog(input_name,input_name2, cmhm, peak, err); quitOnError(*err, __LINE__, stderr);
+  }
+    //-- read catalogue of halo and galaxy then compute peak count / list / histogramm
+  else if (task == 16) {
+    if (argc != 4) {printInstructions(task, 1); return 1;}
+    char *input_name = arg2;
+    char *input_name2 = arg3;
+ doPeakList_withInputs(input_name,input_name2, cmhm, peak, err);  quitOnError(*err, __LINE__, stderr);
+  }
   else {
     printInstructions(-1, 1);
     return 1;
