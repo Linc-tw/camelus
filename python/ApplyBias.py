@@ -81,7 +81,11 @@ def main():
     galcats_b = np.array([ApplyBias(galcat, delta, nmean) for galcat, delta, nmean in zip(galcats, deltas, nmeans)])
     # save biased galaxy catalogs
     for galcat_b, filename in zip(galcats_b, galcat_files):
-        np.savetxt(sys.argv[3]+filename[-3:], galcat_b)
+        idnb = ''
+        for digit in [char for char in filename[-3:] if char.isdigit()]:
+            idnb += digit
+        print filename, idnb
+        np.savetxt(sys.argv[3]+idnb, galcat_b)
     
 if __name__ == "__main__":
     main()
