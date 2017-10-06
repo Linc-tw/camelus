@@ -815,7 +815,7 @@ void doPeakList_withInputs_N(int N,char fileName[], char fileName2[],char end[],
 
 	  for (i=0; i<N; i++) {
 
-   		sprintf(HaloFileName2, "%s_%3.3d",fileName, i+1);
+   		sprintf(HaloFileName2, "%s_%3.3d",fileName, 1);
    		sprintf(GalFileName2, "%s_%3.3d",fileName2, i+1);
    		sprintf(PeakListfich2, "PeakList_%s_%3.3d",end, i+1);
    		sprintf(PeakHistfich2, "PeakHist_%s_%3.3d",end, i+1);
