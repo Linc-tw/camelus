@@ -167,7 +167,7 @@ void append_halo_map(cosmo_hm *cmhm, halo_map *hMap, double z, double M, double 
 void read_halo_map(char name[], cosmo_hm *cmhm, halo_map *hMap, error **err)
 {
   FILE *file = fopen_err(name, "r", err); forwardError(*err, __LINE__,);
-  printf("Reading...\r");
+  printf("Reading halo map...\r");
   fflush(stdout);
   
   char buffer[STRING_LENGTH_MAX], *buffer1;
@@ -186,6 +186,8 @@ void read_halo_map(char name[], cosmo_hm *cmhm, halo_map *hMap, error **err)
     }
     c = fgetc(file);
   }
+
+  printf("Done\n");
   
   fclose(file);
   testErrorRet(count!=hMap->total, peak_match, "Halo number match error", *err, __LINE__,);
