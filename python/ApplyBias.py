@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
 
 # set path to Camelus outputs
-data_path = '../build/'
 
 def ComputeDensity(galcat):
     """Compute density delta(x,y) from a Camelus-generated galaxy catalog.
@@ -59,7 +59,8 @@ def ApplyBias(galcat, delta, a=-0.00018213, b= -0.03544):
     return galcat_b
     
 def main():
-    galcat = np.loadtxt(data_path+'galCat')
+    galcat_path = sys.argv[1]
+    galcat = np.loadtxt(galcat_path)
     # compute density from galaxy catalog
     delta = ComputeDensity(galcat)
     # plot density map  
@@ -73,7 +74,7 @@ def main():
     # apply bias
     galcat_b = ApplyBias(galcat, delta)
     # save biased galaxy catalog
-    np.savetxt(data_path+'galCat_b', galcat_b)
+    np.savetxt(sys.argv[2], galcat_b)
     
 if __name__ == "__main__":
     main()
