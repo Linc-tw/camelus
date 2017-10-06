@@ -501,7 +501,19 @@ void outputHist(char name[], hist_t *hist)
   fprintf(file, "# x_lower  x_upper       n\n");
   
   int i;
-  for (i=0; i<hist->length; i++) fprintf(file, "  %7.4f  %7.4f  %6d\n", hist->x_lower[i], hist->x_lower[i]+hist->dx, hist->n[i]);
+  double upper;
+  for (i=0; i<hist->length; i++) {
+    if (hist->dx > 0) {
+      upper = hist->x_lower[i] + hist->dx;
+    } else {
+      if (i<hist->length-1) {
+        upper = hist->x_lower[i+1];
+      } else {
+        upper = hist->x_max;
+      }
+    }
+    fprintf(file, "  %7.4g  %7.4g  %6d\n", hist->x_lower[i], upper, hist->n[i]);
+  }
   
   fclose(file);
   printf("\"%s\" made\n", name);
