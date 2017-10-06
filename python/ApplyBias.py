@@ -63,14 +63,6 @@ def main():
     galcat = np.loadtxt(galcat_path)
     # compute density from galaxy catalog
     delta = ComputeDensity(galcat)
-    # plot density map  
-    plt.imshow(delta[0], interpolation='Nearest', cmap='viridis')
-    plt.colorbar()
-    plt.xlabel(r'$\theta_x$ (arcmin)')
-    plt.ylabel(r'$\theta_y$ (arcmin)')
-    plt.title(r'Density map')
-    plt.show()
-    plt.close()
     # apply bias
     galcat_b = ApplyBias(galcat, delta)
     # save biased galaxy catalog
