@@ -53,39 +53,73 @@ def histogram_bais(fich,fichbais,N):
 		return
 
 	if(N!=1):
-		dat = np.loadtxt(fich)
+		fich2=fich+str(1)
+		dat = np.loadtxt(fich2)
+		xmin =dat['col1']
+		xmax=dat['col2']
+		nn=dat['col3']
+		nbins = xmax
+		mean_snr = np.copy(nn)
+		mean_snr_error = np.copy(nn)*0
+		
+		for ii in range(2,N):
+			fich2=fich+str(ii)
+			dat = np.loadtxt(fich2)
+			xmin =dat['col1']
+			xmax=dat['col2']
+			nn=dat['col3']
+			nbins = xmax
+			mean_snr=mean_snr+nn
+			mean_snr=mean_snr/float(N)
+
+		for ii in range(1,N):
+			fich2=fich+str(ii)
+			dat = np.loadtxt(fich2)
+			xmin =dat['col1']
+			xmax=dat['col2']
+			nn=dat['col3']
+			mean_snr_error = mean_snr_error +(nn-mean_snr)**2.
+
+		mean_snr_error =(1./(N-1.)*mean_snr_error)**(0.5)
 		nbin_snr=9
-		mean_dat=np.ones(nbin_snr)
-		err_dat=np.ones(nbin_snr)*0.
-		snr=np.linspace(1,5,nbin_snr)
-		for i in range(nbin_snr):
-			mean_dat[i]=np.mean(dat[:,i])
-			for j in range(N):
-				err_dat[i]= err_dat[i]+(dat[j,i]-mean_dat[i])**2.
-				if(i==1): plt.step(snr,dat[j,0:nbin_snr],where='post',color='crimson',alpha=0.05)
-			err_dat[i]=(1./((np.size(dat[:,i])-1.))*err_dat[i])**(1./2.)
+		data=np.linspace(1,5,nbin_snr)
 
-		plt.figure(1)
-		plt.errorbar(snr[:(nbin_snr-1)]+0.25, mean_dat[:(nbin_snr-1)],  yerr=err_dat[:(nbin_snr-1)],fmt='+',color='crimson',alpha=0.7)
-		plt.step(snr,mean_dat,where='post',color='crimson',alpha=1)
-		plt.title('Peak abundance histogram (averaged over {0} realizations)'.format(N))
-		plt.xlabel('SNR')
-		plt.ylabel('Peak number')
+		plt.errorbar(data[:(nbin_snr-1)]+0.25, mean_snr[:(nbin_snr-1)], yerr=mean_snr_error[:(nbin_snr-1)],fmt='+',color='crimson',alpha=0.7)
+		plt.step(data,mean_snr,where='post',color='crimson',alpha=1,label="NoBais")
 
-		dat = np.loadtxt(fichbais)
+		fich2=fichbais+str(1)
+		dat = np.loadtxt(fich2)
+		xmin =dat['col1']
+		xmax=dat['col2']
+		nn=dat['col3']
+		nbins = xmax
+		mean_snr = np.copy(nn)
+		mean_snr_error = np.copy(nn)*0
+		
+		for ii in range(2,N):
+			fich2=fichbais+str(ii)
+			dat = np.loadtxt(fich2)
+			xmin =dat['col1']
+			xmax=dat['col2']
+			nn=dat['col3']
+			nbins = xmax
+			mean_snr=mean_snr+nn
+			mean_snr=mean_snr/float(N)
+
+		for ii in range(1,N):
+			fich2=fichbais+str(ii)
+			dat = np.loadtxt(fich2)
+			xmin =dat['col1']
+			xmax=dat['col2']
+			nn=dat['col3']
+			mean_snr_error = mean_snr_error +(nn-mean_snr)**2.
+
+		mean_snr_error =(1./(N-1.)*mean_snr_error)**(0.5)
 		nbin_snr=9
-		mean_dat=np.ones(nbin_snr)
-		err_dat=np.ones(nbin_snr)*0.
-		snr=np.linspace(1,5,nbin_snr)
-		for i in range(nbin_snr):
-			mean_dat[i]=np.mean(dat[:,i])
-			for j in range(N):
-				err_dat[i]= err_dat[i]+(dat[j,i]-mean_dat[i])**2.
-				if(i==1): plt.step(snr,dat[j,0:nbin_snr],where='post',color='crimson',alpha=0.05)
-			err_dat[i]=(1./((np.size(dat[:,i])-1.))*err_dat[i])**(1./2.)
+		data=np.linspace(1,5,nbin_snr)
 
-		plt.errorbar(snr[:(nbin_snr-1)]+0.25, mean_dat[:(nbin_snr-1)], yerr=err_dat[:(nbin_snr-1)],fmt='+',color='crimson',alpha=0.7)
-		plt.step(snr,mean_dat,where='post',color='crimson',alpha=1)
+		plt.errorbar(data[:(nbin_snr-1)]+0.25, mean_snr[:(nbin_snr-1)], yerr=mean_snr_error[:(nbin_snr-1)],fmt='+',color='deepskyblue',alpha=0.7)
+		plt.step(data,mean_snr,where='post',color='deepskyblue',alpha=1,label="Bais")
 		plt.title('Peak abundance histogram (averaged over {0} realizations)'.format(N))
 		plt.xlabel('SNR')
 		plt.ylabel('Peak number')
