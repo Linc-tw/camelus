@@ -127,6 +127,7 @@ def histogram_bais(fich,fichbais,N):
 		plt.title('Peak abundance histogram (averaged over {0} realizations)'.format(N))
 		plt.xlabel('SNR')
 		plt.ylabel('Peak number')
+		plt.legend()
 		plt.show()
 		return
 
