@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import linecache
+import os
 
 # set path to Camelus outputs
 
@@ -69,15 +70,18 @@ def read_n_mean(galcat_path) :
 
     
 def main():
-    galcat_path = sys.argv[1]
-    galcat = np.loadtxt(galcat_path)
-    n_mean = read_n_mean(galcat_path)
-    # compute density from galaxy catalog
-    delta = ComputeDensity(galcat)
+    galcat_dir, galcat_name = sys.argv[1], sys.argv[2]
+    galcat_files = [catfile for catfile in os.listdir(galcat_dir) 
+                    if galcat_name in catfile]
+    galcats = np.array([np.loadtxt(catfile) for catfile in galcat_files])
+    nmeans = np.array([read_n_mean(catfile) for catfile in galcat_files])
+    # compute density from galaxy catalogs
+    deltas = np.array([ComputeDensity(galcat) for galcat in galcats])
     # apply bias
-    galcat_b = ApplyBias(galcat, delta, n_mean)
-    # save biased galaxy catalog
-    np.savetxt(sys.argv[2], galcat_b)
+    galcats_b = np.array([ApplyBias(galcat, delta, nmean) for galcat, delta, nmean in zip(galcats, deltas, nmeans)])
+    # save biased galaxy catalogs
+    for galcat_b, filename in zip(galcats_b, galcat_files):
+        np.savetxt(sys.argv[3]+filename[-3:], galcat_b)
     
 if __name__ == "__main__":
     main()
