@@ -88,7 +88,7 @@ def histogram_bais(fich,fichbais,N):
 		data=np.linspace(1,5,nbin_snr)
 
 		plt.errorbar(data[:(nbin_snr-1)]+0.25, mean_snr[:(nbin_snr-1)], yerr=mean_snr_error[:(nbin_snr-1)],fmt='+',color='crimson',alpha=0.7)
-		plt.step(data,mean_snr,where='post',color='crimson',alpha=1,label="NoBais")
+		plt.step(data,mean_snr,where='post',color='crimson',alpha=1,label="NoBias")
 
 
 		fich2=fichbais+str(1)
@@ -123,12 +123,12 @@ def histogram_bais(fich,fichbais,N):
 		data=np.linspace(1,5,nbin_snr)
 
 		plt.errorbar(data[:(nbin_snr-1)]+0.25, mean_snr[:(nbin_snr-1)], yerr=mean_snr_error[:(nbin_snr-1)],fmt='+',color='deepskyblue',alpha=0.7)
-		plt.step(data,mean_snr,where='post',color='deepskyblue',alpha=1,label="Bais")
+		plt.step(data,mean_snr,where='post',color='deepskyblue',alpha=1,label="Bias")
 		plt.title('Peak abundance histogram (averaged over {0} realizations)'.format(N))
 		plt.xlabel('SNR')
 		plt.ylabel('Peak number')
 		plt.legend()
-		plt.show()
+		plt.ion()
 		return
 
 
