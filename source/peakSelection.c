@@ -722,4 +722,58 @@ void doProduce_Catalog(char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, p
 }
 
 //----------------------------------------------------------------------
+void doProduce_Catalog_N(int N,char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
+{
+  int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
+    
+  char HaloFileName2[STRING_LENGTH_MAX];
+  char GalFileName2[STRING_LENGTH_MAX];
+  int i;
 
+	for (i=0; i<N; i++) {
+   		 sprintf(HaloFileName2, "%s_%d",HaloFileName, i+1);
+   		 sprintf(GalFileName2, "%s_%d",GalFileName, i+1);
+		printf(" >>> Compute halo %s \n", HaloFileName2);
+		printf(" >>> Compute gal %s \n", GalFileName2);
+
+	  halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
+	  sampler_t *galSamp   = initialize_sampler_t(peak->N_z_gal);
+	  setGalaxySampler(cmhm, peak, galSamp, err);                                                       forwardError(*err, __LINE__,);
+	  gal_map *gMap        = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
+	  short_mat *CCDMask   = initializeMask(peak, err);                                                 forwardError(*err, __LINE__,);
+	  FFT_arr *FFTSmoother = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+	  if (peak->FFT_nbFilters) makeKernel(peak, FFTSmoother);
+	  FFT_arr *DCSmoother  = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+	  map_t *kMap          = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__,);
+	  FFT_arr *variance    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+	  if (peak->FFT_nbFilters) makeKernelForVariance(peak, variance);
+	  double_arr *peakList = initialize_double_arr(length);
+	  hist_t *nuHist       = initialize_hist_t(peak->N_nu);
+	  setHist_nu(peak, nuHist);
+
+
+		//-- Carry out fast simulation
+	   sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
+	   setMassSamplers(cmhm, peak, sampArr, err);      forwardError(*err, __LINE__,);
+	   makeFastSimul(cmhm, peak, sampArr, hMap, err);    forwardError(*err, __LINE__,);
+	   outputFastSimul(HaloFileName2, cmhm, peak, hMap);
+	   free_sampler_arr(sampArr);
+
+	   cleanOrMakeOrResample(cmhm, peak, galSamp, gMap, CCDMask, err);            forwardError(*err, __LINE__,);
+	   lensingCatalogueAndOutputAll2(GalFileName2,cmhm,peak, hMap,gMap,err);
+
+	  free_halo_map(hMap);
+	  free_sampler_t(galSamp);
+	  free_gal_map(gMap);
+	  free_short_mat(CCDMask);
+	  free_FFT_arr(FFTSmoother);
+	  free_FFT_arr(DCSmoother);
+	  free_map_t(kMap);
+	  free_FFT_arr(variance);
+	  free_double_arr(peakList);
+	  free_hist_t(nuHist);
+	  printf("------------------------------------------------------------------------\n");
+
+	}
+  return;
+}

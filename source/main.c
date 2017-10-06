@@ -155,6 +155,13 @@ int main(int argc, char *argv[])
     char *input_name2 = arg3;
  doPeakList_withInputs(input_name,input_name2, cmhm, peak, err);  quitOnError(*err, __LINE__, stderr);
   }
+  else if (task == 151) {
+    if (argc != 5) {printInstructions(task, 1); return 1;}
+    int N = atoi(arg2);
+    char *input_catHal = arg3;
+    char *input_catGal = arg4;
+    doProduce_Catalog_N(N,input_catHal,input_catGal, cmhm, peak, err); quitOnError(*err, __LINE__, stderr);
+  }
   else {
     printInstructions(-1, 1);
     return 1;
