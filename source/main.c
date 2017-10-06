@@ -180,49 +180,56 @@ void printInstructions(int task, int printHeader)
     printf("Use Camelus with:\n");
     printInstructions(1, 0); printInstructions(2, 0); printInstructions(3, 0); printInstructions(4, 0); printInstructions(5, 0);
     printInstructions(6, 0); printInstructions(7, 0); printInstructions(8, 0);
+    printInstructions(15, 0); printInstructions(16, 0);
     printf("\n");
   }
   
   else {
-    switch (task) {
-      case 1:
-	printf("  ./camelus 1 z                        # Output mass function at z\n");
-	break;
-      case 2:
-	printf("  ./camelus 2                          # Fast simulation\n");
-	break;
-      case 3:
-	printf("  ./camelus 3 z_l M z_s                # Halo lensing profile with 1-h and 2-h terms\n");
-	break;
-      case 4:
-	printf("  ./camelus 4                          # Lensing map and intermediate products for the first filter\n");
-	break;
-      case 5:
-	printf("  ./camelus 5                          # Peak list and histogram from fast simulation\n");
-	break;
-      case 6:
-	printf("  ./camelus 6                          # A realization of multiscale data\n");
-	break;
-      case 7:
-	printf("  ./camelus 7 N                        # Data matrix of N realizations\n");
-	printf("  ./camelus 7 N Omega_m sigma_8 w0_de  # Data matrix of N realizations for a given (Omega_m, sigma_8, w0_de)\n");
-	break;
-      case 8:
-	printf("  ./camelus 8                          # ABC analysis\n");
-	break;
-    }
+     switch (task) {
+        case 1:
+           printf("  ./camelus 1 z                        # Output mass function at z\n");
+           break;
+        case 2:
+           printf("  ./camelus 2                          # Fast simulation\n");
+           break;
+        case 3:
+           printf("  ./camelus 3 z_l M z_s                # Halo lensing profile with 1-h and 2-h terms\n");
+           break;
+        case 4:
+           printf("  ./camelus 4                          # Lensing map and intermediate products for the first filter\n");
+           break;
+        case 5:
+           printf("  ./camelus 5                          # Peak list and histogram from fast simulation\n");
+           break;
+        case 6:
+           printf("  ./camelus 6                          # A realization of multiscale data\n");
+           break;
+        case 7:
+           printf("  ./camelus 7 N                        # Data matrix of N realizations\n");
+           printf("  ./camelus 7 N Omega_m sigma_8 w0_de  # Data matrix of N realizations for a given (Omega_m, sigma_8, w0_de)\n");
+           break;
+        case 8:
+           printf("  ./camelus 8                          # ABC analysis\n");
+           break;
+        case 15:
+           printf("  ./camelus 15 halocat galcat          # Creates halo and galaxy catalogues\n");
+           break;
+        case 16:
+           printf("  ./camelus 16 halocat galcat          # Reads halo and galaxy catalogues and creates peak histogram\n");
+           break;
+     }
   }
-  
+
   return;
 }
 
 #else
 int main(int argc, char *argv[])
 {
-  int MPISize, MPIInd;
-  
-  //-- MPI initialization
-  MPI_Init(&argc, &argv);
+   int MPISize, MPIInd;
+
+   //-- MPI initialization
+   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &MPISize);
   MPI_Comm_rank(MPI_COMM_WORLD, &MPIInd);
   
