@@ -73,8 +73,8 @@ def main():
     galcat_dir, galcat_name = sys.argv[1], sys.argv[2]
     galcat_files = [catfile for catfile in os.listdir(galcat_dir) 
                     if galcat_name in catfile]
-    galcats = np.array([np.loadtxt(catfile) for catfile in galcat_files])
-    nmeans = np.array([read_n_mean(catfile) for catfile in galcat_files])
+    galcats = np.array([np.loadtxt(galcat_dir+catfile) for catfile in galcat_files])
+    nmeans = np.array([read_n_mean(galcat_dir+catfile) for catfile in galcat_files])
     # compute density from galaxy catalogs
     deltas = np.array([ComputeDensity(galcat) for galcat in galcats])
     # apply bias
@@ -84,8 +84,7 @@ def main():
         idnb = ''
         for digit in [char for char in filename[-3:] if char.isdigit()]:
             idnb += digit
-        print filename, idnb
-        np.savetxt(sys.argv[3]+idnb, galcat_b)
+        np.savetxt(galcat_dir+sys.argv[3]+idnb, galcat_b)
     
 if __name__ == "__main__":
     main()
