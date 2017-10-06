@@ -54,10 +54,12 @@ def histogram_bais(fich,fichbais,N):
 
 	if(N!=1):
 		fich2=fich+str(1)
+
 		dat = np.loadtxt(fich2)
-		xmin =dat['col1']
-		xmax=dat['col2']
-		nn=dat['col3']
+		xmin =dat[:,0]
+		xmax=dat[:,1]
+		nn=dat[:,2]
+
 		nbins = xmax
 		mean_snr = np.copy(nn)
 		mean_snr_error = np.copy(nn)*0
@@ -65,19 +67,20 @@ def histogram_bais(fich,fichbais,N):
 		for ii in range(2,N):
 			fich2=fich+str(ii)
 			dat = np.loadtxt(fich2)
-			xmin =dat['col1']
-			xmax=dat['col2']
-			nn=dat['col3']
+			xmin =dat[:,0]
+			xmax=dat[:,1]
+			nn=dat[:,2]
 			nbins = xmax
-			mean_snr=mean_snr+nn
-			mean_snr=mean_snr/float(N)
+			mean_snr[:]=mean_snr[:]+nn[:]
+		
+		mean_snr[:]=mean_snr[:]/float(N)
 
 		for ii in range(1,N):
 			fich2=fich+str(ii)
 			dat = np.loadtxt(fich2)
-			xmin =dat['col1']
-			xmax=dat['col2']
-			nn=dat['col3']
+			xmin =dat[:,0]
+			xmax=dat[:,1]
+			nn=dat[:,2]
 			mean_snr_error = mean_snr_error +(nn-mean_snr)**2.
 
 		mean_snr_error =(1./(N-1.)*mean_snr_error)**(0.5)
@@ -87,11 +90,12 @@ def histogram_bais(fich,fichbais,N):
 		plt.errorbar(data[:(nbin_snr-1)]+0.25, mean_snr[:(nbin_snr-1)], yerr=mean_snr_error[:(nbin_snr-1)],fmt='+',color='crimson',alpha=0.7)
 		plt.step(data,mean_snr,where='post',color='crimson',alpha=1,label="NoBais")
 
+
 		fich2=fichbais+str(1)
 		dat = np.loadtxt(fich2)
-		xmin =dat['col1']
-		xmax=dat['col2']
-		nn=dat['col3']
+		xmin =dat[:,0]
+		xmax=dat[:,1]
+		nn=dat[:,2]
 		nbins = xmax
 		mean_snr = np.copy(nn)
 		mean_snr_error = np.copy(nn)*0
@@ -99,19 +103,19 @@ def histogram_bais(fich,fichbais,N):
 		for ii in range(2,N):
 			fich2=fichbais+str(ii)
 			dat = np.loadtxt(fich2)
-			xmin =dat['col1']
-			xmax=dat['col2']
-			nn=dat['col3']
+			xmin =dat[:,0]
+			xmax=dat[:,1]
+			nn=dat[:,2]
 			nbins = xmax
 			mean_snr=mean_snr+nn
-			mean_snr=mean_snr/float(N)
+		mean_snr=mean_snr/float(N)
 
 		for ii in range(1,N):
 			fich2=fichbais+str(ii)
 			dat = np.loadtxt(fich2)
-			xmin =dat['col1']
-			xmax=dat['col2']
-			nn=dat['col3']
+			xmin =dat[:,0]
+			xmax=dat[:,1]
+			nn=dat[:,2]
 			mean_snr_error = mean_snr_error +(nn-mean_snr)**2.
 
 		mean_snr_error =(1./(N-1.)*mean_snr_error)**(0.5)
