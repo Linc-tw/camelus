@@ -619,10 +619,12 @@ void doPeakList_repeat(cosmo_hm *cmhm, peak_param *peak, int N, error **err)
   return;
 }
      
-void doPeakList_withInputs(char fileName[], char fileName2[],cosmo_hm *cmhm, peak_param *peak, error **err)
+void doPeakList_withInputs(char fileName[], char fileName2[],int opt,cosmo_hm *cmhm, peak_param *peak, error **err)
 {
   int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
   
+	if(opt == 0)  printf(" no bias catalogue of galaxies \n");
+	if(opt == 1)  printf("  bias catalogue of galaxies \n");
   halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
   sampler_t *galSamp   = initialize_sampler_t(peak->N_z_gal);
   setGalaxySampler(cmhm, peak, galSamp, err);                                                       forwardError(*err, __LINE__,);
@@ -657,11 +659,14 @@ void doPeakList_withInputs(char fileName[], char fileName2[],cosmo_hm *cmhm, pea
   else                         kappaToSNR_FFT(peak, gMap, FFTSmoother->array[0], kMap, variance->array[0]);
 
   selectPeaks(peak, kMap, peakList, err);   forwardError(*err, __LINE__,);
-  outputPeakList("peakList", peak, peakList);
-  computePeaks2("TEST_TABLE_PEAK",peak,kMap,peakList,err);
+  if(opt==0) outputPeakList("peakList", peak, peakList);
+  if(opt==1) outputPeakList("peakList_bias", peak, peakList);
+  if(opt==0) computePeaks2("peakListPos",peak,kMap,peakList,err);
+  if(opt==1) computePeaks2("peakListPos_bias",peak,kMap,peakList,err);
   int silent = 1;
   makeHist(peakList, nuHist, silent);
-  outputHist("peakHist", nuHist);
+  if(opt==0) outputHist("peakHist", nuHist);
+  if(opt==1) outputHist("peakHist_bias", nuHist);
   //computePeaks2("TEST_TABLE_PEAK",peak,kMap,peakList,err);
   free_halo_map(hMap);
   free_sampler_t(galSamp);
