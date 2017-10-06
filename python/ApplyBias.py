@@ -81,7 +81,7 @@ def main():
     galcats_b = np.array([ApplyBias(galcat, delta, nmean) for galcat, delta, nmean in zip(galcats, deltas, nmeans)])
     # save biased galaxy catalogs
     for galcat_b, filename in zip(galcats_b, galcat_files):
-        idnb = ''
+        idnb = '_'
         for digit in [char for char in filename[-3:] if char.isdigit()]:
             idnb += digit
         np.savetxt(galcat_dir+sys.argv[3]+idnb, galcat_b)
