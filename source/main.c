@@ -150,10 +150,11 @@ int main(int argc, char *argv[])
   }
     //-- read catalogue of halo and galaxy then compute peak count / list / histogramm
   else if (task == 16) {
-    if (argc != 4) {printInstructions(task, 1); return 1;}
+    if (argc != 5) {printInstructions(task, 1); return 1;}
     char *input_name = arg2;
     char *input_name2 = arg3;
- doPeakList_withInputs(input_name,input_name2, cmhm, peak, err);  quitOnError(*err, __LINE__, stderr);
+	int opt = atoi(arg4);
+ doPeakList_withInputs(input_name,input_name2,opt, cmhm, peak, err);  quitOnError(*err, __LINE__, stderr);
   }
   else if (task == 151) {
     if (argc != 5) {printInstructions(task, 1); return 1;}
@@ -221,8 +222,13 @@ void printInstructions(int task, int printHeader)
         case 15:
            printf("  ./camelus 15 halocat galcat          # Creates halo and galaxy catalogues\n");
            break;
+        case 151:
+           printf("  ./camelus 151 N halocat galcat        # Creates N halo and galaxy catalogues\n");
+           break;
         case 16:
-           printf("  ./camelus 16 halocat galcat          # Reads halo and galaxy catalogues and creates peak histogram\n");
+           printf("  ./camelus 16 halocat galcat   opt       # Reads halo and galaxy catalogues and creates peak histogram // opt 0 if not baised 1 if bias \n");
+        case 161:
+           printf("  ./camelus 161 N halocat galcat        # Reads N halo and galaxy catalogues and creates peak histogram\n");
            break;
      }
   }

@@ -54,7 +54,7 @@ void doPeakList_repeat(cosmo_hm *cmhm, peak_param *peak, int N, error **err);
 //-- New function
 
 void doProduce_Catalog(char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
-void doPeakList_withInputs(char fileName[], char fileName2[],cosmo_hm *cmhm, peak_param *peak, error **err);
-
+void doPeakList_withInputs(char fileName[], char fileName2[],int opt,cosmo_hm *cmhm, peak_param *peak, error **err);
+void doProduce_Catalog_N(int N,char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
 #endif
 
