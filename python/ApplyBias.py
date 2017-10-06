@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+import linecache
 
 # set path to Camelus outputs
 
@@ -23,7 +24,7 @@ def ComputeDensity(galcat):
     delta = np.histogram2d(galcat[:,0], galcat[:,1], bins=[x_bins,y_bins])
     return delta
 
-def ApplyBias(galcat, delta, a=-0.0007133333, b= 0.00856):
+def ApplyBias(galcat, delta, n, b= 0.00856):
     """Compute and apply multiplicative bias to shear.
 
         Parameters
@@ -47,6 +48,7 @@ def ApplyBias(galcat, delta, a=-0.0007133333, b= 0.00856):
         galcat_b : np.ndarray
             Galaxy catalog with multiplicative bias applied to shear measurements.
     """
+    a=-b/n
     galcat_b = np.copy(galcat)
     xs, ys = galcat[:,0].astype(int), galcat[:,1].astype(int)
     # add maximum position to last bin
@@ -57,14 +59,23 @@ def ApplyBias(galcat, delta, a=-0.0007133333, b= 0.00856):
     m = a + b*delta_pos
     galcat_b[:,-2:] *= (1+m)
     return galcat_b
+
+
+def read_n_mean(galcat_path) :
+    line = linecache.getline(galcat_path,3)
+    return np.float(line.split()[3])
+    
+    
+
     
 def main():
     galcat_path = sys.argv[1]
     galcat = np.loadtxt(galcat_path)
+    n_mean = read_n_mean(galcat_path)
     # compute density from galaxy catalog
     delta = ComputeDensity(galcat)
     # apply bias
-    galcat_b = ApplyBias(galcat, delta)
+    galcat_b = ApplyBias(galcat, delta, n_mean)
     # save biased galaxy catalog
     np.savetxt(sys.argv[2], galcat_b)
     
