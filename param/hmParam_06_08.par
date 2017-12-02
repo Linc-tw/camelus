@@ -1,0 +1,67 @@
+### Halomodel parameter file ###
+
+### Cosmological parameters
+cosmo_file     ../param/cosmoParam.par
+
+### Redshift distribution
+# n(x) \propto x^alpha * exp(-x^beta)
+# where x = z / z_0
+par_nz		0.1  5.0  2.0  1.0  0.5		# zmin zmax alpha beta z_0
+
+### Halomodel parameters, dark matter
+
+# Halo profile:
+# rho(x) \propto 1 / [x^alpha_NFW) * (1 + x)^(3 - alpha_NFW)]
+# where x = c_NFW * r / r_vir
+alpha_NFW	1.0		# NFW
+#alpha_NFW	1.5		# Moore et al.
+
+# Concentration parameter:
+# c(z) = [c0 / (1 + z)] * (M / M_star)^(-beta_NFW)
+c0		11
+beta_NFW	0.13
+
+# Mass function
+#  ps 			Press-Schechter, p=0, q=1
+#  st 			Sheth-Torman, p=0.3, q=0.75
+#  st2 			Sheth-Torman, p=0.3, q=1/sqrt(2)=0.707
+#  j01 			Jenkins 2001
+smassfct		j01
+
+# Halo bias
+#  halo_bias_sc		From spherical collapse model, see e.g. Cooray & Sheth (2001) eq. 68.
+#  halo_bias_tinker05	Bias from Tinker et al. (2005) eq A1
+#  halo_bias_tinker10   Bias from Tinker et al. (2010)
+shalo_bias		halo_bias_tinker10
+
+# Maximum pi [Mpc/h], for w_p(r_p)
+pi_max 			60.0
+
+
+### HOD parameters
+
+# HOD type
+#  hamana04		Simple power-law, Hamana et al. (2004). Not recommended!
+#  berwein02		Satellite model, no halo exclusion. For testing only!
+#  berwein02_hexcl	Satellite model with halo exlusion
+shod		coupon15
+
+# Minimum and maximum stellar masses. Used for shod=leauthaud11.
+# For other models, only used for galaxy-galaxy lensing,
+# central point source contribution to Delta_Sigma.
+#  For a threshold sample, set Mstellar_min > 0 and Mstellar_max = -1.
+#  For no central contribution, set both to -1.
+Mstellar_min	-1
+Mstellar_max	-1
+
+# Common parameters
+M_min           1.0e11.77	 # Minimum halo mass for central galaxies [Msol/h]
+M1              1.0e12.83  # Scale mass for satellite galaxies [Msol/h]
+M0		1.0e11.54   # Minimum halo mass for satellite galaxies [Msol/h]
+# If set to -1: M0 will be = M_min (Brown et al. 2008) during sampling
+sigma_log_M	0.5	 # Central galaxy dispersion (Brown et al. 2008)
+alpha           1.07	 # Satellite power-law slope
+eta		1.0	 # Fraction of halos with central galaxy of given type, 0 <= eta <= 1
+
+
+

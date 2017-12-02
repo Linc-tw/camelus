@@ -109,6 +109,14 @@ void read_cosmo_hm(char name[], cosmo_hm **cmhm, error **err)
       CONFIG_READ(tmp, alpha, d, file, c, err);       forwardError(*err, __LINE__,);
       CONFIG_READ(tmp, fcen1, d, file, c, err);       forwardError(*err, __LINE__,);
       CONFIG_READ(tmp, fcen2, d, file, c, err);       forwardError(*err, __LINE__,);
+       break;     
+    case coupon15:
+      CONFIG_READ(tmp, M_min, d, file, c, err);       forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, M1, d, file, c, err);          forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, M0, d, file, c, err);          forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, sigma_log_M, d, file, c, err); forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, alpha, d, file, c, err);       forwardError(*err, __LINE__,);
+      
       break;
 
     default:
