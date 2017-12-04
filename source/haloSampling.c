@@ -621,7 +621,7 @@ void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param
       h = hNode->h;
 	  Mh = h->M ;
 	  zz = h->z ;
-  	//  read_cosmo_hm(name_cmhm, &cmhm, err);   
+  	// read_cosmo_hm(name_cmhm, &cmhm, err);   
   	 // forwardError(*err, __LINE__,);
 
 	  ngc = Ngal_c(cmhm, Mh, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
