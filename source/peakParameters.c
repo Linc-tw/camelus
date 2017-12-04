@@ -117,11 +117,13 @@ void read_cosmo_hm(char name[], cosmo_hm **cmhm, error **err)
 
     case coupon15 :
          /* sample properties */
-      	CONFIG_READ(tmp, log10M_min, d, file, c, err);       forwardError(*err, __LINE__,);
-         CONFIG_READ(tmp, log10M1, d, file, c, err);		    forwardError(*err, __LINE__,);
-         CONFIG_READ(tmp, log10M0, d, file, c, err);			forwardError(*err, __LINE__,);
-         CONFIG_READ(tmp, sigma_log_M, d, file, c, err);		forwardError(*err, __LINE__,);
-         CONFIG_READ(tmp, alpha, d, file, c, err);			forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, log10M_min, d, file, c, err);     forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, log10M1, d, file, c, err);     forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, log10M0, d, file, c, err);     forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, sigma_log_M, d, file, c, err); forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, alpha, d, file, c, err);       forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, eta, d, file, c, err);         forwardError(*err, __LINE__,);
+
       break;
       
 

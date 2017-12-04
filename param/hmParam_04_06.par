@@ -51,17 +51,16 @@ shod		coupon15
 # central point source contribution to Delta_Sigma.
 #  For a threshold sample, set Mstellar_min > 0 and Mstellar_max = -1.
 #  For no central contribution, set both to -1.
-Mstellar_min	-1
-Mstellar_max	-1
+log10Mstar_min	8
+log10Mstar_max	13
 
 # Common parameters
-M_min           1.0e13.77	 # Minimum halo mass for central galaxies [Msol/h]
-M1              1.0e14.47  # Scale mass for satellite galaxies [Msol/h]
-M0		1.0e10.93   # Minimum halo mass for satellite galaxies [Msol/h]
-# If set to -1: M0 will be = M_min (Brown et al. 2008) during sampling
-sigma_log_M	0.3	 # Central galaxy dispersion (Brown et al. 2008)
-alpha           1.36	 # Satellite power-law slope
-eta		1.0	 # Fraction of halos with central galaxy of given type, 0 <= eta <= 1
+log10M_min          13.77	# Minimum halo mass for central galaxies [Msol/h]
+log10M1             14.47  # Scale mass for satellite galaxies [Msol/h]
+log10M0				10.93   # Minimum halo mass for satellite galaxies [Msol/h]
+sigma_log_M			0.3		# Central galaxy dispersion (Brown et al. 2008)
+alpha         	  	1.36		# Satellite power-law slope
+eta					1.0		# Fraction of halos with central galaxy of given type, 0 <= eta <= 1
 
 
 
