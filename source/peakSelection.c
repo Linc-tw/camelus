@@ -885,22 +885,28 @@ void doPeakList_withInputs_N(int N,char fileName[], char fileName2[],char end[],
   return;
 }
 
-void doProduce_Catalog_DM_HOD(char CmhmName[],char HaloFileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
+void doProduce_Catalog_DM_HOD(int N,char CmhmName[],char HaloFileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
 {
   int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
-  
-  halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
+  char HaloFileName2[STRING_LENGTH_MAX];
+  int i;
+
 
   printf("-----------------------------  HOD Ngal  -------------------------------\n");
-		//-- Carry out fast simulation
+  for (i=0; i<N; i++) {
+  	   halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);
+	   forwardError(*err,__LINE__,);
+	   //-- Carry out fast simulation
 	   sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
-	   setMassSamplers(cmhm, peak, sampArr, err);      forwardError(*err, __LINE__,);
-	   makeFastSimul(cmhm, peak, sampArr, hMap, err);    forwardError(*err, __LINE__,);
-	   outputFastSimul_HOD(CmhmName,HaloFileName, cmhm, peak, hMap);
+	   setMassSamplers(cmhm, peak, sampArr, err); 
+       forwardError(*err, __LINE__,);
+	   makeFastSimul(cmhm, peak, sampArr, hMap, err);
+       forwardError(*err, __LINE__,);
+   	   sprintf(HaloFileName2, "%s_%3.3d",HaloFileName, i+1);
+	   outputFastSimul_HOD(CmhmName,HaloFileName2, cmhm, peak, hMap);
 	   free_sampler_arr(sampArr);
-
-  free_halo_map(hMap);
-
+  	   free_halo_map(hMap);
+	}
   return;
 }
 

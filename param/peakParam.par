@@ -2,11 +2,8 @@
 
   
 ### Halos
-<<<<<<< HEAD
-z_halo_max	2.5			# Maxmimum redshift for halos
-=======
-z_halo_max	1.2			# Maxmimum redshift for halos
->>>>>>> b5ce048d1e79f56d5fc4dc2b4248766f882b3354
+
+z_halo_max	2.5			# Maxmimum redshift for halos 
 N_z_halo 	30			# Number of sampling redshift bins
 M_min		1e+12		# [M_sol/h] Minimum sampling mass
 M_max		1e+17		# [M_sol/h] Maximum sampling mass
