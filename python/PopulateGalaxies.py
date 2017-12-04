@@ -21,7 +21,7 @@ def PopulateOneHalo(halo) :
 
     First = True
     if np.random.random() < halo['Ngal_c'] :
-        gal = np.array([halo['theta_x'], halo['theta_y'], halo['z']])
+        galaxy = np.array([halo['theta_x'], halo['theta_y'], halo['z']])
         First = False
         
     for i in xrange(np.int(halo['Ngal_s']+0.5)) :
@@ -36,11 +36,13 @@ def PopulateOneHalo(halo) :
         x = np.cos(theta) * np.sin(phi) * r
         y = np.sin(theta) * np.sin(phi) * r
         if First :
-            gal = np.array([halo['theta_x'] + x, halo['theta_y'] + y, halo['z']])
+            galaxy = np.array([halo['theta_x'] + x, halo['theta_y'] + y, halo['z']])
+            First = False
         else :
-            gal = np.vstack((gal,[halo['theta_x'] + x, halo['theta_y'] + y, halo['z']]))
-
-    return gal
+            galaxy = np.vstack((galaxy,[halo['theta_x'] + x, halo['theta_y'] + y, halo['z']]))
+            
+            
+    return galaxy
 
 
 def NFW(x) :
