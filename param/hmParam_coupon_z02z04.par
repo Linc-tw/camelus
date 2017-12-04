@@ -65,11 +65,25 @@ log10Mstar_min         8 	 # Scale mass for satellite galaxies [Msol/h]
 log10Mstar_max         12 	 # Scale mass for satellite galaxies [Msol/h]
 
 # Common parameters
-log10M_min           11.47 	 		# Scale mass for satellite galaxies [Msol/h]
-log10M1              12.76 	 		# Scale mass for satellite galaxies [Msol/h]
-log10M0				 9.57 		 	# Minimum halo mass for satellite galaxies [Msol/h]
-sigma_log_M	  		 0.42			# Central galaxy dispersion (Brown et al. 2008)
-alpha          		 1.12 			# Satellite power-law slope
+log10M_min           11 	 	  # Scale mass for satellite galaxies [Msol/h]
+log10M0              9 	 	  # Scale mass for satellite galaxies [Msol/h]
+log10M1              12 	 	  # Scale mass for satellite galaxies [Msol/h]
+log10Mstar0			 11.04 	  # Minimum halo mass for satellite galaxies [Msol/h]
+beta 			0.47 	
+delta			0.60
+gamma 			1.96
+sigma_log_M	    0.25		 # Central galaxy dispersion (Brown et al. 2008)
+B_cut			1.64
+B_sat 			9.05
+beta_cut 		0.59
+beta_sat 		0.74
+alpha           1.0 		# Satellite power-law slope
+fcen1 			-0.25
+fcen2 			-0.01
+
+
+
+
 
 
 
