@@ -41,6 +41,7 @@ def main():
     stub_length = len(halcat_name)
     halcat_files = [catfile for catfile in os.listdir(cats_dir) 
                     if halcat_name == catfile[:stub_length]]
+    stub_length = len(galcat_name)
     galcat_files = [catfile for catfile in os.listdir(cats_dir) 
                     if galcat_name == catfile[:stub_length]]
     Nzs_hal = np.array([ComputeNzFromHalo(cats_dir+filename, dz) 
