@@ -4,6 +4,40 @@ import os
 import matplotlib.pyplot as plt
 
 
+def PopulateGalaxiesFromHalo(filename):
+    halocat = np.genfromtxt(filename, names=True, skip_header = 10)
+    gal = np.array()
+    for halo in halocat :
+        np.vstack((gal,PopulateOneHalo(halo)))
+
+    return gal
+
+def PopulateOneHalo(halo) :
+    gal = np.array()
+    if np.random.random() < halo['Ngal_c'] :
+        gal.append([halo['theta_x'], halo['theta_y'], halo['z']])
+
+    for i in xrange(np.int(halo['Ngal_s']+0.5)) :
+        R_false = True
+        while R_false :
+            xtest = np.random.random()
+            if NFW(5*xtest)>np.random.random() :
+                r = halo['R'] * xtest
+                R_false = False
+        theta = np.random.random() * 2 * np.pi
+        phi = np.arccos(np.random.random() * 2 - 1)
+        x = np.cos(theta) * np.sin(phi) * r
+        y = np.sin(theta) * np.sin(phi) * r
+        gal.append([halo['theta_x'] + x, halo['theta_y'] + y, halo['z']])
+
+    return gal
+
+
+def NFW(x) :
+    return 1/(x*(1+np.pow(x,2)))
+    
+
+
 
 def ComputeNzFromHalo(filename, dz):
     halcat = np.loadtxt(filename)
