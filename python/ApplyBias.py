@@ -1,10 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import sys
 import linecache
 import os
-
-# set path to Camelus outputs
 
 def ComputeDensity(galcat):
     """Compute density delta(x,y) from a Camelus-generated galaxy catalog.
@@ -61,30 +58,71 @@ def ApplyBias(galcat, delta, n, b= 0.00856):
     galcat_b[:,-2:] *= (1+m)
     return galcat_b
 
-
 def read_n_mean(galcat_path) :
+    """Read mean density from Camelus-generated galaxy catalog.
+
+        Parameters
+        ----------
+        galcat_path : str
+            Path to galaxy catalog.
+
+        Returns
+        -------
+        n_mean : float
+            Average density in catalog.
+    """
     line = linecache.getline(galcat_path,3)
     return np.float(line.split()[3])
     
-    
+def ConvertCats(galcat_dir, filename, savestub):
+    """Read, compute local densities and apply bias to given galaxy catalog.
 
+        Parameters
+        ----------
+        galcat_dir : str
+            Path to folder containing galaxy catalogs. Note the biased catalogs
+            will also be saved there.
+            
+        filename : str
+            Name of the file containing the galaxy catalog.
+            
+        savestub : str
+            What biased galaxy catalogs should be called. Will be followed by an
+            underscore (_) and the up-to-3 digit(s) id of the read catalog where
+            applicable.
+                
+    """
+    print 'Applying bias to galaxy catalog {}.'.format(filename)
+    galcat = np.loadtxt(galcat_dir+filename)
+    # read average density
+    nmean = read_n_mean(galcat_dir+filename)
+    # compute local densities from galaxy catalogs
+    delta = ComputeDensity(galcat)
+    # apply bias
+    galcat_b = ApplyBias(galcat, delta, nmean)
+    # save biased galaxy catalog
+    idnb = '_'
+    for digit in [char for char in filename[-3:] if char.isdigit()]:
+        idnb += digit
+    np.savetxt(galcat_dir+savestub+idnb, galcat_b)
     
 def main():
+    """Apply bias to Camelus-generated galaxy catalogs. Syntax:
+    
+    > python ApplyBias path/to/catalogfolders/ galcat bgalcat
+    
+    Where galcat_names and biased_galcat are the stubs of the filenames for
+    catalogs to be read and (biased) ones to be written, e.g. with the run
+    above, if files galcat_000, galcat_001 and galcat_002 are present in
+    catalogfolders, ApplyBias will generate and save bgalcat_000, bgalcat_001
+    and bgalcat_002 to catalogfolders.
+    
+    """
     galcat_dir, galcat_name = sys.argv[1], sys.argv[2]
+    stub_length = len(galcat_name)
     galcat_files = [catfile for catfile in os.listdir(galcat_dir) 
-                    if galcat_name in catfile]
-    galcats = np.array([np.loadtxt(galcat_dir+catfile) for catfile in galcat_files])
-    nmeans = np.array([read_n_mean(galcat_dir+catfile) for catfile in galcat_files])
-    # compute density from galaxy catalogs
-    deltas = np.array([ComputeDensity(galcat) for galcat in galcats])
-    # apply bias
-    galcats_b = np.array([ApplyBias(galcat, delta, nmean) for galcat, delta, nmean in zip(galcats, deltas, nmeans)])
-    # save biased galaxy catalogs
-    for galcat_b, filename in zip(galcats_b, galcat_files):
-        idnb = '_'
-        for digit in [char for char in filename[-3:] if char.isdigit()]:
-            idnb += digit
-        np.savetxt(galcat_dir+sys.argv[3]+idnb, galcat_b)
+                    if galcat_name == catfile[:stub_length]]
+    _ = [ConvertCats(galcat_dir, filename, sys.argv[3]) for filename in galcat_files]
     
 if __name__ == "__main__":
     main()
