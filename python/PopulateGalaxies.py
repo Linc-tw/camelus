@@ -109,7 +109,7 @@ def main():
     halcat_files = [catfile for catfile in os.listdir(cats_dir) 
                     if halcat_name == catfile[:stub_length]]
     for halcat in halcat_files :
-        galcat = PopulateGalaxiesFromHalo(halcat)
+        galcat = PopulateGalaxiesFromHalo(cats_dir+halcat)
         idnb = '_'
         for digit in [char for char in halcat[-3:] if char.isdigit()]:
             idnb += digit
