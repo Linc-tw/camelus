@@ -6,8 +6,7 @@ cosmo_file     ../param/cosmoParam.par
 ### Redshift distribution
 # n(x) \propto x^alpha * exp(-x^beta)
 # where x = z / z_0
-par_nz		0.1  5.0  2.0  1.0  0.5		# zmin zmax alpha beta z_0
-
+par_nz		0.1  1.2  2.0  1.0  0.5		# zmin zmax alpha beta z_0
 ### Halomodel parameters, dark matter
 
 # Halo profile:
@@ -52,10 +51,10 @@ shod		coupon15
 #  For a threshold sample, set Mstellar_min > 0 and Mstellar_max = -1.
 #  For no central contribution, set both to -1.
 log10Mstar_min	8
-log10Mstar_max	13
+log10Mstar_max	12
 
 # Common parameters
-log10M_min          13.77	# Minimum halo mass for central galaxies [Msol/h]
+log10M_min          13.18	# Minimum halo mass for central galaxies [Msol/h]
 log10M1             14.47  # Scale mass for satellite galaxies [Msol/h]
 log10M0				10.93   # Minimum halo mass for satellite galaxies [Msol/h]
 sigma_log_M			0.3		# Central galaxy dispersion (Brown et al. 2008)

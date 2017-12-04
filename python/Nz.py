@@ -9,7 +9,7 @@ def ComputeNzFromHalo(filename, dz):
     halcat = np.loadtxt(filename)
     zs = halcat[:,3]
     Ngals = halcat[:,7]
-    bin_edges = np.arange(0,5,dz)
+    bin_edges = np.arange(0,np.max(zs),dz)
     counts = []
     for lf, rf in zip(bin_edges, bin_edges[1:]):
         idx = np.where((zs > lf) & (zs <=rf))
@@ -22,7 +22,7 @@ def ComputeNzFromHalo(filename, dz):
 def ComputeNz(filename, dz):
     galcat = np.loadtxt(filename)
     zs = galcat[:,2]
-    bin_edges = np.arange(0,5,dz)
+    bin_edges = np.arange(0,np.max(zs),dz)
     Nz = np.histogram(zs, bin_edges)
     return Nz
     
@@ -30,7 +30,7 @@ def ComputeNz(filename, dz):
 def main():
     """Read Camelus-generated halo catalog and populate them following a HOD. Syntax:
     
-    > python PopulateGalaxies path/to/catalogfolders/ halcat galcat dz
+    > python Nz.py path/to/catalogfolders/ halcat galcat dz
     
     Where halcat and galcat are the stubs of the filenames for halo and galaxy
     catalogs to be read, respectively, and dz is the redshift bin width.

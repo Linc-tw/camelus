@@ -404,6 +404,7 @@ void read_gal_map(char name[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, 
   return;
 }
 
+
 void updateCosmo_gal_map(cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, error **err)
 {
   double w_s, D_s;
@@ -1502,7 +1503,8 @@ void addNoiseToGalaxies(peak_param *peak, gal_map *gMap)
 void lensingCatalogue(cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, gal_map *gMap, error **err)
 {
   //-- Lensing
-  lensingForMap(cmhm, peak, hMap, gMap, err); forwardError(*err, __LINE__,);
+  lensingForMap(cmhm, peak, hMap, gMap, err);
+  forwardError(*err, __LINE__,);
   
   //-- Subtract mean
   if (peak->doKappa != 0) subtractMean(peak, gMap);
@@ -1522,7 +1524,8 @@ void lensingCatalogue(cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, ga
 void lensingCatalogueAndOutputAll(cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, gal_map *gMap, error **err)
 {
   //-- Lensing
-  lensingForMap(cmhm, peak, hMap, gMap, err); forwardError(*err, __LINE__,);
+  lensingForMap(cmhm, peak, hMap, gMap, err);
+  forwardError(*err, __LINE__,);
   
   //-- Subtract mean
   if (peak->doKappa != 0) subtractMean(peak, gMap);
@@ -1654,4 +1657,82 @@ void lensingCatalogueAndOutputAll2(char fileName[],cosmo_hm *cmhm, peak_param *p
 
 //----------------------------------------------------------------------
 
+
+
+void read_gal_map2(char name[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, error **err)
+{
+  //-- WARNING: D_S, w_s are not read.
+  
+  FILE *file = fopen_err(name, "r", err); forwardError(*err, __LINE__,);
+  printf("Reading...\r");
+  fflush(stdout);
+  
+  char buffer[STRING_LENGTH_MAX], *buffer1;
+  int buffer2, count = 0;
+  double pos[2], gamma[2], z, kappa;
+  
+  int c = fgetc(file);
+  while (c != EOF) {
+    if (c == (int)'#') buffer1 = fgets(buffer, STRING_LENGTH_MAX, file);
+    else {
+      ungetc(c, file);
+      buffer2 = fscanf(file, "%lf %lf %lf \n", &pos[0], &pos[1], &z );   
+      appendWithSignal_gal_map2(cmhm, gMap, z, pos, err); forwardError(*err, __LINE__,);
+      count++;
+    }
+    c = fgetc(file);
+  }
+  
+  fclose(file);
+  testErrorRet(count!=gMap->total, peak_match, "Galaxy number match error", *err, __LINE__,);
+  printf("\"%s\" read       \n", name);
+
+  return;
+}
+void appendWithSignal_gal_map2(cosmo_hm *cmhm, gal_map *gMap, double z, double pos[2], error **err)
+{
+  double theta_pix_inv = gMap->theta_pix_inv;
+  int i = (int)(pos[0] * theta_pix_inv);
+  int j = (int)(pos[1] * theta_pix_inv);
+  if (i >= gMap->N1) i -= 1;
+  if (j >= gMap->N2) j -= 1;
+  appendWithSignal_gal_list2(cmhm, gMap->map[i+j*gMap->N1], z, pos, err);
+  forwardError(*err, __LINE__,);
+  gMap->total++;
+  return;
+}
+void appendWithSignal_gal_list2(cosmo_hm *cmhm, gal_list *gList, double z, double pos[2], error **err)
+{
+  if (gList->length == 0) {
+    gList->first = initialize_gal_node(err);                            forwardError(*err, __LINE__,);
+    gList->last  = gList->first;
+    gList->length++;
+  }
+  else if (gList->length == gList->size) {
+    gList->last->next = initialize_gal_node(err);                       forwardError(*err, __LINE__,);
+    gList->last       = gList->last->next;
+    gList->length++;
+  }
+  else if (gList->size == 0) gList->last = gList->first;
+  else                       gList->last = gList->last->next;
+  
+  setWithSignal_gal_t2(cmhm, gList->last->g, z, pos, err);
+  forwardError(*err, __LINE__,);
+  gList->size++;
+  return;
+}
+
+void setWithSignal_gal_t2(cosmo_hm *cmhm, gal_t *g, double z, double pos[2], error **err)
+{
+  //-- WARNING: No w and D_s, only used in read_gal_map and fast pipeline
+  testErrorRet(g==NULL, peak_null, "gal_t *g is NULL", *err, __LINE__,);
+  
+  g->z        = z;
+  g->a        = 1.0/(1.0+z);
+  g->pos[0]   = pos[0];
+  g->pos[1]   = pos[1];
+  g->w;
+  g->D_s;
+  return;
+}
 

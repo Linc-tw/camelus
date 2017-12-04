@@ -154,7 +154,8 @@ int main(int argc, char *argv[])
     char *input_name = arg2;
     char *input_name2 = arg3;
 	char *opt = arg4;
- doPeakList_withInputs(input_name,input_name2,opt, cmhm, peak, err);  quitOnError(*err, __LINE__, stderr);
+ 	doPeakList_withInputs(input_name,input_name2,opt, cmhm, peak, err);
+	quitOnError(*err, __LINE__, stderr);
   }
   else if (task == 151) {
     if (argc != 5) {printInstructions(task, 1); return 1;}
@@ -172,13 +173,28 @@ int main(int argc, char *argv[])
  	doPeakList_withInputs_N(N,input_name,input_name2,opt, cmhm, peak, err);
 	quitOnError(*err, __LINE__, stderr);
   }
+  else if (task == 171) {
+    if (argc != 6) {printInstructions(task, 1); return 1;}
+    int N = atoi(arg2);
+    char *input_hal = arg3;
+    char *input_gal = arg4;
+	char *opt = arg5;
+ 	doPeakList_withInputs_hod(input_hal,input_gal,opt, cmhm, peak, err); 
+	quitOnError(*err, __LINE__, stderr);
+  }
   else if (task == 999) {
-    if (argc != 4) {printInstructions(task, 1); return 1;}
-    char *input_name = arg2;
-    char *input_name2 = arg3;
+    if (argc != 5) {printInstructions(task, 1); return 1;}
+    int N = atoi(arg2);
+    char *input_name = arg3;
+    char *input_name2 = arg4;
 
-  	read_cosmo_hm(input_name, &cmhm, err);       quitOnError(*err, __LINE__, stderr);
-    doProduce_Catalog_DM_HOD(input_name,input_name2, cmhm, peak, err);
+	printf("Nb realisation : %i \n",N);
+	printf("Input param : %s \n",input_name );
+	printf("Output CatHalo : %s \n",input_name2 );
+
+  	read_cosmo_hm(input_name, &cmhm, err);       
+	quitOnError(*err, __LINE__, stderr);
+    doProduce_Catalog_DM_HOD(N,input_name,input_name2, cmhm, peak, err);
 	quitOnError(*err, __LINE__, stderr);
   }
   else {
@@ -247,8 +263,10 @@ void printInstructions(int task, int printHeader)
            printf("  ./camelus 16 halocat galcat   end     # Reads halo/galaxy catalogues and creates peak histogram // end name files \n");
         case 161:
            printf("  ./camelus 161 N halocat galcat  end   # Reads N halo/galaxy catalogues and creates peak histogram // end name files \n");
+        case 171:
+           printf("  ./camelus 161 halocat galcat_nolensed  end   # Reads N halo/galaxy catalogues and compute lensing quantities // end name files \n");
         case 999:
-           printf("  ./camelus 999 paramhm halocat   # create catalog haloes with Ngal \n");
+           printf("  ./camelus 999 N paramhm halocat   # create catalog haloes with Ngal \n");
            break;
      }
   }

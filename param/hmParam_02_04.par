@@ -6,7 +6,7 @@ cosmo_file     ../param/cosmoParam.par
 ### Redshift distribution
 # n(x) \propto x^alpha * exp(-x^beta)
 # where x = z / z_0
-par_nz		0.1  5.0  2.0  1.0  0.5		# zmin zmax alpha beta z_0
+par_nz		0.1  1.2  2.0  1.0  0.5		# zmin zmax alpha beta z_0
 
 ### Halomodel parameters, dark matter
 
@@ -61,7 +61,7 @@ log10M0		11.09   # Minimum halo mass for satellite galaxies [Msol/h]
 # If set to -1: M0 will be = M_min (Brown et al. 2008) during sampling
 sigma_log_M	0.39	 # Central galaxy dispersion (Brown et al. 2008)
 alpha           1.27	 # Satellite power-law slope
-eta		1.0	 # Fraction of halos with central galaxy of given type, 0 <= eta <= 1
+eta		0.	 # Fraction of halos with central galaxy of given type, 0 <= eta <= 1
 
 
 
