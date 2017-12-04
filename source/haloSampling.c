@@ -606,8 +606,8 @@ void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param
     fprintf(file, "#     [deg]      [deg]   [Mpc/h]      [-]  [M_sol/h]        [-]       [-]        [-] \n");
   }
   else {
-    fprintf(file, "#       RA        DEC         w        z          M       Ngal_c    Ngal_s      Ngal_tot \n");
-    fprintf(file, "#     [deg]      [deg]   [Mpc/h]      [-]  [M_sol/h]        [-]       [-]        [-] \n");
+    fprintf(file, "#      theta_x       theta_y        w          z        M           Ngal_c    Ngal_s      Ngal_tot   R \n");
+    fprintf(file, "#     [arcmin]      [arcmin]     [Mpc/h]      [-]   [M_sol/h]        [-]       [-]        [-]      [arcmin] \n");
   }
 
   halo_list *hList;
@@ -630,7 +630,7 @@ void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param
   	  forwardError(*err, __LINE__,);
 	  ng=ngc+ngs;
 
-      fprintf(file, "  %9.3f  %9.3f  %8.3f  %7.5f  %9.3e   %8.3f  %8.3f   %8.3f  \n", h->pos[0], h->pos[1], h->w, h->z, h->M,ngc,ngs,ng);
+	  fprintf(file, "  %9.3f  %9.3f  %8.3f  %7.5f  %9.3e   %8.3f  %8.3f   %8.3f  %9.3f  \n", h->pos[0], h->pos[1], h->w, h->z, h->M,ngc,ngs,ng,h->r_vir);
     }
   }
 
