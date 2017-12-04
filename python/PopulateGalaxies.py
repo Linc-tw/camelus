@@ -8,12 +8,13 @@ import matplotlib.pyplot as plt
 def ComputeNzFromHalo(filename, dz):
     halcat = np.loadtxt(filename)
     zs = halcat[:,3]
-    Ngals = halcat[:,5]
+    Ngals = halcat[:,7]
     bin_edges = np.arange(0,5,dz)
     counts = []
     for lf, rf in zip(bin_edges, bin_edges[1:]):
         idx = np.where((zs > lf) & (zs <=rf))
         counts += [np.sum(Ngals[idx])]
+    counts = np.array(counts)
     return np.array([counts, bin_edges])
     
     
@@ -46,7 +47,9 @@ def main():
                     for filename in halcat_files])
     Nzs_gal = np.array([ComputeNz(cats_dir+filename, dz) 
                     for filename in galcat_files])
+    plt.errorbar(Nzs_hal[0,1][1:]-dz/2, np.mean(Nzs_hal[:,0]), np.std(Nzs_hal[:,0]),
                  label='HOD population')
+    plt.errorbar(Nzs_gal[0,1][1:]-dz/2, np.mean(Nzs_gal[:,0]), np.std(Nzs_gal[:,0]),
                  label='Camelus random population')
     plt.xlabel(r'$z$')
     plt.ylabel(r'$N(z)$')
