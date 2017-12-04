@@ -8,11 +8,12 @@ def PopulateGalaxiesFromHalo(filename):
     halocat = np.genfromtxt(filename, names=True, skip_header = 10)
     First = True
     for halo in halocat :
-        if First :
-            gal = PopulateOneHalo(halo)
-            First = False
-        else :
-            gal = np.vstack((gal,PopulateOneHalo(halo)))
+        if halo['Ngal_s']>0.5 :
+            if First :
+                gal = PopulateOneHalo(halo)
+                First = False
+            else :
+                gal = np.vstack((gal,PopulateOneHalo(halo)))
             
 
     return gal
