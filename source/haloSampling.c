@@ -568,4 +568,73 @@ void doMassSheet(cosmo_hm *cmhm, peak_param *peak, double z_halo_max, double M_m
 }
 //----------------------------------------------------------------------
 
+// NEW HOD
+
+void outputFastSimul_HOD(char name_cmhm[],char name[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap)
+{
+
+  FILE *file = fopen(name, "w");
+
+
+  fprintf(file, "# Halo list, fast simulation\n");
+  fprintf(file, "# Model = %s, field = %s, Omega = (%g, %g) [arcmin]\n", smassfct_t(cmhm->massfct), STR_FIELD_T(peak->field), peak->Omega[0], peak->Omega[1]);
+  fprintf(file, "# z_halo_max = %g, N_z_halo = %d, M_min = %8.2e [M_sol/h], M_max = %8.2e\n", peak->z_halo_max, peak->N_z_halo, peak->M_min, peak->M_max);
+  fprintf(file, "#\n");
+  outputCosmoParam(file, cmhm, peak);
+  fprintf(file, "#\n");
+  
+  output_halo_map_HOD(name_cmhm,file,cmhm, peak, hMap);
+  
+  fclose(file);
+  printf("\"%s\" made\n", name);
+  return;
+}
+
+
+
+void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap)
+{
+  double ng,ngc,ngs,Mh,zz ;
+  error *myerr = NULL, **err = &myerr;
+
+
+  fprintf(file, "# Number of halos = %d\n", hMap->total);
+  fprintf(file, "#\n");
+  
+  if (peak->field == aardvark_hPatch04 || peak->field == aardvark_gPatch086) { //-- For aardvark, positions are RA, DEC in [deg]
+    fprintf(file, "#       RA        DEC         w        z          M       Ngal_c    Ngal_s      Ngal_tot \n");
+    fprintf(file, "#     [deg]      [deg]   [Mpc/h]      [-]  [M_sol/h]        [-]       [-]        [-] \n");
+  }
+  else {
+    fprintf(file, "#       RA        DEC         w        z          M       Ngal_c    Ngal_s      Ngal_tot \n");
+    fprintf(file, "#     [deg]      [deg]   [Mpc/h]      [-]  [M_sol/h]        [-]       [-]        [-] \n");
+  }
+
+  halo_list *hList;
+  halo_node *hNode;
+  halo_t *h;
+  int i, j;
+  for (i=0; i<hMap->length; i++) {
+    hList = hMap->map[i];
+    for (j=0, hNode=hList->first; j<hList->size; j++, hNode=hNode->next) {
+
+      h = hNode->h;
+	  Mh = h->M ;
+	  zz = h->z ;
+  	//  read_cosmo_hm(name_cmhm, &cmhm, err);   
+  	 // forwardError(*err, __LINE__,);
+
+	  ngc = Ngal_c(cmhm, Mh, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
+  	  forwardError(*err, __LINE__,);
+	  ngs = Ngal_s(cmhm, Mh, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
+  	  forwardError(*err, __LINE__,);
+	  ng=ngc+ngs;
+
+      fprintf(file, "  %9.3f  %9.3f  %8.3f  %7.5f  %9.3e   %8.3f  %8.3f   %8.3f  \n", h->pos[0], h->pos[1], h->w, h->z, h->M,ngc,ngs,ng);
+    }
+  }
+
+  return;
+}
+
 

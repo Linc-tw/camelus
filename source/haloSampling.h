@@ -12,7 +12,8 @@
 
 #include "commonHeader.h"
 #include "peakParameters.h"
-
+#include <nicaea/hod.h>
+#include <nicaea/halomodel.h>
 
 typedef struct {
   double pos[2];       //-- [arcmin/deg] Angular position, (theta_x, theta_y) in arcmin or (RA, DEC) in deg
@@ -28,6 +29,7 @@ typedef struct {
   double theta_vir;    //-- [arcmin] theta_vir = r_vir / D_A = angular apparent size
   double theta_vir_sq; //-- [arcmin^2]
   double factor;       //-- factor = FOUR_PI_G_OVER_C2 * (D_A M f c_NFW^2 / 2 pi r_vir^2)
+  double n_gal;        //-- N galaxies inside the halo as predicted by HOD model
 } halo_t;
 
 typedef struct halo_node {
@@ -70,6 +72,8 @@ void append_halo_map(cosmo_hm *cmhm, halo_map *hMap, double z, double M, double 
 void read_halo_map(char name[], cosmo_hm *cmhm, halo_map *hMap, error **err);
 void output_halo_map(FILE *file, peak_param *peak, halo_map *hMap);
 
+
+
 //-- Functions related to mass function
 double massFct(cosmo_hm_params *cANDp, double mass, error **err);
 void fillMassFct(cosmo_hm_params *cANDp, sampler_t *samp, error **err);
@@ -92,6 +96,10 @@ void doMassFct(cosmo_hm *cmhm, peak_param *peak, error **err);
 void doFastSimulation(cosmo_hm *cmhm, peak_param *peak, error **err);
 void doMassSheet(cosmo_hm *cmhm, peak_param *peak, double z_halo_max, double M_min, error **err);
 
+
+/// NEW HOD
+void outputFastSimul_HOD(char name_cmhm[],char name[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
+void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
 
 #endif
 

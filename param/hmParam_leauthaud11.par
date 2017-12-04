@@ -45,27 +45,45 @@ pi_max 			60.0
 
 
 ### HOD parameters
+
 # HOD type
 #  hamana04		Simple power-law, Hamana et al. (2004). Not recommended!
 #  berwein02		Satellite model, no halo exclusion. For testing only!
 #  berwein02_hexcl	Satellite model with halo exlusion
-shod		berwein02_hexcl
+#  coupon15
+
+shod		 leauthaud11
 
 # Minimum and maximum stellar masses. Used for shod=leauthaud11.
 # For other models, only used for galaxy-galaxy lensing,
 # central point source contribution to Delta_Sigma.
 #  For a threshold sample, set Mstellar_min > 0 and Mstellar_max = -1.
 #  For no central contribution, set both to -1.
-log10Mstar_min	 1
-log10Mstar_max	 13
+
+
+log10Mstar_min         8 	 # Scale mass for satellite galaxies [Msol/h]
+log10Mstar_max         12 	 # Scale mass for satellite galaxies [Msol/h]
 
 # Common parameters
-log10M_min          13	 # Minimum halo mass for central galaxies [Msol/h]
-log10M1             11   # Scale mass for satellite galaxies [Msol/h]
-log10M0			 	13   # Minimum halo mass for satellite galaxies [Msol/h]
-# If set to -1: M0 will be = M_min (Brown et al. 2008) during sampling
-sigma_log_M			0.3	 # Central galaxy dispersion (Brown et al. 2008)
-alpha          		0.5	 # Satellite power-law slope
-eta					1.0	 # Fraction of halos with central galaxy of given type, 0 <= eta <= 1
+
+log10M1              12.73 	 	  # Scale mass for satellite galaxies [Msol/h]
+log10Mstar0			 11.04 		 # Minimum halo mass for satellite galaxies [Msol/h]
+
+beta 			0.47 	
+delta			0.60
+gamma 			1.96
+sigma_log_M	    0.25		 # Central galaxy dispersion (Brown et al. 2008)
+B_cut			1.64
+B_sat 			9.05
+beta_cut 		0.59
+beta_sat 		0.74
+alpha           1.0 		# Satellite power-law slope
+fcen1 			0.0
+fcen2 			0.0
+
+
+
+
+
 
 

@@ -20,14 +20,16 @@ cosmo_hm *initialize_cosmo_hm_default(error **err)
   int Nnz[NZBIN]           = {NNZ};
   double par_nz[NZBIN*NNZ] = {0.0, 3.0, 2.0, 1.0, 0.5};
   nofz_t nofz[NZBIN]       = {ludo};
+  photz_t photz[NZBIN]     = {photz_no};
+
   cosmo_hm *cmhm = init_parameters_hm(0.25, 0.75, -1.0, 0.0, NULL, 0, 
 				      0.78, 0.047, 0.0, 0.0, 0.80, 0.95,
-				      NZBIN, Nnz, nofz, par_nz, -1, -1, 
+				      NZBIN, Nnz, nofz, photz, par_nz, -1, -1, 
 				      smith03, eisenhu, growth_de, linder, norm_s8, 
 				      11.0, 1.0, 0.13, j01, halo_bias_sc,
 				      0.0, 0.0, 0.0, 0.0, 0.0,
-				      1.0e11, 0.5, 0.6, 1.5, 1.5, 10.62,
-				      -0.13, 0.9, 1.0e10, -1, 0.0,
+				      11.0, 0.5, 0.6, 1.5, 1.5, 10.62,
+				      -0.13, 0.9, 10.0, -1, 0.0,
 				      0.0, 0.0,
 				      hamana04, 60.0, err);
   forwardError(*err, __LINE__, NULL);
@@ -45,6 +47,7 @@ void read_cosmo_hm(char name[], cosmo_hm **cmhm, error **err)
   char buffer[STRING_LENGTH_MAX];
   struct {char cosmo_file[CSLENS], shod[CSLENS], smassfct[CSLENS], shalo_bias[CSLENS]; double par_nz[NNZ];} tmp2;
   int j;
+  photz_t photz[NZBIN]     = {photz_no};
   FILE *FD;
 
   tmp = set_cosmological_parameters_to_default_hm(err);                                          forwardError(*err, __LINE__,);
@@ -59,7 +62,7 @@ void read_cosmo_hm(char name[], cosmo_hm **cmhm, error **err)
   int Nnz[NZBIN] = {NNZ};
   nofz_t nofz[NZBIN] = {ludo};
   CONFIG_READ_ARR(&tmp2, par_nz, d, j, NNZ, buffer, file, c, err);                               forwardError(*err, __LINE__,);
-  tmp->redshift = init_redshift(NZBIN, Nnz, nofz, tmp2.par_nz, NULL, err);                       forwardError(*err, __LINE__,);
+  tmp->redshift = init_redshift(NZBIN, Nnz, nofz,photz, tmp2.par_nz, NULL, err);                       forwardError(*err, __LINE__,);
   
   /* Halomodel parameters (dark matter) */
   CONFIG_READ(tmp, alpha_NFW, d, file, c, err);                                                  forwardError(*err, __LINE__,);
@@ -77,27 +80,27 @@ void read_cosmo_hm(char name[], cosmo_hm **cmhm, error **err)
   /* HOD model */
   CONFIG_READ_S(&tmp2, shod, s, file, c, err);                                                   forwardError(*err, __LINE__,);
   STRING2ENUM(tmp->hod, tmp2.shod, hod_t, shod_t, j, Nhod_t, err);                               forwardError(*err, __LINE__,);
-  testErrorRetVA(tmp->hod!=hod_none && tmp->hod!=hamana04 && tmp->hod!=berwein02 && tmp->hod!=berwein02_hexcl && tmp->hod!=leauthaud11,
+  testErrorRetVA(tmp->hod!=hod_none && tmp->hod!=hamana04 && tmp->hod!=berwein02 && tmp->hod!=berwein02_hexcl && tmp->hod!=leauthaud11 && tmp->hod!=coupon15,
 		 hm_hodtype, "HOD type (%d) unknown", *err, __LINE__,, tmp->hod, hamana04);
   
   /* sample properties */
-  CONFIG_READ(tmp, Mstellar_min, d, file, c, err); forwardError(*err, __LINE__,);
-  CONFIG_READ(tmp, Mstellar_max, d, file, c, err); forwardError(*err, __LINE__,);
+  CONFIG_READ(tmp, log10Mstar_min, d, file, c, err); forwardError(*err, __LINE__,);
+  CONFIG_READ(tmp, log10Mstar_max, d, file, c, err); forwardError(*err, __LINE__,);
 
   /* HOD parameters */
   switch (tmp->hod) {
     case berwein02 : case berwein02_hexcl: case hamana04 :
-      CONFIG_READ(tmp, M_min, d, file, c, err);       forwardError(*err, __LINE__,);
-      CONFIG_READ(tmp, M1, d, file, c, err);          forwardError(*err, __LINE__,);
-      CONFIG_READ(tmp, M0, d, file, c, err);          forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, log10M_min, d, file, c, err);       forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, log10M1, d, file, c, err);          forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, log10M0, d, file, c, err);          forwardError(*err, __LINE__,);
       CONFIG_READ(tmp, sigma_log_M, d, file, c, err); forwardError(*err, __LINE__,);
       CONFIG_READ(tmp, alpha, d, file, c, err);       forwardError(*err, __LINE__,);
       CONFIG_READ(tmp, eta, d, file, c, err);         forwardError(*err, __LINE__,);
       break;
 
     case leauthaud11:
-      CONFIG_READ(tmp, M1, d, file, c, err);          forwardError(*err, __LINE__,);
-      CONFIG_READ(tmp, Mstar0, d, file, c, err);      forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, log10M1, d, file, c, err);     forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, log10Mstar0, d, file, c, err); forwardError(*err, __LINE__,);
       CONFIG_READ(tmp, beta, d, file, c, err);        forwardError(*err, __LINE__,);
       CONFIG_READ(tmp, delta, d, file, c, err);       forwardError(*err, __LINE__,);
       CONFIG_READ(tmp, gamma,d, file, c, err);        forwardError(*err, __LINE__,);
@@ -110,6 +113,16 @@ void read_cosmo_hm(char name[], cosmo_hm **cmhm, error **err)
       CONFIG_READ(tmp, fcen1, d, file, c, err);       forwardError(*err, __LINE__,);
       CONFIG_READ(tmp, fcen2, d, file, c, err);       forwardError(*err, __LINE__,);
       break;
+
+    case coupon15 :
+         /* sample properties */
+      	CONFIG_READ(tmp, log10M_min, d, file, c, err);       forwardError(*err, __LINE__,);
+         CONFIG_READ(tmp, log10M1, d, file, c, err);		    forwardError(*err, __LINE__,);
+         CONFIG_READ(tmp, log10M0, d, file, c, err);			forwardError(*err, __LINE__,);
+         CONFIG_READ(tmp, sigma_log_M, d, file, c, err);		forwardError(*err, __LINE__,);
+         CONFIG_READ(tmp, alpha, d, file, c, err);			forwardError(*err, __LINE__,);
+      break;
+      
 
     default:
       break;
@@ -138,12 +151,12 @@ cosmo_hm *updateCmhm(cosmo_hm *oldCmhm, double Omega_m, double sigma_8, double w
   redshift_t * oldRs = oldCmhm->redshift;
   cosmo_hm *newCmhm  = init_parameters_hm(Omega_m,           1-Omega_m,          w0_de,                 oldCm->w1_de,          oldCm->w_poly_de,         oldCm->N_poly_de,
 					  oldCm->h_100,      oldCm->Omega_b,     oldCm->Omega_nu_mass,  oldCm->Neff_nu_mass,   sigma_8,                  oldCm->n_spec,
-					  oldRs->Nzbin,      oldRs->Nnz,         oldRs->nofz,           oldRs->par_nz,         oldCmhm->zmin,            oldCmhm->zmax,
+					  oldRs->Nzbin,      oldRs->Nnz,         oldRs->nofz,oldRs->photz,           oldRs->par_nz,         oldCmhm->zmin,            oldCmhm->zmax,
 					  oldCm->nonlinear,  oldCm->transfer,    oldCm->growth,         oldCm->de_param,       oldCmhm->cosmo->normmode,  
 					  oldCmhm->c0,       oldCmhm->alpha_NFW, oldCmhm->beta_NFW,     oldCmhm->massfct,      oldCmhm->halo_bias,   
-					  oldCmhm->M_min,    oldCmhm->M1,        oldCmhm->M0,           oldCmhm->sigma_log_M,  oldCmhm->alpha, 
-					  oldCmhm->Mstar0,   oldCmhm->beta,      oldCmhm->delta,        oldCmhm->gamma,        oldCmhm->B_cut,           oldCmhm->B_sat, 
-					  oldCmhm->beta_cut, oldCmhm->beta_sat,  oldCmhm->Mstellar_min, oldCmhm->Mstellar_max, oldCmhm->eta,
+					  oldCmhm->log10M_min,    oldCmhm->log10M1,        oldCmhm->log10M0,           oldCmhm->sigma_log_M,  oldCmhm->alpha, 
+					  oldCmhm->log10Mstar0,   oldCmhm->beta,      oldCmhm->delta,        oldCmhm->gamma,        oldCmhm->B_cut,           oldCmhm->B_sat, 
+					  oldCmhm->beta_cut, oldCmhm->beta_sat,  oldCmhm->log10Mstar_min, oldCmhm->log10Mstar_max, oldCmhm->eta,
 					  oldCmhm->fcen1,    oldCmhm->fcen2,
 					  oldCmhm->hod,      oldCmhm->pi_max,    err);
   forwardError(*err, __LINE__, NULL);

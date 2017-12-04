@@ -169,7 +169,17 @@ int main(int argc, char *argv[])
     char *input_name = arg3;
     char *input_name2 = arg4;
 	char *opt = arg5;
- doPeakList_withInputs_N(N,input_name,input_name2,opt, cmhm, peak, err);  quitOnError(*err, __LINE__, stderr);
+ 	doPeakList_withInputs_N(N,input_name,input_name2,opt, cmhm, peak, err);
+	quitOnError(*err, __LINE__, stderr);
+  }
+  else if (task == 999) {
+    if (argc != 4) {printInstructions(task, 1); return 1;}
+    char *input_name = arg2;
+    char *input_name2 = arg3;
+
+  	read_cosmo_hm(input_name, &cmhm, err);       quitOnError(*err, __LINE__, stderr);
+    doProduce_Catalog_DM_HOD(input_name,input_name2, cmhm, peak, err);
+	quitOnError(*err, __LINE__, stderr);
   }
   else {
     printInstructions(-1, 1);
@@ -203,22 +213,22 @@ void printInstructions(int task, int printHeader)
   else {
      switch (task) {
         case 1:
-           printf("  ./camelus 1 z                        # Output mass function at z\n");
+           printf("  ./camelus 1 z                	 # Output mass function at z\n");
            break;
         case 2:
-           printf("  ./camelus 2                          # Fast simulation\n");
+           printf("  ./camelus 2                      # Fast simulation\n");
            break;
         case 3:
-           printf("  ./camelus 3 z_l M z_s                # Halo lensing profile with 1-h and 2-h terms\n");
+           printf("  ./camelus 3 z_l M z_s            # Halo lensing profile with 1-h and 2-h terms\n");
            break;
         case 4:
-           printf("  ./camelus 4                          # Lensing map and intermediate products for the first filter\n");
+           printf("  ./camelus 4                      # Lensing map and intermediate products for the first filter\n");
            break;
         case 5:
-           printf("  ./camelus 5                          # Peak list and histogram from fast simulation\n");
+           printf("  ./camelus 5                      # Peak list and histogram from fast simulation\n");
            break;
         case 6:
-           printf("  ./camelus 6                          # A realization of multiscale data\n");
+           printf("  ./camelus 6                     # A realization of multiscale data\n");
            break;
         case 7:
            printf("  ./camelus 7 N                        # Data matrix of N realizations\n");
@@ -234,9 +244,11 @@ void printInstructions(int task, int printHeader)
            printf("  ./camelus 151 N halocat galcat        # Creates N halo and galaxy catalogues\n");
            break;
         case 16:
-           printf("  ./camelus 16 halocat galcat   end       # Reads halo and galaxy catalogues and creates peak histogram // end name files \n");
+           printf("  ./camelus 16 halocat galcat   end     # Reads halo/galaxy catalogues and creates peak histogram // end name files \n");
         case 161:
-           printf("  ./camelus 161 N halocat galcat  end      # Reads N halo and galaxy catalogues and creates peak histogram // end name files \n");
+           printf("  ./camelus 161 N halocat galcat  end   # Reads N halo/galaxy catalogues and creates peak histogram // end name files \n");
+        case 999:
+           printf("  ./camelus 999 N paramhm halocat   end   # Reads write halocat with Ngal // end name files \n");
            break;
      }
   }

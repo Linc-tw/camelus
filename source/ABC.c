@@ -682,17 +682,16 @@ cosmo_hm *initialize_cosmo_hm_ABC(cosmo_hm *oldCmhm, PMC_ABC_t *ABC, double *new
   
   cosmo *oldCm       = oldCmhm->cosmo;
   redshift_t * oldRs = oldCmhm->redshift;
-  cosmo_hm *newCmhm  = init_parameters_hm(
-      value[param_Omega_m], value[param_Omega_de], value[param_w0_de],    value[param_w1_de],    oldCm->w_poly_de,         oldCm->N_poly_de,
-      value[param_h_100],   value[param_Omega_b],  oldCm->Omega_nu_mass,  oldCm->Neff_nu_mass,   value[param_sigma_8],     value[param_n_s],
-      oldRs->Nzbin,         oldRs->Nnz,            oldRs->nofz,           oldRs->par_nz,         oldCmhm->zmin,            oldCmhm->zmax,
-      oldCm->nonlinear,     oldCm->transfer,       oldCm->growth,         oldCm->de_param,       oldCmhm->cosmo->normmode,  
-      value[param_c_0],     oldCmhm->alpha_NFW,    value[param_beta_NFW], oldCmhm->massfct,      oldCmhm->halo_bias,   
-      oldCmhm->M_min,       oldCmhm->M1,           oldCmhm->M0,           oldCmhm->sigma_log_M,  oldCmhm->alpha, 
-      oldCmhm->Mstar0,      oldCmhm->beta,         oldCmhm->delta,        oldCmhm->gamma,        oldCmhm->B_cut,           oldCmhm->B_sat, 
-      oldCmhm->beta_cut,    oldCmhm->beta_sat,     oldCmhm->Mstellar_min, oldCmhm->Mstellar_max, oldCmhm->eta,
-      oldCmhm->fcen1,       oldCmhm->fcen2,
-      oldCmhm->hod,         oldCmhm->pi_max,    err);
+  cosmo_hm *newCmhm  = init_parameters_hm(  value[param_Omega_m], value[param_Omega_de], value[param_w0_de],
+    value[param_w1_de],    oldCm->w_poly_de,  oldCm->N_poly_de, value[param_h_100],   value[param_Omega_b],
+	  oldCm->Omega_nu_mass,  oldCm->Neff_nu_mass,   value[param_sigma_8],  value[param_n_s],
+      oldRs->Nzbin, oldRs->Nnz,   oldRs->nofz, oldRs->photz, oldRs->par_nz,   oldCmhm->zmin,  oldCmhm->zmax,
+      oldCm->nonlinear,     oldCm->transfer,     oldCm->growth,  oldCm->de_param, oldCmhm->cosmo->normmode,  
+      value[param_c_0],     oldCmhm->alpha_NFW,  value[param_beta_NFW], oldCmhm->massfct, oldCmhm->halo_bias,   
+      oldCmhm->log10M_min,  oldCmhm->log10M1,    oldCmhm->log10M0,   oldCmhm->sigma_log_M,  oldCmhm->alpha, 
+      oldCmhm->log10Mstar0, oldCmhm->beta,  		 oldCmhm->delta,  oldCmhm->gamma,  oldCmhm->B_cut, oldCmhm->B_sat, 
+      oldCmhm->beta_cut,    oldCmhm->beta_sat,   oldCmhm->log10Mstar_min, oldCmhm->log10Mstar_min, oldCmhm->eta,
+      oldCmhm->fcen1,       oldCmhm->fcen2, oldCmhm->hod,         oldCmhm->pi_max,    err);
   forwardError(*err, __LINE__, NULL);
   return newCmhm;
 }

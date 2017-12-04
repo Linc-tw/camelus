@@ -20,6 +20,8 @@
   #include "FITSFunctions.h"
 #endif
 
+#include <nicaea/hod.h>
+
 
 //-- Functions related to local variance
 void fillGaussianKernelForVariance(fftw_complex *kernel, int length, int M, double scaleInPix);
@@ -57,5 +59,7 @@ void doProduce_Catalog(char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, p
 void doPeakList_withInputs(char fileName[], char fileName2[],char opt[],cosmo_hm *cmhm, peak_param *peak, error **err);
 void doProduce_Catalog_N(int N,char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
 void doPeakList_withInputs_N(int N,char fileName[], char fileName2[],char end[],cosmo_hm *cmhm, peak_param *peak, error **err);
+void doProduce_Catalog_DM_HOD(char CmhmName[],char HaloFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
+
 #endif
 

@@ -24,6 +24,42 @@ plt.rc('font', family='serif', size=12, serif='cz00')
 
 
 ##############
+def mass_function_halo(z):
+		fich='../build/massFct_z{0:.3f}'.format(z)
+		dat = ascii.read(fich)
+		m =dat['col1']
+		dn=dat['col2']
+		plt.close('all')
+		plt.figure(1)
+		plt.xlabel('log(M) $M_{odot}/h$')
+		plt.ylabel(' dn/dlogM   $Mpc/h ^{-3} $')	
+		plt.semilogy(np.log10(m),dn)
+		plt.title(' Halo mass function ')	
+		return
+
+def z_function_halo(fich,zbin):
+		dat = ascii.read(fich)
+		x= dat['col1']
+		y= dat['col2']
+		z= dat['col3']
+		zz= dat['col4']
+		mass= dat['col5']
+
+		plt.close('all')
+
+		zmin=min(zz)
+		zmax=max(zz)
+		dz=(zmax-zmin)/float(N)
+		for i in range(len(zz)):
+			iz = int((z-zmin)/dz)
+			
+
+		plt.figure(1)
+		plt.xlabel('log(M) $M_{odot}/h$')
+		plt.ylabel(' dn/dlogM   $Mpc/h ^{-3} $')	
+		plt.semilogy(np.log10(m),dn)
+		plt.title(' Halo mass function ')	
+		return
 
 def histogram_bais(fich,fichbais,N):
 	plt.close('all')

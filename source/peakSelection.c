@@ -887,3 +887,21 @@ void doPeakList_withInputs_N(int N,char fileName[], char fileName2[],char end[],
   return;
 }
 
+void doProduce_Catalog_DM_HOD(char CmhmName[],char HaloFileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
+{
+  int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
+  
+  halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
+
+  printf("-----------------------------  HOD Ngal  -------------------------------\n");
+		//-- Carry out fast simulation
+	   sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
+	   setMassSamplers(cmhm, peak, sampArr, err);      forwardError(*err, __LINE__,);
+	   makeFastSimul(cmhm, peak, sampArr, hMap, err);    forwardError(*err, __LINE__,);
+	   outputFastSimul_HOD(CmhmName,HaloFileName, cmhm, peak, hMap);
+	   free_sampler_arr(sampArr);
+
+  free_halo_map(hMap);
+
+  return;
+}
