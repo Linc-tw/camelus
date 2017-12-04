@@ -9,20 +9,22 @@ def ComputeNzFromHalo(filename, dz):
     halcat = np.loadtxt(filename)
     zs = halcat[:,3]
     Ngals = halcat[:,7]
-    bin_edges = np.arange(0,np.max(zs),dz)
+    bin_edges = np.arange(0,np.max(zs)+dz,dz)
     counts = []
     for lf, rf in zip(bin_edges, bin_edges[1:]):
         idx = np.where((zs > lf) & (zs <=rf))
         counts += [np.sum(Ngals[idx])]
     counts = np.array(counts)
     return np.array([counts, bin_edges])
-    
-    
+
+def CamelusNz(z, alpha=2., beta=1., z_0=.5):
+    x = z/z_0
+    return x**alpha * np.exp(-x**beta)
 
 def ComputeNz(filename, dz):
     galcat = np.loadtxt(filename)
     zs = galcat[:,2]
-    bin_edges = np.arange(0,np.max(zs),dz)
+    bin_edges = np.arange(0,np.max(zs)+dz,dz)
     Nz = np.histogram(zs, bin_edges)
     return Nz
     
@@ -42,18 +44,27 @@ def main():
     halcat_files = [catfile for catfile in os.listdir(cats_dir) 
                     if halcat_name == catfile[:stub_length]]
     stub_length = len(galcat_name)
-    galcat_files = [catfile for catfile in os.listdir(cats_dir) 
-                    if galcat_name == catfile[:stub_length]]
+    #galcat_files = [catfile for catfile in os.listdir(cats_dir) 
+    #                if galcat_name == catfile[:stub_length]]
     Nzs_hal = np.array([ComputeNzFromHalo(cats_dir+filename, dz) 
                     for filename in halcat_files])
-    Nzs_gal = np.array([ComputeNz(cats_dir+filename, dz) 
-                    for filename in galcat_files])
-    plt.errorbar(Nzs_hal[0,1][1:]-dz/2, np.mean(Nzs_hal[:,0]), np.std(Nzs_hal[:,0]),
+    #Nzs_gal = np.array([ComputeNz(cats_dir+filename, dz) 
+    #                for filename in galcat_files])
+    np.save(cats_dir+'Nzs_hal.npy', Nzs_hal)
+    #np.save(cats_dir+'Nzs_gal.npy', Nzs_gal)
+    zs = Nzs_hal[0,1][1:]-dz/2
+    HOD_n = np.mean(Nzs_hal[:,0])
+    HOD_n /= np.sum(HOD_n)
+    plt.errorbar(zs, HOD_n, np.std(Nzs_hal[:,0]),
                  label='HOD population')
-    plt.errorbar(Nzs_gal[0,1][1:]-dz/2, np.mean(Nzs_gal[:,0]), np.std(Nzs_gal[:,0]),
-                 label='Camelus random population')
+    CamZs = [CamelusNz(zee) for zee in zs]
+    plt.plot(zs, CamZs, label='Camelus n(z)')
+    #gal_n = np.mean(Nzs_gal[:,0]).astype('float')
+    #gal_n /= np.sum(gal_n)
+    #plt.errorbar(zs, gal_n, np.std(Nzs_gal[:,0]),
+    #             label='Camelus random population')
     plt.xlabel(r'$z$')
-    plt.ylabel(r'$N(z)$')
+    plt.ylabel(r'$n(z)$')
     plt.legend()
     #plt.show()
     plt.savefig(cats_dir+'Nz_plot.png')
