@@ -29,7 +29,7 @@ def PopulateOneHalo(halo) :
         while R_false :
             xtest = np.random.random()
             if NFW(5*xtest)>np.random.random() :
-                r = halo['R'] * xtest
+                r = halo['Rv'] * xtest
                 R_false = False
         theta = np.random.random() * 2 * np.pi
         phi = np.arccos(np.random.random() * 2 - 1)
