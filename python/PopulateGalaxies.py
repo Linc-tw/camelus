@@ -46,9 +46,7 @@ def main():
                     for filename in halcat_files])
     Nzs_gal = np.array([ComputeNz(cats_dir+filename, dz) 
                     for filename in galcat_files])
-    plt.errorbar(Nzs_hal[0,1][1:], np.mean(Nzs_hal[:,0]), np.std(Nzs_hal[:,0]),
                  label='HOD population')
-    plt.errorbar(Nzs_gal[0,1][1:], np.mean(Nzs_gal[:,0]), np.std(Nzs_gal[:,0]),
                  label='Camelus random population')
     plt.xlabel(r'$z$')
     plt.ylabel(r'$N(z)$')
