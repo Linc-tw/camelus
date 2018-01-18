@@ -796,7 +796,7 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
   
       //printf("ngs = %8.2f \n",ngs);
       
-      for (k = 0;k<100*ngs+0.5;k++) {
+      for (k = 0;k<ngs+0.5;k++) {
 	//printf("k = %i  \n",k);
 	int bool = 1;
 	double r;
