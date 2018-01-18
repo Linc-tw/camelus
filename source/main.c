@@ -197,6 +197,24 @@ int main(int argc, char *argv[])
     doProduce_Catalog_DM_HOD(N,input_name,input_name2, cmhm, peak, err);
 	quitOnError(*err, __LINE__, stderr);
   }
+  else if (task == 900){
+    if (argc != 6) {printInstructions(task, 1); return 1;}
+    int N = atoi(arg2);
+    char *input_name = arg3;
+    char *input_name2 = arg4;
+    char *input_name3 = arg5;
+
+	printf("Nb realisation : %i \n",N);
+	printf("Input param : %s \n",input_name );
+	printf("Output CatHalo : %s \n",input_name2 );
+	printf("Output CatGal : %s \n",input_name3 );
+
+  	read_cosmo_hm(input_name, &cmhm, err);       
+	quitOnError(*err, __LINE__, stderr);
+	doProduce_Catalog_DM_galaxies(N,input_name,input_name2,input_name3, cmhm, peak, err);
+	quitOnError(*err, __LINE__, stderr);
+  }
+    
   else {
     printInstructions(-1, 1);
     return 1;
@@ -222,7 +240,7 @@ void printInstructions(int task, int printHeader)
     printf("Use Camelus with:\n");
     printInstructions(1, 0); printInstructions(2, 0); printInstructions(3, 0); printInstructions(4, 0); printInstructions(5, 0);
     printInstructions(6, 0); printInstructions(7, 0); printInstructions(8, 0);
-    printInstructions(15, 0); printInstructions(16, 0);
+    printInstructions(15, 0); printInstructions(16, 0); printInstructions(900, 0);
     printf("\n");
   }
   
@@ -265,6 +283,9 @@ void printInstructions(int task, int printHeader)
            printf("  ./camelus 161 N halocat galcat  end   # Reads N halo/galaxy catalogues and creates peak histogram // end name files \n");
         case 171:
            printf("  ./camelus 161 halocat galcat_nolensed  end   # Reads N halo/galaxy catalogues and compute lensing quantities // end name files \n");
+	   break;
+        case 900:
+           printf("  ./camelus 900 N paramhm halocat galcat   # create catalog haloes with Ngal and galaxy catalog \n");
         case 999:
            printf("  ./camelus 999 N paramhm halocat   # create catalog haloes with Ngal \n");
            break;

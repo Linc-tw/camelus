@@ -55,6 +55,24 @@ typedef struct {
   halo_list **map;  //-- Binned halos
 } halo_map;
 
+typedef struct {
+  double pos[2];
+  double z;
+  int halo_id;
+} galaxy;
+
+typedef struct galaxy_node {
+  galaxy *gal;
+  struct galaxy_node *next;
+} galaxy_node;
+
+typedef struct {
+  int length;       //-- Number of nodes allocated
+  int size;         //-- Number of nodes containing information
+  galaxy_node *first; //-- Begin of the list
+  galaxy_node *last;  //-- End of the list
+} galaxy_list;
+
 
 //-- Functions related to halo_t, halo_node, halo_list
 void set_halo_t(cosmo_hm *cmhm, halo_t *h, double z, double M, double pos[2], error **err);
@@ -100,6 +118,19 @@ void doMassSheet(cosmo_hm *cmhm, peak_param *peak, double z_halo_max, double M_m
 /// NEW HOD
 void outputFastSimul_HOD(char name_cmhm[],char name[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
 void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
+
+void set_galaxy(double pos[2], double z, int halo_id, galaxy *gal, error **err);
+galaxy_node *initialize_galaxy_node(error **err);
+galaxy_list *initialize_galaxy_list(error **err);
+void free_galaxy_list(galaxy_list *hList);
+void reset_galaxy_list(galaxy_list *hList);
+void append_galaxy_list(double pos[2], double z, int halo_id, galaxy_list *gList, error **err);
+
+void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
+void output_halo_map_galaxies(FILE *file, FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, galaxy_list *gList);
+
+
+double NFW(double x);
 
 #endif
 
