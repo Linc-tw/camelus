@@ -994,7 +994,7 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[]
 void doProduce_Catalog_DM_galaxies(int N, char CmhmName[], char HaloFileName[], char GalaxyFileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
 {
   int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
-  char HaloFileName2[STRING_LENGTH_MAX];
+  char HaloFileName2[STRING_LENGTH_MAX], GalaxyFileName2[STRING_LENGTH_MAX];
   int i;
 
   
@@ -1009,8 +1009,9 @@ void doProduce_Catalog_DM_galaxies(int N, char CmhmName[], char HaloFileName[], 
     makeFastSimul(cmhm, peak, sampArr, hMap, err);
     forwardError(*err, __LINE__,);
     sprintf(HaloFileName2, "%s_%3.3d",HaloFileName, i+1);
+    sprintf(GalaxyFileName2, "%s_%3.3d",GalaxyFileName, i+1);
     printf("test \n");
-    outputFastSimul_galaxies(CmhmName, HaloFileName2, GalaxyFileName, cmhm, peak, hMap);
+    outputFastSimul_galaxies(CmhmName, HaloFileName2, GalaxyFileName2, cmhm, peak, hMap);
     printf("test2 \n");
     free_sampler_arr(sampArr);
     free_halo_map(hMap);
