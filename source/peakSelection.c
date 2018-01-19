@@ -1010,9 +1010,9 @@ void doProduce_Catalog_DM_galaxies(int N, char CmhmName[], char HaloFileName[], 
     forwardError(*err, __LINE__,);
     sprintf(HaloFileName2, "%s_%3.3d",HaloFileName, i+1);
     sprintf(GalaxyFileName2, "%s_%3.3d",GalaxyFileName, i+1);
-    printf("test \n");
+    //printf("test \n");
     outputFastSimul_galaxies(CmhmName, HaloFileName2, GalaxyFileName2, cmhm, peak, hMap);
-    printf("test2 \n");
+    //printf("test2 \n");
     free_sampler_arr(sampArr);
     free_halo_map(hMap);
   }
