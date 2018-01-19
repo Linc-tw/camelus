@@ -710,7 +710,8 @@ void append_galaxy_list(double pos[2], double z, int halo_id, galaxy_list *gList
 
 void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap)
 {
-  galaxy_list *gList;
+  error *myerr = NULL, **err = &myerr;
+  galaxy_list *gList = initialize_galaxy_list(err); forwardError(*err, __LINE__,);
   FILE *file = fopen(name, "w");
   FILE *file2 = fopen(name2, "w");
 
@@ -730,8 +731,8 @@ void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo
   printf("test3 \n");
   output_halo_map_galaxies(file,file2,cmhm, peak, hMap, gList);
   printf("test4 \n");
-  //free_galaxy_list(gList);
-  //printf("Gfree \n");
+  free_galaxy_list(gList);
+  //printf("Gfreen \n");
   fclose(file);
   fclose(file2);
   //printf("close \n");
@@ -789,7 +790,7 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
      
       
       if( (rand()/(double)RAND_MAX)<ngc) {
-	//append_galaxy_list(h->pos, h->z, j, gList, err); forwardError(*err, __LINE__,);
+	append_galaxy_list(h->pos, h->z, j, gList, err); forwardError(*err, __LINE__,);
 	fprintf(file2, "%9.3f  %9.3f   %7.5f  %i  \n", h->pos[0], h->pos[1], h->z, j);
       }
       
@@ -812,7 +813,7 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
 	double pos[2];
         pos[0] = cos(theta) * sin(phi) * r + h->pos[0];
         pos[1] = sin(theta) * sin(phi) * r + h->pos[1];
-	//append_galaxy_list(pos, h->z, j, gList, err); forwardError(*err, __LINE__,);
+	append_galaxy_list(pos, h->z, j, gList, err); forwardError(*err, __LINE__,);
 	fprintf(file2, "%9.3f  %9.3f   %7.5f  %i  \n", pos[0], pos[1], h->z, j);
       }
       
