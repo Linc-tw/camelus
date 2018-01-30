@@ -19,6 +19,7 @@ def ComputeNzFromHalo(filename, dz):
 
 def CamelusNz(z, alpha=2., beta=1., z_0=.5):
     x = z/z_0
+    #return z**2 / (2*z_0**3) * np.exp(-x**beta)
     return x**alpha * np.exp(-x**beta)
 
 def ComputeNz(filename, dz):
@@ -55,13 +56,13 @@ def main():
     zs = Nzs_hal[0,1][1:]-dz/2
     HOD_n = np.mean(Nzs_hal[:,0])
     HOD_n /= np.sum(HOD_n)
-    plt.errorbar(zs, HOD_n, np.std(Nzs_hal[:,0]),
+    plt.errorbar(zs, HOD_n, np.std(HOD_n),
                  label='HOD population')
     CamZs = [CamelusNz(zee) for zee in zs]
     plt.plot(zs, CamZs, label='Camelus n(z)')
     #gal_n = np.mean(Nzs_gal[:,0]).astype('float')
     #gal_n /= np.sum(gal_n)
-    #plt.errorbar(zs, gal_n, np.std(Nzs_gal[:,0]),
+    #plt.errorbar(zs, gal_n, np.std(gal_n),
     #             label='Camelus random population')
     plt.xlabel(r'$z$')
     plt.ylabel(r'$n(z)$')
