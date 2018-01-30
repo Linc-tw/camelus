@@ -831,7 +831,7 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
   halo_node *hNode;
   error *myerr = NULL, **err = &myerr;
   int i,j,k;
-  double n_gal_obs;
+
   srand(time(NULL));
   
   fprintf(file, "# Number of halos = %d\n", hMap->total);
@@ -856,9 +856,9 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
 
   halo_t *h;
 
-		cmhm->zmin=0.1 ;
-		cmhm->zmax=1.2 ;
-        double vol_z=vc(cmhm,0.1,1.2,err);
+		cmhm->zmin=0.01 ;
+		
+        double vol_z=vc(cmhm,cmhm->zmin,cmhm->zmax,err);
 		double deg2rad=3.14/180.;
 		double arc2dec=1./60.;
 		double ng= peak->n_gal/(arc2dec*deg2rad)/(arc2dec*deg2rad);

@@ -27,17 +27,26 @@ def nz(catHalo):
 	plt.close('all')
 	dat = ascii.read(catHalo)
 	z =dat['col4']
+	print("z : {0} {1} ".format(min(z),max(z)))
 	Ngal_c =dat['col6']
 	Ngal_s =dat['col7']
 	Ntot=Ngal_c*(1.0+Ngal_s)
-
+	dz=0.1
+	zmin=0.1
+	zz2=np.arange(zmin,max(z)+0.1,dz)
+	nz2=np.arange(zmin,max(z)+0.1,dz)*0
+	for j in range(len(z)):
+		ii=int(((z[j]-zmin)/dz)-0.5)
+		nz2[ii]=nz2[ii]+Ntot[j]		
 
 	plt.figure(1)
-
-	plt.hist(z,bins=10,density=True,color='b',alpha=0.5)
-	zz=np.linspace(0.1,1.2,1000)
+	nz2=nz2/(sum(nz2))
+	#plt.hist(z,bins=10,normed=True,color='b',alpha=0.5)
+	zz=np.linspace(0.01,1.2,len(zz2))
 	nn2=nnz(zz)
+	nn2=nn2/(sum(nn2))
 	plt.plot(zz,nn2,color='r')
+	plt.plot(zz2,nz2,color='b')
 	plt.show()
 	return	
 	
