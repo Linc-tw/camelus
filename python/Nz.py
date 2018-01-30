@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 def ComputeNzFromHalo(filename, dz):
     halcat = np.loadtxt(filename)
     zs = halcat[:,3]
-    Ngals = halcat[:,7]
+    Ngals = halcat[:,5] * (1+halcat[:,6])
     bin_edges = np.arange(0,np.max(zs)+dz,dz)
     counts = []
     for lf, rf in zip(bin_edges, bin_edges[1:]):
@@ -67,7 +67,7 @@ def main():
     plt.xlabel(r'$z$')
     plt.ylabel(r'$n(z)$')
     plt.legend()
-    plt.show()
+    #plt.show()
     plt.savefig(cats_dir+'Nz_plot.png')
     
     
