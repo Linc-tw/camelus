@@ -59,6 +59,7 @@ typedef struct {
   double pos[2];
   double z;
   int halo_id;
+  double g[2];
 } galaxy;
 
 typedef struct galaxy_node {
@@ -122,8 +123,8 @@ void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param
 void set_galaxy(double pos[2], double z, int halo_id, galaxy *gal, error **err);
 galaxy_node *initialize_galaxy_node(error **err);
 galaxy_list *initialize_galaxy_list(error **err);
-void free_galaxy_list(galaxy_list *hList);
-void reset_galaxy_list(galaxy_list *hList);
+void free_galaxy_list(galaxy_list *gList);
+void reset_galaxy_list(galaxy_list *gList);
 void append_galaxy_list(double pos[2], double z, int halo_id, galaxy_list *gList, error **err);
 
 void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);

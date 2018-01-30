@@ -722,11 +722,12 @@ void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo
   outputCosmoParam(file, cmhm, peak);
   fprintf(file, "#\n");
 
-  fprintf(file2, "# Galaxies list, fast simulation\n");
-  fprintf(file2, "# Model = %s, field = %s, Omega = (%g, %g) [arcmin]\n", smassfct_t(cmhm->massfct), STR_FIELD_T(peak->field), peak->Omega[0], peak->Omega[1]);
+  fprintf(file2, "# Galaxy catalogue\n");
+  fprintf(file2,  "# Field = %s, Omega = (%g, %g) [arcmin]\n", STR_FIELD_T(peak->field), peak->Omega[0], peak->Omega[1]);
+  fprintf(file2, "# n_gal = %g [arcmin^-2], z_s = %g\n", peak->n_gal, peak->z_s);
   fprintf(file2, "#\n");
   outputCosmoParam(file2, cmhm, peak);
-  fprintf(file, "#\n");
+  fprintf(file2, "#\n");
 
   //printf("test3 \n");
   output_halo_map_galaxies(file,file2,cmhm, peak, hMap, gList);
@@ -760,8 +761,7 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
     fprintf(file, "#  theta_x   theta_y      w          z          M         Ngal_c    Ngal_s      Rv \n");
     fprintf(file,"# [arcmin]  [arcmin]    [Mpc/h]    [-]     [M_sol/h]       [-]       [-]     [arcmin]  \n");
   }
-
-  fprintf(file2, "# Number of halos = %d\n", hMap->total);
+  fprintf(file2, "#\n");
   fprintf(file2, "#\n");
   
  
