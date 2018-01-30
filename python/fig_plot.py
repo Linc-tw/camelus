@@ -23,6 +23,18 @@ plt.rc('text',usetex=True)
 plt.rc('font', family='serif', size=12, serif='cz00')
 
 
+def nz(cat):
+	dat = ascii.read(cat)
+	x =dat['col1']
+	y =dat['col2']
+	z =dat['col3']
+	ii =dat['col4']
+	plt.figure(1)
+	plt.hist(z,bins=100)
+	plt.show()
+	return	
+	
+
 ##############
 def mass_function_halo(z):
 		fich='../build/massFct_z{0:.3f}'.format(z)

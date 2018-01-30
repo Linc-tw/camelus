@@ -105,6 +105,7 @@ typedef struct {
   int doRandGalPos;                    //-- 0 = regular, 1 = random
                                        //-- If z_s < 0, doRandGalPos is automatically set to 1 
   double n_gal;                        //-- [arcmin^-2] Galaxy number density
+  double n_gal_obs;                        //-- [arcmin^-2] Galaxy number density
   double sigma_eps;                    //-- [-] Ellipticity dispersion, sigma_eps^2 = <epsilon_1^2> + <epsilon_2^2> = 2 sigma_kappa^2
   int doKappa;                         //-- 0 = gamma, 1 = kappa, 2 = g, 3 = g with linear KS
   int doMask;                          //-- 0 = without, 1 = CFHTLenS W1
