@@ -31,10 +31,12 @@ def nz(catHalo):
 	Ngal_c =dat['col6']
 	Ngal_s =dat['col7']
 	Ntot=Ngal_c*(1.0+Ngal_s)
-	dz=0.1
-	zmin=0.1
-	zz2=np.arange(zmin,max(z)+0.1,dz)
-	nz2=np.arange(zmin,max(z)+0.1,dz)*0
+	print("tot gal : {0} ".format(sum(Ntot)))
+
+	zmin=min(z)
+	zz2=np.linspace(zmin,max(z),100)
+	nz2=np.linspace(zmin,max(z),100)*0
+	dz=zz2[1]-zz2[0]
 	for j in range(len(z)):
 		ii=int(((z[j]-zmin)/dz)-0.5)
 		nz2[ii]=nz2[ii]+Ntot[j]		
@@ -42,7 +44,7 @@ def nz(catHalo):
 	plt.figure(1)
 	nz2=nz2/(sum(nz2))
 	#plt.hist(z,bins=10,normed=True,color='b',alpha=0.5)
-	zz=np.linspace(0.01,1.2,len(zz2))
+	zz=np.linspace(0.01,max(z)+0.1,len(zz2))
 	nn2=nnz(zz)
 	nn2=nn2/(sum(nn2))
 	plt.plot(zz,nn2,color='r')
