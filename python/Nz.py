@@ -45,14 +45,14 @@ def main():
     halcat_files = [catfile for catfile in os.listdir(cats_dir) 
                     if halcat_name == catfile[:stub_length]]
     stub_length = len(galcat_name)
-    #galcat_files = [catfile for catfile in os.listdir(cats_dir) 
-    #                if galcat_name == catfile[:stub_length]]
+    galcat_files = [catfile for catfile in os.listdir(cats_dir) 
+                    if galcat_name == catfile[:stub_length]]
     Nzs_hal = np.array([ComputeNzFromHalo(cats_dir+filename, dz) 
                     for filename in halcat_files])
-    #Nzs_gal = np.array([ComputeNz(cats_dir+filename, dz) 
-    #                for filename in galcat_files])
+    Nzs_gal = np.array([ComputeNz(cats_dir+filename, dz) 
+                    for filename in galcat_files])
     np.save(cats_dir+'Nzs_hal.npy', Nzs_hal)
-    #np.save(cats_dir+'Nzs_gal.npy', Nzs_gal)
+    np.save(cats_dir+'Nzs_gal.npy', Nzs_gal)
     zs = Nzs_hal[0,1][1:]-dz/2
     HOD_n = np.mean(Nzs_hal[:,0])
     HOD_n /= np.sum(HOD_n)
@@ -60,14 +60,14 @@ def main():
                  label='HOD population')
     CamZs = [CamelusNz(zee) for zee in zs]
     plt.plot(zs, CamZs, label='Camelus n(z)')
-    #gal_n = np.mean(Nzs_gal[:,0]).astype('float')
-    #gal_n /= np.sum(gal_n)
-    #plt.errorbar(zs, gal_n, np.std(gal_n),
-    #             label='Camelus random population')
+    gal_n = np.mean(Nzs_gal[:,0]).astype('float')
+    gal_n /= np.sum(gal_n)
+    plt.errorbar(zs, gal_n, np.std(gal_n),
+                 label='Camelus random population')
     plt.xlabel(r'$z$')
     plt.ylabel(r'$n(z)$')
     plt.legend()
-    #plt.show()
+    plt.show()
     plt.savefig(cats_dir+'Nz_plot.png')
     
     
