@@ -23,17 +23,30 @@ plt.rc('text',usetex=True)
 plt.rc('font', family='serif', size=12, serif='cz00')
 
 
-def nz(cat):
-	dat = ascii.read(cat)
-	x =dat['col1']
-	y =dat['col2']
-	z =dat['col3']
-	ii =dat['col4']
+def nz(catHalo):
+	plt.close('all')
+	dat = ascii.read(catHalo)
+	z =dat['col4']
+	Ngal_c =dat['col6']
+	Ngal_s =dat['col7']
+	Ntot=Ngal_c*(1.0+Ngal_s)
+
+
 	plt.figure(1)
-	plt.hist(z,bins=100)
+
+	plt.hist(z,bins=10,density=True,color='b',alpha=0.5)
+	zz=np.linspace(0.1,1.2,1000)
+	nn2=nnz(zz)
+	plt.plot(zz,nn2,color='r')
 	plt.show()
 	return	
 	
+def nnz(z):
+	z0=0.5
+	alpha=2.
+	beta=1.
+	x=z/z0
+	return  x**alpha * np.exp(-x**beta)
 
 ##############
 def mass_function_halo(z):
