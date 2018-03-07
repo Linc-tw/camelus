@@ -49,8 +49,10 @@ def main():
                     if galcat_name == catfile[:stub_length]]
     Nzs_hal = np.array([ComputeNzFromHalo(cats_dir+filename, dz) 
                     for filename in halcat_files])
+    print 'Average number of generated galaxies (HOD):\t{}'.format(np.mean([np.sum(count) for count in Nzs_hal[:,0]]))
     Nzs_gal = np.array([ComputeNz(cats_dir+filename, dz) 
                     for filename in galcat_files])
+    print 'Average number of generated galaxies (galaxy catalog):\t{}'.format(np.mean([np.sum(count) for count in Nzs_gal[:,0]]))
     np.save(cats_dir+'Nzs_hal.npy', Nzs_hal)
     np.save(cats_dir+'Nzs_gal.npy', Nzs_gal)
     zs = Nzs_hal[0,1][1:]-dz/2
@@ -59,6 +61,7 @@ def main():
     plt.errorbar(zs, HOD_n, np.std(HOD_n),
                  label='HOD population')
     CamZs = [CamelusNz(zee) for zee in zs]
+    CamZs /= np.sum(CamZs)
     plt.plot(zs, CamZs, label='Camelus n(z)')
     gal_n = np.mean(Nzs_gal[:,0]).astype('float')
     gal_n /= np.sum(gal_n)
@@ -66,9 +69,9 @@ def main():
                  label='Camelus random population')
     plt.xlabel(r'$z$')
     plt.ylabel(r'$n(z)$')
-    plt.legend()
+    plt.legend(loc=5, bbox_to_anchor=(1.6,.5))
     #plt.show()
-    plt.savefig(cats_dir+'Nz_plot.png')
+    plt.savefig(cats_dir+'Nz_plot.png', bbox_inches='tight')
     
     
 if __name__ == "__main__":
