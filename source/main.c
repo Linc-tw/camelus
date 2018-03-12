@@ -174,8 +174,7 @@ int main(int argc, char *argv[])
 	quitOnError(*err, __LINE__, stderr);
   }
   else if (task == 171) {
-    if (argc != 6) {printInstructions(task, 1); return 1;}
-    int N = atoi(arg2);
+    if (argc != 5) {printInstructions(task, 1); return 1;}
     char *input_hal = arg3;
     char *input_gal = arg4;
 	char *opt = arg5;
@@ -282,7 +281,7 @@ void printInstructions(int task, int printHeader)
         case 161:
            printf("  ./camelus 161 N halocat galcat  end   # Reads N halo/galaxy catalogues and creates peak histogram // end name files \n");
         case 171:
-           printf("  ./camelus 171 halocat galcat_nolensed  end   # Reads N halo/galaxy catalogues and compute lensing quantities // end name files \n");
+           printf("  ./camelus 171  halocat galcat_nolensed  end   # Reads halo/galaxy catalogues and compute lensing quantities // end name files \n");
 	   break;
         case 900:
            printf("  ./camelus 900 N paramhm halocat galcat   # create catalog haloes with Ngal and galaxy catalog \n");
