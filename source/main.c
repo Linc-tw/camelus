@@ -175,9 +175,9 @@ int main(int argc, char *argv[])
   }
   else if (task == 171) {
     if (argc != 5) {printInstructions(task, 1); return 1;}
-    char *input_hal = arg3;
-    char *input_gal = arg4;
-	char *opt = arg5;
+    char *input_hal = arg2;
+    char *input_gal = arg3;
+	char *opt = arg4;
  	doPeakList_withInputs_hod(input_hal,input_gal,opt, cmhm, peak, err); 
 	quitOnError(*err, __LINE__, stderr);
   }

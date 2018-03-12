@@ -949,8 +949,10 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[]
   	printf(" Input file for galaxies : \"%s\" \n", fileNameGal);
     read_halo_map(fileNameHal, cmhm, hMap, err); 
 	forwardError(*err, __LINE__,);
-    read_gal_map2(fileNameGal, cmhm,peak, gMap, err); 
+	printf("halo read \n");
+    read_gal_map2(fileNameGal, cmhm,peak, gMap, err);
     forwardError(*err, __LINE__,);
+    printf("gal read \n");
   }
 
 

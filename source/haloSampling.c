@@ -179,12 +179,15 @@ void read_halo_map(char name[], cosmo_hm *cmhm, halo_map *hMap, error **err)
     if (c == (int)'#') buffer1 = fgets(buffer, STRING_LENGTH_MAX, file);
     else {
       ungetc(c, file);
+      printf("begin fscanf \n");
       buffer2 = fscanf(file, "%lf %lf %*f %lf %lf\n", &pos[0], &pos[1], &z, &M);
-      
+      printf("%lf %lf %lf %lf\n", &pos[0], &pos[1], &z, &M);
       append_halo_map(cmhm, hMap, z, M, pos, err); forwardError(*err, __LINE__,);
+      printf("append\n");
       count++;
     }
     c = fgetc(file);
+    printf("fgetc\n");
   }
 
   printf("Done\n");
