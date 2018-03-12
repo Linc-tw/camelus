@@ -15,10 +15,11 @@
 #include <nicaea/hod.h>
 #include <nicaea/halomodel.h>
 
+
 typedef struct {
   double pos[2];       //-- [arcmin/deg] Angular position, (theta_x, theta_y) in arcmin or (RA, DEC) in deg
   double z;            //-- [-] Halo redshift
-  double a;            //-- [-] 1 / z
+  double a;            //-- [-] 1 / (1+z)
   double w;            //-- [Mpc/h] Comoving radial distance to halo
   double M;            //-- [M_sol/h] Halo mass
   double c;            //-- [-] Halo concentration
@@ -55,24 +56,6 @@ typedef struct {
   halo_list **map;  //-- Binned halos
 } halo_map;
 
-typedef struct {
-  double pos[2];
-  double z;
-  int halo_id;
-  double g[2];
-} galaxy;
-
-typedef struct galaxy_node {
-  galaxy *gal;
-  struct galaxy_node *next;
-} galaxy_node;
-
-typedef struct {
-  int length;       //-- Number of nodes allocated
-  int size;         //-- Number of nodes containing information
-  galaxy_node *first; //-- Begin of the list
-  galaxy_node *last;  //-- End of the list
-} galaxy_list;
 
 
 //-- Functions related to halo_t, halo_node, halo_list
@@ -120,18 +103,9 @@ void doMassSheet(cosmo_hm *cmhm, peak_param *peak, double z_halo_max, double M_m
 void outputFastSimul_HOD(char name_cmhm[],char name[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
 void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
 
-void set_galaxy(double pos[2], double z, int halo_id, galaxy *gal, error **err);
-galaxy_node *initialize_galaxy_node(error **err);
-galaxy_list *initialize_galaxy_list(error **err);
-void free_galaxy_list(galaxy_list *gList);
-void reset_galaxy_list(galaxy_list *gList);
-void append_galaxy_list(double pos[2], double z, int halo_id, galaxy_list *gList, error **err);
-
-void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
-void output_halo_map_galaxies(FILE *file, FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, galaxy_list *gList);
 
 
-double NFW(double x);
+
 
 #endif
 
