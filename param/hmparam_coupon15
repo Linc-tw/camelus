@@ -19,7 +19,7 @@ alpha_NFW	1.0		# NFW
 # Concentration parameter:
 # c(z) = [c0 / (1 + z)] * (M / M_star)^(-beta_NFW)
 c0		11
-beta_NFW	0.13
+beta_NFW 	0.13
 
 # Mass function
 #  ps 			Press-Schechter, p=0, q=1
@@ -62,7 +62,6 @@ log10M0		11.54  			 # Minimum halo mass for satellite galaxies [Msol/h]
 # If set to -1: M0 will be = M_min (Brown et al. 2008) during sampling
 sigma_log_M	    0.50	         # Central galaxy dispersion (Brown et al. 2008)
 alpha           1.07	         # Satellite power-law slope
-eta		        0.5	         # Fraction of halos with central galaxy of given type, 0 <= eta <= 1
 
 
 

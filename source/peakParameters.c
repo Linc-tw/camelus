@@ -117,7 +117,7 @@ void read_cosmo_hm(char name[], cosmo_hm **cmhm, error **err)
 
     case coupon15 :
          /* sample properties */
-      CONFIG_READ(tmp, log10M_min, d, file, c, err);     forwardError(*err, __LINE__,);
+      CONFIG_READ(tmp, log10M_min, d, file, c, err);  forwardError(*err, __LINE__,);
       CONFIG_READ(tmp, log10M1, d, file, c, err);     forwardError(*err, __LINE__,);
       CONFIG_READ(tmp, log10M0, d, file, c, err);     forwardError(*err, __LINE__,);
       CONFIG_READ(tmp, sigma_log_M, d, file, c, err); forwardError(*err, __LINE__,);
@@ -134,8 +134,23 @@ void read_cosmo_hm(char name[], cosmo_hm **cmhm, error **err)
   *cmhm = copy_parameters_hm_only(tmp, err); forwardError(*err, __LINE__,);
   return;
 }
+
 #undef NZBIN
 #undef NNZ
+
+cosmo_hm *updateCmhm_coupon(cosmo_hm *oldCmhm,double zz)
+{
+	if(zz<0.4){
+		}
+	else if(zz<0.6){
+		}
+	else if(zz<0.8){
+		}
+	else if(zz<1){
+		}
+	else if(zz>1){
+		};
+}
 
 void outputCosmoParam(FILE *file, cosmo_hm *cmhm, peak_param *peak)
 {
