@@ -78,7 +78,6 @@ def CutOff(fullzs, randoms, dz):
     """apply cut off
     """
     bin_edges = np.arange(0,np.max(fullzs)+dz,dz)
-    galcat = np.loadtxt(galcat_dir+fullname)
     select_idx = []
     for lf, rf in zip(bin_edges, bin_edges[1:]):
         print '   > Working on z bin [{},{}]'.format('lf,rf')
