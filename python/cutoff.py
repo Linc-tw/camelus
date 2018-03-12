@@ -82,9 +82,11 @@ def CutOff(fullzs, randoms, dz):
     for lf, rf in zip(bin_edges, bin_edges[1:]):
         print '   > Working on z bin [{},{}]'.format(lf,rf)
         zidx = np.where((fullzs>lf) & (fullzs<=rf))[0]
-        nb_rand = len(np.where((fullzs>lf) & (fullzs<=rf))[0])
+        nb_rand = len(np.where((randoms>lf) & (randoms<=rf))[0])
+        print '     > Number of sources: {}'.format(nb_rand)
         this_selection = np.random.choice(zidx, nb_rand, False)
         select_idx += list(this_selection)
+    print '   > Total number of sources : {}'.format(len(select_idx))
     return select_idx
     
 def ConvertCats(galcat_dir, filename, randomname, dz, savestub, savestub_b):
@@ -114,12 +116,13 @@ def ConvertCats(galcat_dir, filename, randomname, dz, savestub, savestub_b):
     delta = ComputeDensity(galcat)
     # apply bias
     galcat_b = ApplyBias(galcat, delta, nmean)
-    print ' > Bias Applied.'
+    print ' > Bias applied.'
     # apply cutoff
     print ' > Applying cutoff to galaxy catalogs {}.'.format(filename)
     select_idx = CutOff(galcat[:,2], randoms[:,2], dz)
     cutoff = galcat[select_idx,:]
     cutoff_b = galcat_b[select_idx,:]
+    print ' > Cutoff performed.'.format(filename)
     # save cut off and biased galaxy catalog
     idnb = '_'
     for digit in [char for char in filename[-3:] if char.isdigit()]:
