@@ -1775,8 +1775,8 @@ void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo
 
 
 
-
-void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_list *gList)
+/// A revoir BEUG
+void output2_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_list *gList)
 {
   halo_list *hList;
   halo_node *hNode;
@@ -1800,8 +1800,8 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
   fprintf(file2, "#\n");
   
  
-  fprintf(file2, "#  theta_x   theta_y      z         \n  ");
-  fprintf(file2,"# [arcmin]  [arcmin]      [-]        \n");
+  fprintf(file2, "#  theta_x   theta_y      z      halo_id    \n  ");
+  fprintf(file2,"# [arcmin]  [arcmin]      [-]       [-]      \n");
   
   //printf("test5 \n");
 
@@ -1844,14 +1844,11 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
       
       if( (rand()/(double)RAND_MAX)<ngc) {
 	append_gal_list(cmhm, gList,h->z, h->w, Ds, h->pos, err); forwardError(*err, __LINE__,);
-	fprintf(file2, "%9.3f  %9.3f   %7.5f  \n", h->pos[0], h->pos[1], h->z);
+	fprintf(file2, "%9.3f  %9.3f   %7.5f  %i  \n", h->pos[0], h->pos[1], h->z, j);
       }
-      
   
-      //printf("ngs = %8.2f \n",ngs);
-      
-      for (k = 0;k<ngc*ngs+0.5;k++) {
-	//printf("k = %i  \n",k);
+    for (k = 0;k<ngc*ngs+0.5;k++) {
+
 	int bool = 1;
 	double r;
 	while(bool){
@@ -1867,12 +1864,86 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
         pos[0] = cos(theta) * sin(phi) * r + h->pos[0];
         pos[1] = sin(theta) * sin(phi) * r + h->pos[1];
 	append_gal_list(cmhm, gList, h->z, h->w, Ds,h->pos, err); forwardError(*err, __LINE__,);
-	fprintf(file2, "%9.3f  %9.3f   %7.5f   \n", pos[0], pos[1], h->z);
+	fprintf(file2, "%9.3f  %9.3f   %7.5f  %i  \n", pos[0], pos[1], h->z, j);
       }
       
       //printf("ok \n");
     }
   }
+  return;
+}
+
+
+
+void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_list *gList)
+{
+  halo_list *hList;
+  halo_node *hNode;
+  error *myerr = NULL, **err = &myerr;
+  int i,j,ii,k;
+  double Ds,Mh;
+  ii=0;
+  srand(time(NULL));
+  fprintf(file, "# Number of halos = %d\n", hMap->total);
+  fprintf(file, "#\n");
+
+  if (peak->field == aardvark_hPatch04 || peak->field == aardvark_gPatch086) { //-- For aardvark, positions are RA, DEC in [deg]
+    fprintf(file,"#  theta_x   theta_y      w          z          M         Ngal_c    Ngal_s      Rv   \n");
+    fprintf(file, "# [deg]  [deg]    [Mpc/h]     [-]     [M_sol/h]      [-]       [-]     [arcmin]    \n");
+  }
+  else {
+    fprintf(file, "#  theta_x   theta_y      w          z          M         Ngal_c    Ngal_s      Rv \n");
+    fprintf(file,"# [arcmin]  [arcmin]    [Mpc/h]    [-]     [M_sol/h]       [-]       [-]     [arcmin]  \n");
+  }
+  fprintf(file2, "#\n");
+  fprintf(file2, "#\n");
+  
+  fprintf(file2, "#  theta_x   theta_y      z      halo_id    \n  ");
+  fprintf(file2,"# [arcmin]  [arcmin]      [-]       [-]      \n");
+
+  halo_t *h;
+
+  //printf("l = %i  \n",hMap->length);
+  for (i=0; i<hMap->length; i++) {
+    hList = hMap->map[i];
+    for (j=0, hNode=hList->first; j<hList->size; j++, hNode=hNode->next) {
+      h=hNode->h;
+ 	  Mh=h->M;
+        double ngc = Ngal_c(cmhm,h->M, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
+        forwardError(*err, __LINE__,);
+        double ngs = Ngal_s(cmhm,h->M, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
+        forwardError(*err, __LINE__,);
+        ii=ii+ngc*(1.0+ngs);
+      fprintf(file, "%9.3f  %9.3f    %8.3f  %7.5f  %9.3e   %8.3f  %8.3f   %9.3f  \n", h->pos[0], h->pos[1], h->w, h->z, Mh,ngc,ngs,h->r_vir);
+
+       Ds  = h->a * f_K(cmhm->cosmo, h->w, err);
+      if( (rand()/(double)RAND_MAX)<ngc) {
+	append_gal_list(cmhm, gList,h->z, h->w, Ds, h->pos, err); forwardError(*err, __LINE__,);
+	fprintf(file2, "%9.3f  %9.3f   %7.5f  %i  \n", h->pos[0], h->pos[1], h->z, j);
+      }
+     
+      for (k = 0;k<ngc*ngs+0.5;k++) {
+	//printf("k = %i  \n",k);
+	int bool = 1;
+	double r;
+	while(bool){
+	  double rtest = (rand()/(double)RAND_MAX);
+	  if( NFW(5*rtest) > (rand()/(double)RAND_MAX)) {
+	    bool = 0;
+	    r = rtest*h->r_vir;
+	  }
+	}
+	double theta = 2*M_PI*(rand()/(double)RAND_MAX);
+	double phi = acos(2*(rand()/(double)RAND_MAX)-1);
+	double pos[2];
+    pos[0] = cos(theta) * sin(phi) * r + h->pos[0];
+    pos[1] = sin(theta) * sin(phi) * r + h->pos[1];
+	append_gal_list(cmhm, gList, h->z, h->w, Ds,h->pos, err); forwardError(*err, __LINE__,);
+	fprintf(file2, "%9.3f  %9.3f   %7.5f  %i  \n", pos[0], pos[1], h->z, j);
+      }
+    }
+  }
+  printf("Nb galaxies created : %i \n",ii);
   return;
 }
 
