@@ -80,7 +80,7 @@ def CutOff(fullzs, randoms, dz):
     bin_edges = np.arange(0,np.max(fullzs)+dz,dz)
     select_idx = []
     for lf, rf in zip(bin_edges, bin_edges[1:]):
-        print '   > Working on z bin [{},{}]'.format('lf,rf')
+        print '   > Working on z bin [{},{}]'.format(lf,rf)
         zidx = np.where((fullzs>lf) & (fullzs<=rf))[0]
         nb_rand = len(np.where((fullzs>lf) & (fullzs<=rf))[0])
         this_selection = np.random.choice(zidx, nb_rand, False)
