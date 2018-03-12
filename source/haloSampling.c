@@ -613,10 +613,13 @@ void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param
   halo_list *hList;
   halo_node *hNode;
   halo_t *h;
-  int i, j,ngtot_cat;
+  int i,ii, j,ngtot_cat;
   ngtot_cat=0;
+  ii=0;
   for (i=0; i<hMap->length; i++) {
     hList = hMap->map[i];
+
+	
     for (j=0, hNode=hList->first; j<hList->size; j++, hNode=hNode->next) {
 
       h = hNode->h;
@@ -624,16 +627,65 @@ void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param
 	  zz = h->z ;
   	// read_cosmo_hm(name_cmhm, &cmhm, err);   
   	 // forwardError(*err, __LINE__,);
+	  //if(zz<0.4) {name_cmhm=name2_cmhm;};
+	  //if((zz>0.4)&&(zz<0.6)) {name_cmhm=name3_cmhm;};
+	  //if((zz>0.6)&&(zz<0.8)) {name_cmhm=name4_cmhm;};
+	  //if((zz>0.8)) {name_cmhm=name5_cmhm;};
+	 // read_cosmo_hm(name_cmhm, &cmhm, err); 
+     // quitOnError(*err, __LINE__, stderr);
+
+
+
+	if(zz<0.4){
+		cmhm->log10M_min=13.17;
+		cmhm->log10M1=14.53;
+		cmhm->log10M0=11.09;
+		cmhm->sigma_log_M=0.39;
+		cmhm->alpha=1.27;
+		}
+	else if(zz<0.6){
+		cmhm->log10M_min=13.18;
+		cmhm->log10M1=14.47;
+		cmhm->log10M0=10.93;
+		cmhm->sigma_log_M=0.3;
+		cmhm->alpha=1.36;
+		}
+	else if(zz<0.8){
+		cmhm->log10M_min=12.96;
+		cmhm->log10M1=14.1;
+		cmhm->log10M0=12.47;
+		cmhm->sigma_log_M=0.38;
+		cmhm->alpha=1.28;
+		}
+	else if(zz<1){
+		cmhm->log10M_min=12.8;
+		cmhm->log10M1=13.94;
+		cmhm->log10M0=12.15;
+		cmhm->sigma_log_M=0.33;
+		cmhm->alpha=1.52;
+		}
+	else if(zz>1){
+		cmhm->log10M_min=12.62;
+		cmhm->log10M1=13.79;
+		cmhm->log10M0=8.67;
+		cmhm->sigma_log_M=0.3;
+		cmhm->alpha=1.5;
+		};
 
 	  ngc = Ngal_c(cmhm, Mh, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
   	  forwardError(*err, __LINE__,);
 	  ngs = Ngal_s(cmhm, Mh, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
   	  forwardError(*err, __LINE__,);
 	  ng=ngc*(1+ngs);
+	  ii=ii+1;
+		//printf("ok ii %d %f %f \n",ii,zz,ng);
+		//return ;
+
 	  ngtot_cat=ng+ngtot_cat;
 	  fprintf(file, "%9.3f  %9.3f    %8.3f  %7.5f  %9.3e   %8.3f  %8.3f   %9.3f  \n", h->pos[0], h->pos[1], h->w, h->z, h->M,ngc,ngs,h->r_vir);
     }
   }
+  printf("OK \n");
   printf("Nb galaxies created : %i \n",ngtot_cat);
   return;
 }
