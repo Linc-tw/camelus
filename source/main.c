@@ -273,7 +273,7 @@ void printInstructions(int task, int printHeader)
            break;
         case 15:
            printf("  ./camelus 15 halocat galcat          # Creates halo and galaxy catalogues\n");
-           break;
+           
         case 151:
            printf("  ./camelus 151 N halocat galcat        # Creates N halo and galaxy catalogues\n");
            break;
@@ -282,7 +282,7 @@ void printInstructions(int task, int printHeader)
         case 161:
            printf("  ./camelus 161 N halocat galcat  end   # Reads N halo/galaxy catalogues and creates peak histogram // end name files \n");
         case 171:
-           printf("  ./camelus 161 halocat galcat_nolensed  end   # Reads N halo/galaxy catalogues and compute lensing quantities // end name files \n");
+           printf("  ./camelus 171 halocat galcat_nolensed  end   # Reads N halo/galaxy catalogues and compute lensing quantities // end name files \n");
 	   break;
         case 900:
            printf("  ./camelus 900 N paramhm halocat galcat   # create catalog haloes with Ngal and galaxy catalog \n");
