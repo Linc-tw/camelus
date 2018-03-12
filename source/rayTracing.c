@@ -1898,8 +1898,8 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
   fprintf(file2, "#\n");
   fprintf(file2, "#\n");
   
-  fprintf(file2, "#  theta_x   theta_y      z      halo_id    \n  ");
-  fprintf(file2,"# [arcmin]  [arcmin]      [-]       [-]      \n");
+  fprintf(file2, "#  theta_x   theta_y      z        \n  ");
+  fprintf(file2,"# [arcmin]  [arcmin]      [-]       \n");
 
   halo_t *h;
 
@@ -1919,7 +1919,7 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
        Ds  = h->a * f_K(cmhm->cosmo, h->w, err);
       if( (rand()/(double)RAND_MAX)<ngc) {
 	append_gal_list(cmhm, gList,h->z, h->w, Ds, h->pos, err); forwardError(*err, __LINE__,);
-	fprintf(file2, "%9.3f  %9.3f   %7.5f  %i  \n", h->pos[0], h->pos[1], h->z, j);
+	fprintf(file2, "%9.3f  %9.3f   %7.5f   \n", h->pos[0], h->pos[1], h->z);
       }
      
       for (k = 0;k<ngc*ngs+0.5;k++) {
@@ -1939,7 +1939,7 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
     pos[0] = cos(theta) * sin(phi) * r + h->pos[0];
     pos[1] = sin(theta) * sin(phi) * r + h->pos[1];
 	append_gal_list(cmhm, gList, h->z, h->w, Ds,h->pos, err); forwardError(*err, __LINE__,);
-	fprintf(file2, "%9.3f  %9.3f   %7.5f  %i  \n", pos[0], pos[1], h->z, j);
+	fprintf(file2, "%9.3f  %9.3f   %7.5f   \n", pos[0], pos[1], h->z);
       }
     }
   }
