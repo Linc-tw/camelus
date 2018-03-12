@@ -77,7 +77,6 @@ def read_n_mean(galcat_path) :
 def CutOff(fullzs, randoms, dz):
     """apply cut off
     """
-    print ' > Applying cutoff to galaxy catalogs {}.'.format(filename)
     bin_edges = np.arange(0,np.max(fullzs)+dz,dz)
     galcat = np.loadtxt(galcat_dir+fullname)
     select_idx = []
@@ -118,6 +117,7 @@ def ConvertCats(galcat_dir, filename, randomname, dz, savestub, savestub_b):
     galcat_b = ApplyBias(galcat, delta, nmean)
     print ' > Bias Applied.'
     # apply cutoff
+    print ' > Applying cutoff to galaxy catalogs {}.'.format(filename)
     select_idx = CutOff(galcat[:,2], randoms[:,2], dz)
     cutoff = galcat[select_idx,:]
     cutoff_b = galcat_b[select_idx,:]
