@@ -77,12 +77,12 @@ def read_n_mean(galcat_path) :
 def CutOff(fullzs, randoms, dz):
     """apply cut off
     """
-    print 'Applying cutoff to galaxy catalog {}.'.format(filename)
+    print ' > Applying cutoff to galaxy catalogs {}.'.format(filename)
     bin_edges = np.arange(0,np.max(fullzs)+dz,dz)
     galcat = np.loadtxt(galcat_dir+fullname)
     select_idx = []
     for lf, rf in zip(bin_edges, bin_edges[1:]):
-        print ' > Working on z bin [{},{}]'.format('lf,rf')
+        print '   > Working on z bin [{},{}]'.format('lf,rf')
         zidx = np.where((fullzs>lf) & (fullzs<=rf))[0]
         nb_rand = len(np.where((fullzs>lf) & (fullzs<=rf))[0])
         this_selection = np.random.choice(zidx, nb_rand, False)
@@ -107,15 +107,16 @@ def ConvertCats(galcat_dir, filename, randomname, dz, savestub, savestub_b):
             applicable.
                 
     """
-    print 'Applying bias to galaxy catalog {}.'.format(filename)
+    print ' > Applying bias to galaxy catalog {}.'.format(filename)
     galcat = np.loadtxt(galcat_dir+filename)
-    randoms = np.loadtxt(galcat_dir+randomname, usecols=(2,))
+    randoms = np.loadtxt(galcat_dir+randomname)
     # read average density
     nmean = read_n_mean(galcat_dir+filename)
     # compute local densities from galaxy catalogs
     delta = ComputeDensity(galcat)
     # apply bias
     galcat_b = ApplyBias(galcat, delta, nmean)
+    print ' > Bias Applied.'
     # apply cutoff
     select_idx = CutOff(galcat[:,2], randoms[:,2], dz)
     cutoff = galcat[select_idx,:]
@@ -130,7 +131,7 @@ def ConvertCats(galcat_dir, filename, randomname, dz, savestub, savestub_b):
 def main():
     """Apply bias to Camelus-generated galaxy catalogs. Syntax:
     
-    > python ApplyBias path/to/catalogfolders/ galcat randomcat dz output_cutoff output_cutoff_b
+    > python cutoff.py path/to/catalogfolders/ galcat randomcat dz output_cutoff output_cutoff_b
     
     """
     galcat_dir, galcat_name, randomcat_name = sys.argv[1], sys.argv[2], sys.argv[3]
