@@ -19,7 +19,7 @@ alpha_NFW	1.0		# NFW
 # Concentration parameter:
 # c(z) = [c0 / (1 + z)] * (M / M_star)^(-beta_NFW)
 c0		11
-beta_NFW	0.13
+beta_NFW 	0.13
 
 # Mass function
 #  ps 			Press-Schechter, p=0, q=1

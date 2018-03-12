@@ -613,7 +613,8 @@ void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param
   halo_list *hList;
   halo_node *hNode;
   halo_t *h;
-  int i, j;
+  int i, j,ngtot_cat;
+  ngtot_cat=0;
   for (i=0; i<hMap->length; i++) {
     hList = hMap->map[i];
     for (j=0, hNode=hList->first; j<hList->size; j++, hNode=hNode->next) {
@@ -629,11 +630,11 @@ void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param
 	  ngs = Ngal_s(cmhm, Mh, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
   	  forwardError(*err, __LINE__,);
 	  ng=ngc*(1+ngs);
-
+	  ngtot_cat=ng+ngtot_cat;
 	  fprintf(file, "%9.3f  %9.3f    %8.3f  %7.5f  %9.3e   %8.3f  %8.3f   %9.3f  \n", h->pos[0], h->pos[1], h->w, h->z, h->M,ngc,ngs,h->r_vir);
     }
   }
-
+  printf("Nb galaxies created : %i \n",ngtot_cat);
   return;
 }
 

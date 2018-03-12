@@ -44,7 +44,7 @@ pi_max 			60.0
 #  hamana04		Simple power-law, Hamana et al. (2004). Not recommended!
 #  berwein02		Satellite model, no halo exclusion. For testing only!
 #  berwein02_hexcl	Satellite model with halo exlusion
-shod		berwein02	
+shod		hamana04
 
 # Minimum and maximum stellar masses. Used for shod=leauthaud11.
 # For other models, only used for galaxy-galaxy lensing,

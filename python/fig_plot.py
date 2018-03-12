@@ -22,6 +22,41 @@ from matplotlib.mlab import griddata
 plt.rc('text',usetex=True)
 plt.rc('font', family='serif', size=12, serif='cz00')
 
+def nz_multi(catHalo,nhalo):
+	plt.close('all')
+	plt.figure(1)
+	nnz2=10
+	zmin=0.0001 #min(z)
+	zmax=2.
+	zz2=np.linspace(zmin,zmax,nnz2)
+	nz2=np.linspace(zmin,zmax,nnz2)*0
+	dz=zz2[1]-zz2[0]
+
+	for iii in range(nhalo):
+		print('test {0}'.format(iii))
+		catHalo2="{0}{1:02d}".format(catHalo,iii+1)
+		dat = ascii.read(catHalo2)
+		z =dat['col4']
+		print("z : {0} {1} ".format(min(z),max(z)))
+		Ngal_c =dat['col6']
+		Ngal_s =dat['col7']
+		Ntot=Ngal_c*(1.0+Ngal_s) #=ngc*(1+ngs)
+		print("tot gal : {0} ".format(sum(Ntot)))
+		for j in range(len(z)):
+			ii=int(((z[j]-zmin)/dz)-0.5)
+			nz2[ii]=nz2[ii]+Ntot[j]		
+		nz2=nz2/(sum(nz2))
+		plt.plot(zz2,nz2,'+')
+		plt.plot(zz2,nz2,color='b')
+
+	#plt.hist(z,bins=10,normed=True,color='b',alpha=0.5)
+	zz=np.linspace(0.01,2+0.1,100)
+	nn2=nnz(zz)
+	nn2=nn2/(sum(nn2))
+	print("tot gal : {0} ".format(sum(nn2)))
+	plt.plot(zz,nn2,color='r')
+	plt.show()
+	return
 
 def nz(catHalo):
 	plt.close('all')
@@ -30,12 +65,12 @@ def nz(catHalo):
 	print("z : {0} {1} ".format(min(z),max(z)))
 	Ngal_c =dat['col6']
 	Ngal_s =dat['col7']
-	Ntot=Ngal_c*(1.0+Ngal_s)
+	Ntot=Ngal_c*(1.0+Ngal_s) #=ngc*(1+ngs)
 	print("tot gal : {0} ".format(sum(Ntot)))
-
+	nnz2=10
 	zmin=min(z)
-	zz2=np.linspace(zmin,max(z),100)
-	nz2=np.linspace(zmin,max(z),100)*0
+	zz2=np.linspace(zmin,max(z),nnz2)
+	nz2=np.linspace(zmin,max(z),nnz2)*0
 	dz=zz2[1]-zz2[0]
 	for j in range(len(z)):
 		ii=int(((z[j]-zmin)/dz)-0.5)
@@ -48,6 +83,7 @@ def nz(catHalo):
 	nn2=nnz(zz)
 	nn2=nn2/(sum(nn2))
 	plt.plot(zz,nn2,color='r')
+	plt.plot(zz2,nz2,'+')
 	plt.plot(zz2,nz2,color='b')
 	plt.show()
 	return	
