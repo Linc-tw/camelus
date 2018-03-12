@@ -862,7 +862,7 @@ void doPeakList_withInputs_N(int N,char fileName[], char fileName2[],char end[],
 	  else                         kappaToSNR_FFT(peak, gMap, FFTSmoother->array[0], kMap, variance->array[0]);
 
 	  selectPeaks(peak, kMap, peakList, err);   forwardError(*err, __LINE__,);
-	   outputPeakList(PeakListfich2, peak, peakList);
+	  outputPeakList(PeakListfich2, peak, peakList);
 
 	  // computePeaks2("peakListPos",peak,kMap,peakList,err);
 

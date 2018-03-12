@@ -594,7 +594,7 @@ void outputFastSimul_HOD(char name_cmhm[],char name[], cosmo_hm *cmhm, peak_para
 
 void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap)
 {
-  double ng,ngc,ngs,Mh,zz ;
+  double ng,ngc,ngs,Mh,zz,ngal_all ;
   error *myerr = NULL, **err = &myerr;
 
 
@@ -634,43 +634,43 @@ void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param
 	 // read_cosmo_hm(name_cmhm, &cmhm, err); 
      // quitOnError(*err, __LINE__, stderr);
 
+	ngal_all=12.*180.*180. ;
 
-
-	if(zz<0.4){
+//	if(zz<0.4){
 		cmhm->log10M_min=13.17;
 		cmhm->log10M1=14.53;
 		cmhm->log10M0=11.09;
 		cmhm->sigma_log_M=0.39;
 		cmhm->alpha=1.27;
-		}
-	else if(zz<0.6){
-		cmhm->log10M_min=13.18;
-		cmhm->log10M1=14.47;
-		cmhm->log10M0=10.93;
-		cmhm->sigma_log_M=0.3;
-		cmhm->alpha=1.36;
-		}
-	else if(zz<0.8){
-		cmhm->log10M_min=12.96;
-		cmhm->log10M1=14.1;
-		cmhm->log10M0=12.47;
-		cmhm->sigma_log_M=0.38;
-		cmhm->alpha=1.28;
-		}
-	else if(zz<1){
-		cmhm->log10M_min=12.8;
-		cmhm->log10M1=13.94;
-		cmhm->log10M0=12.15;
-		cmhm->sigma_log_M=0.33;
-		cmhm->alpha=1.52;
-		}
-	else if(zz>1){
-		cmhm->log10M_min=12.62;
-		cmhm->log10M1=13.79;
-		cmhm->log10M0=8.67;
-		cmhm->sigma_log_M=0.3;
-		cmhm->alpha=1.5;
-		};
+//		}
+//	else if(zz<0.6){
+//		cmhm->log10M_min=13.18;
+	//	cmhm->log10M1=14.47;
+	//	cmhm->log10M0=10.93;
+	//	cmhm->sigma_log_M=0.3;
+	//	cmhm->alpha=1.36;
+	//	}
+	//else if(zz<0.8){
+	//	cmhm->log10M_min=12.96;
+	//	cmhm->log10M1=14.1;
+	//	cmhm->log10M0=12.47;
+	//	cmhm->sigma_log_M=0.38;
+	//	cmhm->alpha=1.28;
+	//	}
+	//else if(zz<1){
+	//	cmhm->log10M_min=12.8;
+	//	cmhm->log10M1=13.94;
+	//	cmhm->log10M0=12.15;
+	//	cmhm->sigma_log_M=0.33;
+	//	cmhm->alpha=1.52;
+	//	}
+	//else if(zz>1){
+	//	cmhm->log10M_min=12.62;
+	//	cmhm->log10M1=13.79;
+	//	cmhm->log10M0=8.67;
+	//	cmhm->sigma_log_M=0.3;
+	//	cmhm->alpha=1.5;
+	//	};
 
 	  ngc = Ngal_c(cmhm, Mh, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
   	  forwardError(*err, __LINE__,);

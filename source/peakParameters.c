@@ -138,19 +138,6 @@ void read_cosmo_hm(char name[], cosmo_hm **cmhm, error **err)
 #undef NZBIN
 #undef NNZ
 
-cosmo_hm *updateCmhm_coupon(cosmo_hm *oldCmhm,double zz)
-{
-	if(zz<0.4){
-		}
-	else if(zz<0.6){
-		}
-	else if(zz<0.8){
-		}
-	else if(zz<1){
-		}
-	else if(zz>1){
-		};
-}
 
 void outputCosmoParam(FILE *file, cosmo_hm *cmhm, peak_param *peak)
 {
