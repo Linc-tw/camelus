@@ -71,7 +71,7 @@ Updates
 Current release: Camelus v2.0
 
 ##### New features in v2.0 - Mar 14, 2018
-- Updated consistency with Nicaea v2.7
+- Updated consistency with Nicaea to v2.7
 - Flexible compilation: missing optional packages will not stop the compilation
 - Renamed peakParameters.c/.h into parameters.c/.h
 - Renamed constraint.c/.h into multiscale.c/.h
