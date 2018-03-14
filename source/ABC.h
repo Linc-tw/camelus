@@ -1,31 +1,35 @@
 
 
-  /*******************************
-   **  ABC.h			**
-   **  Chieh-An Lin		**
-   **  Version 2016.03.20	**
-   *******************************/
+  /*******************************************************
+   **  ABC.h						**
+   **  Version 2018.03.06				**
+   **							**
+   **  Copyright (C) 2018 - Chieh-An Lin		**
+   **  GNU GPLv3 - https://www.gnu.org/licenses/	**
+   *******************************************************/
 
 
-#ifndef __ABC__
-#define __ABC__
+#include "commonHeader.h"
+
+#ifndef __CAMELUS_ABC__
+#define __CAMELUS_ABC__
 
 #include <gsl/gsl_sort.h>
 #include <gsl/gsl_statistics_double.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
 
-#include "commonHeader.h"
-#include "peakParameters.h"
+#ifdef __CAMELUS_USE_MPI__
+#include <mpi/mpi.h>
+#endif
+
+#include "parameters.h"
 #include "haloSampling.h"
+#include "galaxySampling.h"
 #include "rayTracing.h"
 #include "smoothing.h"
 #include "peakSelection.h"
-#include "constraint.h"
-
-#ifndef __releaseMenu__
-#include <mpi.h>
-#endif
+#include "multiscale.h"
 
 
 #define ABC_TOLERANCE_MAX 1e+15
@@ -90,8 +94,7 @@ typedef struct {
   param_t *doParam;      //-- Parameters to include into constraints
                          //-- 0 = Omega_m, 1 = Omega_de, 2 = Omega_b, 3 = n_s, 4 = h_100,
                          //-- 5 = sigma_8, 6 = w0_de,    7 = w1_de,   8 = c_0, 9 = beta_NFW
-  int Q;                 //-- Number of particles
-  int Q_MPI;             //-- Number of particles per processor to compute when using MPI
+  int nbParticles;       //-- Number of particles contained in this structure
   int nbAttempts;        //-- Number of attempts
   double epsilon;        //-- Tolerance level for this iteration, median of differences for the last iteration
   gsl_vector *mean;      //-- Mean of parameters
@@ -105,13 +108,13 @@ typedef struct {
                          //--   pi^0_0,   pi^0_1,   ... , pi^0_f-1,   delta^0,   weight^0,
                          //--   pi^1_0,   pi^1_1,   ... , pi^1_f-1,   delta^1,   weight^1,
                          //--     ...      ...      ...     ...         ...        ...
-                         //--   pi^Q-1_0, pi^Q-1_1, ... , pi^Q-1_f-1, delta^Q-1, wieght^Q-1
+                         //--   pi^Q-1_0, pi^Q-1_1, ... , pi^Q-1_f-1, delta^Q-1, weight^Q-1
                          //--     ...      ...      ...     ...         ...        ...
 } iteration_t;
 
 typedef int prior_fct(double_mat*, double*);
-typedef void summary_fct(double_arr*, hist_t*, double_mat*, double*);
-typedef double distance_fct(double*, double*);
+typedef void summary_fct(void*, void*, int, double*);
+typedef double distance_fct(double*, double*, gsl_matrix*, gsl_vector*, gsl_vector*);
 
 typedef struct {
   //----------------------------------------------------------------------
@@ -120,7 +123,7 @@ typedef struct {
   int f;                    //-- Dimension of parameter set
   int Q;                    //-- Number of particles
   double r_stop;            //-- Shutoff success rate
-  summ_t summ;              //-- Summary type
+  int nbAttempts_max;       //-- Maximum number of attempts
   
   //-- Precomputed
   int Q_MPI;                //-- Number of particles per processor to compute when using MPI
@@ -150,23 +153,9 @@ typedef struct {
   double_arr *x_mod;        //-- Summary statistics from model
   summary_fct *summFct;     //-- Summary statistics function
   distance_fct *distFct;    //-- Distance function
-  
-  //----------------------------------------------------------------------
-  //-- Camelus pipeline
-  
-  sampler_arr *sampArr;
-  halo_map *hMap;
-  sampler_t *galSamp;
-  gal_map *gMap;
-  short_mat *CCDMask;
-  FFT_arr *FFTSmoother;
-  FFT_arr *DCSmoother;
-  map_t *kMap;
-  FFT_arr *variance;
-  double_arr *peakList;
-  hist_t *nuHist;
-  hist_t *kappaHist;
-  double_mat *multiscale;
+  gsl_matrix *invCov;
+  gsl_vector *Delta_x;
+  gsl_vector *intermediate;
   
   //----------------------------------------------------------------------
 } PMC_ABC_t;
@@ -180,7 +169,7 @@ void particleString(char buffer1[], char buffer2[], int f, param_t *doParam, dou
 void completeParticleString(char buffer1[], char buffer2[], double *value);
 
 //-- Functions related to iteration_t
-iteration_t *initialize_iteration_t(int f, int *doParam, int Q, int MPISize, error **err);
+iteration_t *initialize_iteration_t(int f, int *doParam, int Q, error **err);
 void free_iteration_t(iteration_t *iter);
 void print_gsl_matrix(gsl_matrix *mat);
 void print_iteration_t(iteration_t *iter);
@@ -191,57 +180,51 @@ void updateCovariance_iteration_t(iteration_t *iter);
 void updateCholesky_iteration_t(iteration_t *iter);
 
 //-- Functions related to PMC_ABC_t;
-PMC_ABC_t *initialize_PMC_ABC_t(cosmo_hm *cmhm, peak_param *peak, error **err);
+PMC_ABC_t *initialize_PMC_ABC_t(cosmo_hm *chPar, peak_param *pkPar, error **err);
 void free_PMC_ABC_t(PMC_ABC_t *ABC);
-void print_PMC_ABC_t(peak_param *peak, PMC_ABC_t *ABC);
+void print_PMC_ABC_t(peak_param *pkPar, PMC_ABC_t *ABC);
 int garanteeFlatness(int f, param_t *doParam);
-void fillLimitAndValue(cosmo_hm *cmhm, PMC_ABC_t *ABC);
-void fillObservation(char name[], peak_param *peak, PMC_ABC_t *ABC, error **err);
-void fillIteration(char name[], peak_param *peak, PMC_ABC_t *ABC, int t, error **err);
+void fillLimitAndValue(cosmo_hm *chPar, PMC_ABC_t *ABC);
+void readObservation(char name[], peak_param *pkPar, PMC_ABC_t *ABC, error **err);
+void readIteration(char name[], peak_param *pkPar, PMC_ABC_t *ABC, int t, error **err);
 
 //-- Functions related to accept-reject algorithm
-void generateParam(peak_param *peak, PMC_ABC_t *ABC, double *newPart, prior_fct *prior);
-cosmo_hm *initialize_cosmo_hm_ABC(cosmo_hm *oldCmhm, PMC_ABC_t *ABC, double *newPart, error **err);
-void generateModel(cosmo_hm *cmhm, peak_param *peak, PMC_ABC_t *ABC, double *newPart, error **err);
-void acceptParticleFromPrior(cosmo_hm *cmhm, peak_param *peak, PMC_ABC_t *ABC, double *newPart, error **err);
-void acceptParticle(cosmo_hm *cmhm, peak_param *peak, PMC_ABC_t *ABC, double *newPart, error **err);
+void generateParam(PMC_ABC_t *ABC, gsl_rng *generator, double *newPart, prior_fct *prior);
+cosmo_hm *initialize_cosmo_hm_ABC(cosmo_hm *oldChPar, PMC_ABC_t *ABC, double *newPart, error **err);
+void generateModel(cosmo_hm *chPar, peak_param *pkPar, pipeline_t *pipe, PMC_ABC_t *ABC, double *newPart, error **err);
+int oneSampleTest(cosmo_hm *chPar, peak_param *pkPar, pipeline_t *pipe, PMC_ABC_t *ABC, double *newPart, error **err);
 
 //-- Functions related to iteration
 void swapOldAndNew(PMC_ABC_t *ABC);
-double argOfExp(double *oldPart, double *newPart, gsl_matrix *invCov, gsl_vector *Delta_param, gsl_vector *intermediate);
+double chiSquared(double *x1, double *x2, gsl_matrix *invCov, gsl_vector *Delta_x, gsl_vector *intermediate);
 void setWeights(PMC_ABC_t *ABC);
 void setEpsilon(PMC_ABC_t *ABC);
-void runIteration(cosmo_hm *cmhm, peak_param *peak, PMC_ABC_t *ABC, error **err);
+void runIteration(cosmo_hm *chPar, peak_param *pkPar, pipeline_t *pipe, PMC_ABC_t *ABC, error **err);
 void outputIteration(char name[], PMC_ABC_t *ABC);
 
 //-- Functions related to subset
-void setRealQ(PMC_ABC_t *ABC, int Q_real);
-void runIterationWithoutUpdate(cosmo_hm *cmhm, peak_param *peak, PMC_ABC_t *ABC, error **err);
+void runIterationWithoutUpdate(cosmo_hm *chPar, peak_param *pkPar, pipeline_t *pipe, PMC_ABC_t *ABC, error **err);
 void readSubset(char name[], iteration_t *iter, error **err);
-void print_PMC_ABC_t_subset(peak_param *peak, PMC_ABC_t *ABC);
+void print_PMC_ABC_t_subset(peak_param *pkPar, PMC_ABC_t *ABC);
 
 //-- Functions related to prior
 void priorGenerator(gsl_rng *generator, double_mat *limit, double *part);
 int prior_rectangle(double_mat *limit, double *part);
 int prior_pentagon(double_mat *limit, double *part);
-void stressTest();
 
 //-- Functions related to summary statistics
-void summary_multiscale(double_arr *peakList, hist_t *hist, double_mat *multiscale, double *summ);
+void summary_int(void *arg0, void *arg1, int length, double *summ);
+void summary_double(void *arg0, void *arg1, int length, double *summ);
 
 //-- Functions related to distance
-double dist_gauss(double *a, double *b);
-double dist_star(double *a, double *b);
-double dist_6D(double *a, double *b);
-double dist_5D(double *a, double *b);
-double dist_4D(double *a, double *b);
-double dist_1D(double *a, double *b);
+double dist_chi(double *x1, double *x2, gsl_matrix *invCov, gsl_vector *Delta_x, gsl_vector *intermediate);
+double dist_uncorrChi(double *x1, double *x2, gsl_matrix *invCov, gsl_vector *Delta_x, gsl_vector *intermediate);
+void readInvCov(char name[], peak_param *pkPar, gsl_matrix *invCov, error **err);
 
 //-- Main functions
-void doABC(cosmo_hm *cmhm, peak_param *peak, error **err);
-void doABC_subset(cosmo_hm *cmhm, peak_param *peak, int Q_real, int t, int subsetInd, error **err);
-void doABC_gather(cosmo_hm *cmhm, peak_param *peak, int Q_real, int t, error **err);
-
+void doABC(cosmo_hm *chPar, peak_param *pkPar, error **err);
+void doABC_subset(cosmo_hm *chPar, peak_param *pkPar, int t, int nbAttempts, int subsetInd, error **err);
+void doABC_gather(cosmo_hm *chPar, peak_param *pkPar, int t, int nbSubsets, error **err);
 
 #endif
 
