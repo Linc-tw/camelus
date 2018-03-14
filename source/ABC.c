@@ -1,5 +1,6 @@
 
 
+<<<<<<< HEAD
   /*******************************************************
    **  ABC.c						**
    **  Version 2018.03.11				**
@@ -11,6 +12,17 @@
    **  Copyright (C) 2018 - Chieh-An Lin		**
    **  GNU GPLv3 - https://www.gnu.org/licenses/	**
    *******************************************************/
+=======
+  /***********************************************
+   **  ABC.c					**
+   **  Chieh-An Lin				**
+   **  Version 2016.03.26			**
+   **						**
+   **  References:				**
+   **  - Marin et al. (2011)			**
+   **  - Weyant et al. (2013) - ApJ, 764, 116	**
+   ***********************************************/
+>>>>>>> 82e4cf301ec00dae012483fd6f988d490cb8befe
 
 
 #include "ABC.h"
@@ -347,6 +359,7 @@ void updateCholesky_iteration_t(iteration_t *iter)
 
 PMC_ABC_t *initialize_PMC_ABC_t(cosmo_hm *chPar, peak_param *pkPar, error **err)
 {
+<<<<<<< HEAD
   PMC_ABC_t *ABC      = (PMC_ABC_t*)malloc_err(sizeof(PMC_ABC_t), err);                                  forwardError(*err, __LINE__, NULL);
   ABC->f              = pkPar->ABC_f;
   ABC->Q              = pkPar->ABC_Q;
@@ -376,6 +389,67 @@ PMC_ABC_t *initialize_PMC_ABC_t(cosmo_hm *chPar, peak_param *pkPar, error **err)
   ABC->intermediate   = gsl_vector_alloc(d_tot);
   
   if (pkPar->MPIInd == 0) printf("ABC initialization done\n");
+=======
+  PMC_ABC_t *ABC = (PMC_ABC_t*)malloc_err(sizeof(PMC_ABC_t), err);                                forwardError(*err, __LINE__, NULL);
+  ABC->f         = peak->ABC_f;
+  ABC->Q         = peak->ABC_Q;
+  ABC->r_stop    = peak->ABC_r_stop;
+  int i;
+  ABC->summ      = -1;
+  for (i=0; i<NB_SUMM_T; i++) if (strcmp(peak->ABC_summ, STR_SUMM_T((summ_t)i))==0) ABC->summ = (summ_t)i;
+  testErrorVA((int)ABC->summ==-1, conf_undef, "Parametrization '%s' not found in type %s, cannot assign value of type %s", \
+		*err, __LINE__, peak->ABC_summ, "STR_SUMM_T", "summ_t");                          forwardError(*err, __LINE__, NULL);
+  
+  ABC->Q_MPI     = (int)ceil((double)ABC->Q / (double)peak->MPISize);
+  
+  ABC->t         = -1; //-- To be increment later
+  ABC->oldIter   = initialize_iteration_t(ABC->f, peak->ABC_doParam, ABC->Q, peak->MPISize, err); forwardError(*err, __LINE__, NULL);
+  ABC->newIter   = initialize_iteration_t(ABC->f, peak->ABC_doParam, ABC->Q, peak->MPISize, err); forwardError(*err, __LINE__, NULL);
+  ABC->deltaList = initialize_double_arr(ABC->Q);
+  
+  ABC->priorFct  = prior_rectangle;
+  ABC->limit     = initialize_double_mat(2, ABC->f);                                              forwardError(*err, __LINE__, NULL);
+  ABC->flatness  = garanteeFlatness(ABC->f, ABC->newIter->doParam);
+  fillLimitAndValue(cmhm, ABC);
+  
+  int N_bin      = (peak->doNonlinear == 0) ? peak->N_nu : (peak->doSmoothing == 4) ? peak->N_kappa : MAX(peak->N_nu, peak->N_kappa);
+  ABC->x_obs     = initialize_double_arr(N_bin * peak->nbFilters);
+  ABC->x_mod     = initialize_double_arr(N_bin * peak->nbFilters);
+  ABC->summFct   = summary_multiscale;
+  
+  //-- For Paper III, this will be overwritten by another function
+  if (ABC->summ == summ_gauss)       ABC->distFct = dist_gauss;
+  else if (ABC->summ == summ_star)   ABC->distFct = dist_star;
+  else if (ABC->summ == summ_tanh) ;
+  else if (ABC->summ == summ_mrlens) ;
+  else if (ABC->summ == summ_FDR02) ;
+  else if (ABC->summ == summ_FDR05) ;
+  else {*err = addError(peak_unknown, "Unknown summary type", *err, __LINE__);                  forwardError(*err, __LINE__, NULL);}
+  
+  int length     = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
+  
+  //-- Camelus pipeline
+  ABC->sampArr     = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
+  ABC->hMap        = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__, NULL);
+  ABC->galSamp     = initialize_sampler_t(peak->N_z_gal);
+  setGalaxySampler(cmhm, peak, ABC->galSamp, err);                                              forwardError(*err, __LINE__, NULL);
+  ABC->gMap        = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__, NULL);
+  ABC->CCDMask     = NULL; //-- Initialize seperately //-- initializeMask(peak, err);                forwardError(*err, __LINE__, NULL); 
+  ABC->FFTSmoother = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->FFT_nbFilters) makeKernel(peak, ABC->FFTSmoother);
+  ABC->DCSmoother  = initialize_FFT_arr(MAX(peak->DC_nbFilters, 1), peak->FFTSize);
+  ABC->kMap        = initialize_map_t(peak->resol[0], peak->resol[1], peak->theta_pix, err);    forwardError(*err, __LINE__, NULL);
+  ABC->variance    = initialize_FFT_arr(peak->smootherSize, peak->FFTSize);
+  if (peak->FFT_nbFilters) makeKernelForVariance(peak, ABC->variance);
+  ABC->peakList    = initialize_double_arr(length);
+  ABC->nuHist      = initialize_hist_t(peak->N_nu);
+  setHist_nu(peak, ABC->nuHist);
+  ABC->kappaHist   = initialize_hist_t(peak->N_kappa);
+  setHist_kappa(peak, ABC->kappaHist);
+  ABC->multiscale  = initialize_double_mat(N_bin, peak->nbFilters);
+  
+  if (peak->MPIInd == 0) printf("ABC initialization done\n");
+>>>>>>> 82e4cf301ec00dae012483fd6f988d490cb8befe
   return ABC;
 }
 
