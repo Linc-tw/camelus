@@ -2,7 +2,7 @@
 
     ######################################################
     ##  CMakeLists.txt for Camelus v2.0			##
-    ##  Version 2018.03.05				##
+    ##  Version 2018.03.15				##
     ##							##
     ##  Copyright (C) 2018 - Chieh-An Lin		##
     ##  GNU GPLv3 - https://www.gnu.org/licenses/	##
@@ -25,7 +25,6 @@ include_directories(${REQ_PKG_INCLUDE_DIRS})
 link_directories(${REQ_PKG_LIBRARY_DIRS})
 include_directories($ENV{NICAEA}/include)
 link_directories($ENV{NICAEA}/lib)
-set(L_FLAGS "${REQ_PKG_LIBRARIES} ${REQ_PKG_INCLUDE} -lnicaea")
 
 ## Optional module cfitsio, link if found
 if (CFITSIO_FOUND)
@@ -65,11 +64,11 @@ set(CMAKE_CXX_FLAGS "${DEF_C_FLAGS} ${ADD_C_FLAGS}")
 file(GLOB_RECURSE SRC_FILES "${PROJECT_SOURCE_DIR}/source/*.c" "${PROJECT_SOURCE_DIR}/source/*.cpp")
 add_executable(camelus ${SRC_FILES})
 target_link_libraries(camelus
-  ${REQ_PKG_LIBRARIES}     ${REQ_PKG_INCLUDE}
+  ${REQ_PKG_LIBRARIES}
   -lnicaea
-  ${CFITSIO_LIBRARIES}     ${CFITSIO_INCLUDE}
-  ${CHEALPIX_LIBRARIES}    ${CHEALPIX_INCLUDE}
-  ${HEALPIX_CXX_LIBRARIES} ${HEALPIX_CXX_INCLUDE}
-  ${MPI_LIBRARIES}         ${MPI_INCLUDE}
+  ${CFITSIO_LIBRARIES}
+  ${CHEALPIX_LIBRARIES}
+  ${HEALPIX_CXX_LIBRARIES}
+  ${MPI_LIBRARIES}
 )
 

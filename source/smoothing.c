@@ -2,7 +2,7 @@
 
   /*******************************************************
    **  smoothing.c					**
-   **  Version 2018.03.14				**
+   **  Version 2018.03.15				**
    **							**
    **  References:					**
    **  - Hetterscheidt et al. (2005) - A&A, 442, 43	**
@@ -1493,8 +1493,8 @@ void outFits_fftw_complex(FITS_t *fits, peak_param *pkPar, fftw_complex *table, 
       for (j=0; j<N2; j++) {
 	jM = j * M;
 	for (i=0; i<N1; i++) {
-	                                      writeTableColumn(fits, 0, 1, &i);
-	                                      writeTableColumn(fits, 1, 1, &j);
+					 writeTableColumn(fits, 0, 1, &i);
+					 writeTableColumn(fits, 1, 1, &j);
 	  fBuff = (float)table[i+jM][0]; writeTableColumn(fits, 2, 1, &fBuff);
 	  nextRow(fits);
 	}
@@ -1511,8 +1511,8 @@ void outFits_fftw_complex(FITS_t *fits, peak_param *pkPar, fftw_complex *table, 
 	jM = j * M;
 	for (i=0; i<N1; i++) {
 	  pix = table[i+jM];
-	                              writeTableColumn(fits, 0, 1, &i);
-	                              writeTableColumn(fits, 1, 1, &j);
+				 writeTableColumn(fits, 0, 1, &i);
+				 writeTableColumn(fits, 1, 1, &j);
 	  fBuff = (float)pix[0]; writeTableColumn(fits, 2, 1, &fBuff);
 	  fBuff = (float)pix[1]; writeTableColumn(fits, 3, 1, &fBuff);
 	  nextRow(fits);

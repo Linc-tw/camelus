@@ -2,7 +2,7 @@
 
   /*******************************************************
    **  main.c						**
-   **  Version 2018.03.11				**
+   **  Version 2018.03.15				**
    **							**
    **  Copyright (C) 2018 - Chieh-An Lin		**
    **  GNU GPLv3 - https://www.gnu.org/licenses/	**
@@ -211,8 +211,8 @@ int main(int argc, char *argv[])
   else if (task == 62) {
     if (!(argc == 5) || help) printInstructions(task, 1);
     else {
-      long N1 = strtol(argv[3], NULL, 10);
-      long N2 = strtol(argv[4], NULL, 10);
+      int N1 = atoi(argv[3]);
+      int N2 = atoi(argv[4]);
       _peakVI__doHaloAssignment(chPar, pkPar, N1, N2, err); quitOnError(*err, __LINE__, stderr);
     }
   }
@@ -220,35 +220,31 @@ int main(int argc, char *argv[])
   else if (task == 63) {
     if (!(argc == 5) || help) printInstructions(task, 1);
     else {
-      long N1 = strtol(argv[3], NULL, 10);
-      long N2 = strtol(argv[4], NULL, 10);
+      int N1 = atoi(argv[3]);
+      int N2 = atoi(argv[4]);
       _peakVI__doKMap_regular(chPar, pkPar, N1, N2, err); quitOnError(*err, __LINE__, stderr);
     }
   }
   
   else if (task == 64) {
-    if (!(argc == 5) || help) printInstructions(task, 1);
+    if (!(argc == 4) || help) printInstructions(task, 1);
     else {
-      long N1 = strtol(argv[3], NULL, 10);
-      long N2 = strtol(argv[4], NULL, 10);
-      _peakVI__doRayTracing(chPar, pkPar, N1, N2, err); quitOnError(*err, __LINE__, stderr);
+      _peakVI__doRayTracing(chPar, pkPar, argv[3], err); quitOnError(*err, __LINE__, stderr);
     }
   }
   
   else if (task == 65) {
-    if (!(argc == 5) || help) printInstructions(task, 1);
+    if (!(argc == 4) || help) printInstructions(task, 1);
     else {
-      long N1 = strtol(argv[3], NULL, 10);
-      long N2 = strtol(argv[4], NULL, 10);
-      _peakVI__doKMap(chPar, pkPar, N1, N2, err); quitOnError(*err, __LINE__, stderr);
+      _peakVI__doKMap(chPar, pkPar, argv[3], err); quitOnError(*err, __LINE__, stderr);
     }
   }
   
   else if (task == 66) {
     if (!(argc == 6) || help) printInstructions(task, 1);
     else {
-      long N1 = strtol(argv[3], NULL, 10);
-      long N2 = strtol(argv[4], NULL, 10);
+      int N1 = atoi(argv[3]);
+      int N2 = atoi(argv[4]);
       int doRandom = atoi(argv[5]);
       _peakVI__doMultiscale_clustered(chPar, pkPar, N1, N2, doRandom, err); quitOnError(*err, __LINE__, stderr);
     }
@@ -450,7 +446,7 @@ void printDetails(int task, int doHeader, int doHelp)
       printf("  ./camelus peakVI  61 str             # LSS maps\n");
       printf("  ./camelus peakVI  62 N1 N2           # Assign halos\n");
       printf("  ./camelus peakVI  63 N1 N2           # Noise-free lensing map at z_s = 1\n");
-      printf("  ./camelus peakVI  64 N1 N2           # Full curved-sky RT\n");
+      printf("  ./camelus peakVI  64 str             # Full curved-sky RT\n");
       printf("  ./camelus peakVI  65 N1 N2           # Full curved-sky filtering\n");
       printf("  ./camelus peakVI  66 N1 N2 doRand    # Fast peak counts\n");
   }

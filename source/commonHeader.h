@@ -12,8 +12,8 @@
 #ifndef __CAMELUS_COMMON_HEADER__
 #define __CAMELUS_COMMON_HEADER__
 
-//#define __CAMELUS_BETA_MODE__
-//#define __CAMELUS_USE_LHF__
+#define __CAMELUS_BETA_MODE__
+#define __CAMELUS_USE_LHF__
 
 #ifdef __CAMELUS_BETA_MODE__
 #ifndef __CAMELUS_USE_FITS__

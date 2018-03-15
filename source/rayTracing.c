@@ -2,7 +2,7 @@
 
   /***************************************************************
    **  rayTracing.c						**
-   **  Version 2018.03.14					**
+   **  Version 2018.03.15					**
    **								**
    **  References:						**
    **  - Baltz et al. (2009) - JCAP, 1, 15			**
@@ -869,7 +869,7 @@ void lensingCatalogue(cosmo_hm *chPar, peak_param *pkPar, halo_map *hMap, gal_ma
   
   //-- Lensing
   lensingForMap(chPar, pkPar, hMap, gMap, err); forwardError(*err, __LINE__,);
-
+  
   //-- Subtract mean
   if (pkPar->doKappa > 0 && pkPar->doSubtraction) subtractMean(pkPar, gMap, k1Inter);
   

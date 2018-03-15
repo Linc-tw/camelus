@@ -2,7 +2,7 @@
 
   /*******************************************************
    **  haloSampling.c					**
-   **  Version 2018.03.13				**
+   **  Version 2018.03.15				**
    **							**
    **  Copyright (C) 2018 - Chieh-An Lin		**
    **  GNU GPLv3 - https://www.gnu.org/licenses/	**
@@ -340,6 +340,8 @@ void outFitsMassFct(char name[], cosmo_hm *chPar, peak_param *pkPar, double z, e
     nextRow(fits);
   }
   
+  char name2[STRING_LENGTH_MAX];
+  
   addKeyword(fits, TDOUBLE, "Z",       &z,                         "[-] Redshift");
   
   outFitsCosmoParam(fits, chPar, pkPar);
@@ -350,10 +352,10 @@ void outFitsMassFct(char name[], cosmo_hm *chPar, peak_param *pkPar, double z, e
   
   addLineSpread(fits);
   addKeyword(fits, TSTRING, "PKPARAM", pkPar->pkParPath,           "[-] Path of the peak parameter file");
-  sprintf(name, "%8.2e", pkPar->M_min);
-  addKeyword(fits, TSTRING, "MMIN",    &name,                      "[M_sol/h] Minimum halo mass");
-  sprintf(name, "%8.2e", pkPar->M_max);
-  addKeyword(fits, TSTRING, "MMAX",    &name,                      "[M_sol/h] Maximum halo mass");
+  sprintf(name2, "%8.2e", pkPar->M_min);
+  addKeyword(fits, TSTRING, "MMIN",    &name2,                     "[M_sol/h] Minimum halo mass");
+  sprintf(name2, "%8.2e", pkPar->M_max);
+  addKeyword(fits, TSTRING, "MMAX",    &name2,                     "[M_sol/h] Maximum halo mass");
   addKeyword(fits, TDOUBLE, "DLOGM",   &pkPar->dlogM,              "[-] Halo mass binwidth");
   
   free(cANDp);
