@@ -425,8 +425,8 @@ void DCForPair_kappa(peak_param *pkPar, gal_list *gList, FFT_t **smooArr, double
       }
       
       //-- Do nothing for aperture mass
-      else if (pkPar->DC_filter[j] == 2) ;
-      else if (pkPar->DC_filter[j] == 3) ;
+      else if (pkPar->DC_filter[j] == 2) {;}
+      else if (pkPar->DC_filter[j] == 3) {;}
     }
   }
   return;

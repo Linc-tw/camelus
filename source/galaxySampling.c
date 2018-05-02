@@ -919,26 +919,26 @@ void makeRegularGalaxies(cosmo_hm *chPar, peak_param *pkPar, gal_map *gMap, erro
   double weight = (pkPar->doNoise == 0) ? 1.0 : 1.0 / (SQ(pkPar->sigma_half));
   
   double pos[2];
-  hpint64 pixNest;
+  //hpint64 pixNest;
   int i, j;
-  
+
   if (pkPar->field == 0) {
-    for (j=0; j<M2; j++) {
-      pos[1] = (j + 0.5) / M2 * Omega[1];
-      for (i=0; i<M1; i++) {
-	pos[0] = (i + 0.5) / M1 * Omega[0];
-	append_gal_map(chPar, pkPar, gMap, pos, pkPar->z_s, weight, err); forwardError(*err, __LINE__,);
-      }
-    }
+     for (j=0; j<M2; j++) {
+        pos[1] = (j + 0.5) / M2 * Omega[1];
+        for (i=0; i<M1; i++) {
+           pos[0] = (i + 0.5) / M1 * Omega[0];
+           append_gal_map(chPar, pkPar, gMap, pos, pkPar->z_s, weight, err); forwardError(*err, __LINE__,);
+        }
+     }
   }
-  
+
   else {
 #ifdef __CAMELUS_USE_HEALPIX__
-    for (i=0; i<HP_length; i++) {
-      pix2ang_nest64((hpint64)nsidePix, HP_first+i, &pos[1], &pos[0]);
-      pos[1] = HALF_PI - pos[1];
-      append_gal_map(chPar, pkPar, gMap, pos, pkPar->z_s, weight, err); forwardError(*err, __LINE__,);
-    }
+     for (i=0; i<HP_length; i++) {
+        pix2ang_nest64((hpint64)nsidePix, HP_first+i, &pos[1], &pos[0]);
+        pos[1] = HALF_PI - pos[1];
+        append_gal_map(chPar, pkPar, gMap, pos, pkPar->z_s, weight, err); forwardError(*err, __LINE__,);
+     }
 #endif
   }
   return;

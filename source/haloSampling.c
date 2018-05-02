@@ -303,7 +303,7 @@ void outAsciiMassFct(char name[], cosmo_hm *chPar, peak_param *pkPar, double z, 
   fprintf(file, "#    [M_sol/h]  [(Mpc/h)^-3]\n");
   
   double M, dn;
-  for (M=pkPar->M_min; M<=pkPar->M_max; M*=pow10(0.001)) {
+  for (M=pkPar->M_min; M<=pkPar->M_max; M*=pow(10, 0.001)) {
     dn = massFct(cANDp, M, err); forwardError(*err, __LINE__,);
     //dn *= pow(1.0 + z, 3.0); //-- Decomment this to switch to physical volume
     fprintf(file, "  %12.6e  %12.6e\n", M, dn);
@@ -332,7 +332,7 @@ void outFitsMassFct(char name[], cosmo_hm *chPar, peak_param *pkPar, double z, e
   double M, dn;
   float fBuff;
   
-  for (M=pkPar->M_min; M<=pkPar->M_max; M*=pow10(0.001)) {
+  for (M=pkPar->M_min; M<=pkPar->M_max; M*=pow(10, 0.001)) {
     dn = massFct(cANDp, M, err); forwardError(*err, __LINE__,);
     //dn *= pow(1.0 + z, 3.0); //-- Decomment this to switch to physical volume
     fBuff = (float)M;  writeTableColumn(fits, 0, 1, &fBuff);
@@ -623,7 +623,7 @@ void setMassSamplers(cosmo_hm *chPar, peak_param *pkPar, sampler_arr *hSampArr, 
   
   int N_M   = pkPar->N_M;
   double dz = pkPar->dz_halo; 
-  double r  = pow10(pkPar->dlogM); //-- Convert bin width to ratio
+  double r  = pow(10, pkPar->dlogM); //-- Convert bin width to ratio
   sampler_t *hSamp;
   double *x, z, ww, dV;
   int i, j;
