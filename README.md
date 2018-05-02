@@ -92,9 +92,6 @@ Current release: Camelus v2.0
 - Removed nonlinear filtering
 - Added the license
 
-##### Forked version: implementation of shear bias as function of local density - 04/07/2017
-Updated 02/05/2018, merged with Lin-tw-master (v2.0)
-
 ##### New features in v1.31 - Mar 22, 2016:
 - Made installation more friendly by removing the dependency on cfitsio and mpi
 - Added the routine for computing 1-halo & 2-halo terms of the convergence profile
