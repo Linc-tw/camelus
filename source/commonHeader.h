@@ -1,23 +1,44 @@
 
 
-  /*******************************
-   **  commonHeader.h		**
-   **  Chieh-An Lin		**
-   **  Version 2015.12.17	**
-   *******************************/
+  /*******************************************************
+   **  commonHeader.h					**
+   **  Version 2018.03.13				**
+   **							**
+   **  Copyright (C) 2018 - Chieh-An Lin		**
+   **  GNU GPLv3 - https://www.gnu.org/licenses/	**
+   *******************************************************/
 
 
-#ifndef __commonHdr__
-#define __commonHdr__
+#ifndef __CAMELUS_COMMON_HEADER__
+#define __CAMELUS_COMMON_HEADER__
 
-#define _GNU_SOURCE
+//#define __CAMELUS_BETA_MODE__
+//#define __CAMELUS_USE_LHF__
+
+#ifdef __CAMELUS_BETA_MODE__
+#ifndef __CAMELUS_USE_FITS__
+  #define __CAMELUS_USE_FITS__
+#endif
+#ifndef __CAMELUS_USE_HEALPIX__
+  #define __CAMELUS_USE_HEALPIX__
+#endif
+#ifndef __CAMELUS_USE_HEALPIX_CXX__
+  #define __CAMELUS_USE_HEALPIX_CXX__
+#endif
+#ifndef __CAMELUS_USE_MPI__
+  #define __CAMELUS_USE_MPI__
+#endif
+#endif
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <time.h>
-#include <sys/stat.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_statistics.h>
@@ -67,9 +88,19 @@
 #define FULL_SKY             41252.961249419271     //-- [deg^2]
 
 //-- Computational constants
-#define STRING_LENGTH_MAX 1024
+#define STRING_LENGTH_MAX 1024                   //-- Maximal length of a string
 #define EPS_MIN           4.4408920985006262e-16 //-- 2^-51
 
+
+typedef struct {
+  int length;
+  int *array;
+} int_arr;
+
+typedef struct {
+  int N1, N2, length;
+  short *matrix;
+} short_mat;
 
 typedef struct {
   int length;
@@ -87,14 +118,9 @@ typedef struct {
 } double_ten3;
 
 typedef struct {
-  int length;
-  int *array;
-} int_arr;
-
-typedef struct {
-  int N1, N2, length;
-  short *matrix;
-} short_mat;
+  int N1, N2, N3, N4, N5, length;
+  float *tensor;
+} float_ten5;
 
 typedef struct {
   int length;    //-- Number of points
@@ -119,8 +145,9 @@ typedef struct {
 } sampler_arr;
 
 typedef struct {
-  int N;        //-- Resolution, should be a square
-  int length;   //-- Number of pixels
+  int N;             //-- Resolution, should be a square
+  int length;        //-- Number of pixels
+  double normFactor; //-- Normalization factor
   fftw_complex *before, *kernel, *after; //-- fftw_complex elements, transformations are in-place
   fftw_plan before_f, kernel_f, after_b; //-- fftw_plan elements, _f = forward, _b = backward
   fftw_plan before_b;                    //-- Only used for KS inversion
@@ -154,52 +181,80 @@ typedef struct {
   KDE_t **array;
 } KDE_arr;
 
+
+//-- Math functions
+#define SQ(a)             (pow((a), 2))
+#define CB(a)             (pow((a), 3))
+#define SUM_SQ_2(a, b)    (pow((a), 2) + pow((b), 2))
+#define SUM_SQ_3(a, b, c) (pow((a), 2) + pow((b), 2) + pow((c), 2))
+#define POS_MOD(N, i)     ((i) >= 0 ? (i)%(N) : ((i)%(N) + N)%(N))                                           //-- Return value in range [0, N-1]
+#define CEN_MOD(N, i)     ((i)%(N) > (N)/2 ? (i)%(N) - (N) : (i)%(N) <= (N)/2 - (N) ? (i)%(N) + N : (i)%(N)) //-- Return value in range [N/2 - N + 1, N/2], [-1, 0, 1] if N = 3 and [-1, 0, 1, 2] if N = 4
+
+//-- Distance functions
+#define DIST_2D_SQ(a, b)  (pow(a[0]-b[0], 2) + pow(a[1]-b[1], 2))
+#define DIST_3D_SQ(a, b)  (pow(a[0]-b[0], 2) + pow(a[1]-b[1], 2) + pow(a[2]-b[2], 2))
+#define NORM_2D_SQ(a)     (pow(a[0], 2) + pow(a[1], 2))
+#define NORM_3D_SQ(a)     (pow(a[0], 2) + pow(a[1], 2) + pow(a[2], 2))
+#define SPHE_DIST(a, b)   (2.0 * asin(sqrt(pow(sin(0.5*(a[1]-b[1])), 2) + cos(a[1]) * cos(b[1]) * pow(sin(0.5*(a[0]-b[0])), 2))))
+
+//-- Bitwise operations
+#define SET_BIT(c, r)     ((c) |  (1 << (r)))
+#define CLEAN_BIT(c, r)   ((c) & ~(1 << (r)))
+#define TOGGLE_BIT(c, r)  ((c) ^  (1 << (r)))
+#define CHECK_BIT(c, r)   (((c) >> (r)) & 1)
+
 //-- Functions related to array
-void reset_double(double *array, int length);
-void rescale_double(double *array, int length, double factor);
-void reset_fftw_complex(fftw_complex *array, int length);
-void rescaleReal_fftw_complex(fftw_complex *array, int length, double factor);
-void rescale_fftw_complex(fftw_complex *array, int length, double factor);
-void multiplication_fftw_complex(fftw_complex *array1, fftw_complex *array2, fftw_complex *product, int length);
+void reset_double(double *lfArr, int length);
+void rescale_double(double *lfArr, int length, double factor);
+void reset_fftw_complex(fftw_complex *table, int length);
+void rescaleReal_fftw_complex(fftw_complex *table, int length, double factor);
+void rescale_fftw_complex(fftw_complex *table, int length, double factor);
+void multiplication_fftw_complex(fftw_complex *table1, fftw_complex *table2, fftw_complex *product, int length);
 void copy_fftw_complex(fftw_complex *from, fftw_complex *to, int length);
-void print_fftw_complex(fftw_complex *array, int N1);
-
-//-- Functions related to double_arr
-double_arr *initialize_double_arr(int length);
-void free_double_arr(double_arr *fArr);
-void print_double_arr(double_arr *fArr);
-
-//-- Functions related to double_mat
-double_mat *initialize_double_mat(int N1, int N2);
-void free_double_mat(double_mat *fMat);
-void print_double_mat(double_mat *fMat);
-
-//-- Functions related to double_ten3
-double_ten3 *initialize_double_ten3(int N1, int N2, int N3);
-void free_double_ten3(double_ten3 *fTen);
+void print_fftw_complex(fftw_complex *table, int N1);
 
 //-- Functions related to int_arr
 int_arr *initialize_int_arr(int length);
-void free_int_arr(int_arr *iArr);
-void print_int_arr(int_arr *iArr);
+void free_int_arr(int_arr *intArr);
+void print_int_arr(int_arr *intArr);
 
 //-- Functions related to short_mat
 short_mat *initialize_short_mat(int N1, int N2);
-void free_short_mat(short_mat *iMat);
-void print_short_mat(short_mat *iMat);
+void free_short_mat(short_mat *shrtMat);
+void print_short_mat(short_mat *shrtMat);
+
+//-- Functions related to double_arr
+double_arr *initialize_double_arr(int length);
+void free_double_arr(double_arr *dblArr);
+void print_double_arr(double_arr *dblArr);
+
+//-- Functions related to double_mat
+double_mat *initialize_double_mat(int N1, int N2);
+void free_double_mat(double_mat *dblMat);
+void print_double_mat(double_mat *dblMat);
+
+//-- Functions related to double_ten3
+double_ten3 *initialize_double_ten3(int N1, int N2, int N3);
+void free_double_ten3(double_ten3 *dblTen);
+
+//-- Functions related to float_ten5
+float_ten5 *initialize_float_ten5(int N1, int N2, int N3, int N4, int N5);
+void free_float_ten5(float_ten5 *fltTen);
 
 //-- Functions related to interpolator_t
 interpolator_t *initialize_interpolator_t(int length);
 void free_interpolator_t(interpolator_t *inter);
 void print_interpolator_t(interpolator_t *inter);
-double execute_interpolator_t(interpolator_t *inter, double x);
+double execute_interpolator_t(interpolator_t *inter, double x, int border);
 
 //-- Functions related to sampler_t
 sampler_t *initialize_sampler_t(int length);
 void free_sampler_t(sampler_t *samp);
 void print_sampler_t(sampler_t *samp);
 void set_sampler_t(sampler_t *samp, int setTotalToOne);
+void setDiscrete_sampler_t(sampler_t *samp, int setTotalToOne);
 double execute_sampler_t(sampler_t *samp, double x);
+int executeDiscrete_sampler_t(sampler_t *samp, double x);
 
 //-- Functions related to sampler_arr
 sampler_arr *initialize_sampler_arr(int N_array, int N_type);
@@ -223,8 +278,7 @@ void free_hist_t(hist_t *hist);
 void print_hist_t(hist_t *hist);
 void set_hist_t(hist_t *hist, double x_min, double x_max);
 void reset_hist_t(hist_t *hist);
-void push_hist_t(hist_t *hist, double x);
-void silentPush_hist_t(hist_t *hist, double x);
+void push_hist_t(hist_t *hist, double x, int verbose);
 hist_t *deepCopy_hist_t(hist_t *oldHist);
 
 //-- Functions related to KDE_t
@@ -232,39 +286,26 @@ KDE_t *initialize_KDE_t(int length);
 void free_KDE_t(KDE_t *estimator);
 void set_KDE_t(KDE_t *estimator, double h);
 double execute_KDE_t(KDE_t *estimator, double x);
-double integrate_KDE_t(KDE_t *estimator, double x);
+double integrate_KDE_t(KDE_t *estimator, int N, double x);
 
 //-- Functions related to KDE_arr
 KDE_arr *initialize_KDE_arr(int N_array, int N_type);
 void free_KDE_arr(KDE_arr *estArr);
 
 //-- Functions related to RNG
-u_int64_t renewSeed();
-gsl_rng *initializeGenerator();
+u_int32_t renewSeed();
+gsl_rng *initializeGenerator(u_int32_t seed);
+void printGenerator(gsl_rng *generator);
+
+//-- Functions related to rotation & projection
+void rotate(double oldPos[2], double rotAng, double newPos[2]);
+void project(double RADEC[2], double center[4], double thetaXY[2]);
 
 //-- Functions related to stopwatch
 void printTime(clock_t start, clock_t stop);
 void routineTime(clock_t start, clock_t stop);
 
-//-- Math functions
-#define POS_MOD(N, i) ((i) >= 0 ? (i)%(N) : ((i)%(N) + N)%(N))                                           //-- Return value in range [0, N-1]
-#define CEN_MOD(N, i) ((i)%(N) > (N)/2 ? (i)%(N) - (N) : (i)%(N) <= (N)/2 - (N) ? (i)%(N) + N : (i)%(N)) //-- Return value in range [N/2 - N + 1, N/2], [-1, 0, 1] if N = 3 and [-1, 0, 1, 2] if N = 4
-
-//-- Fast math functions
-#define DIST_2D_SQ(a,b) (pow((a)[0]-(b)[0], 2) + pow((a)[1]-(b)[1], 2))
-#define DIST_3D_SQ(a,b) (pow((a)[0]-(b)[0], 2) + pow((a)[1]-(b)[1], 2) + pow((a)[2]-(b)[2], 2))
-#define DIST_4D_SQ(a,b) (pow((a)[0]-(b)[0], 2) + pow((a)[1]-(b)[1], 2) + pow((a)[2]-(b)[2], 2) + pow((a)[3]-(b)[3], 2))
-#define DIST_5D_SQ(a,b) (pow((a)[0]-(b)[0], 2) + pow((a)[1]-(b)[1], 2) + pow((a)[2]-(b)[2], 2) + pow((a)[3]-(b)[3], 2) + pow((a)[4]-(b)[4], 2))
-#define DIST_6D_SQ(a,b) (pow((a)[0]-(b)[0], 2) + pow((a)[1]-(b)[1], 2) + pow((a)[2]-(b)[2], 2) + pow((a)[3]-(b)[3], 2) + pow((a)[4]-(b)[4], 2) + pow((a)[5]-(b)[5], 2))
-#define NORM_2D_SQ(a)   (pow((a)[0], 2) + pow((a)[1], 2))
-#define NORM_3D_SQ(a)   (pow((a)[0], 2) + pow((a)[1], 2) + pow((a)[2], 2))
-#define SQ(a)           (pow((a), 2))
-#define SUM_SQ_2(a,b)   (pow((a), 2) + pow((b), 2))
-#define SUM_SQ_3(a,b,c) (pow((a), 2) + pow((b), 2) + pow((c), 2))
-#define CB(a)           (pow((a), 3))
-
 //----------------------------------------------------------------------
-
 
 #endif
 

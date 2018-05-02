@@ -1,56 +1,173 @@
-### Peak parameter file ###
 
-  
+
+    ##############################################
+    ##  peakParam.par				##
+    ##  Peak parameters for Camelus v2.0	##
+    ##############################################
+
+
+				## All contents after the first '#' are ignored.
+				## Spaces, tabs, ',' and '=' are considered as delimiters.
+				## Changing lines by '\' is NOT supported.
+
+
+### Parameter files
+hmParPath	../param/hmParam.par
+				## [string] Path of the halo model parameter file
+seed		random
+				## [int or string] Seed for generating random numbers
+				##   If seed is int, suggested range = [0, 4294967295]
+				##   Put anything containing 'r' for a random seed
+verbose		0		## [int] 0 = default, 1 = all, 2 = no flush, 3 = line mode, 4 = pipeline off & realization on, 5 = MPI, 99 = silent
+
+
+### Field
+field		0		## [int] 0 = rectangle, 1 = projected HEALPix, 2 = HEALPix
+				##   If field = 0, ray-tracing with the Cartesian distance then filtering
+				##   If field = 1, ray-tracing with the angular distance then project then FFT
+				##   If field = 2, ray-tracing with the angular distance then direct convolution
+Omega		372.8  372.8	## [2 float | arcmin] Field size (theta_x, theta_y)
+				##   Ignored if field = 2
+theta_pix	0.8		## [float | arcmin] Pixel size
+				##   Forced to 1.0 if field = 2
+nside		8		## [int] N_side of the field
+				##   Ignored if field = 0
+patch		368		## [int] Ring order of the field
+				##   Ignored if field = 0
+rotAng		45.0		## [float | deg] Rotation angle of the field after projection
+				##   Forced to 0.0 if field != 1
+HP_resol	512		## [int] Resolution for HEALPix regular galaxies or maps
+				##   Ignored if field = 0
+				##   Has to be a power of 2
+
+
 ### Halos
-z_halo_max	1.5		# Maxmimum redshift for halos
-N_z_halo	30		# Number of sampling redshift bins
-M_min		5e+12		# [M_sol/h] Minimum sampling mass
-M_max		1e+17		# [M_sol/h] Maximum sampling mass
+inHaloCatPath	
+				## [string] Path of the input halo catalogue
+				##   Leave blank if sample halos from a mass function
+inHaloCatCol	0  1  2  3  4
+				## [5 int] -1 = skip, 0 = first column, etc.
+				##   Successively read as pos1, pos2, redshift, comoving distance, mass
+				##   Cannot skip pos1, pos2, redshift, mass
+				##   (pos1, pos2) is (theta_x, theta_y) in [arcmin] if field = 0, (RA, DEC) in [deg] otherwise
+z_halo_min	0.05		## [float] Minimum halo redshift
+z_halo_max	1.0		## [float] Maximum halo redshift
+N_z_halo	95		## [int] Number of halo redshift bins
+M_min		1e+12		## [float | M_sol/h] Minimum halo mass
+M_max		1e+17		## [float | M_sol/h] Maximum halo mass
+dlogM		0.001		## [float] Halo mass binwidth
+
 
 ### Galaxies
-z_s		-1.0		# If z_s > 0, all source galaxies fixed at z_s
-#				# If z_s < 0, use nofz_hm.dat as redshift distribution law parameters
-doRandGalPos	1		# 0 = regular, 1 = random
-#				# If z_s < 0, doRandGalPos is automatically set to 1
-n_gal		12.0		# [arcmin^-2] Galaxy number density
-sigma_eps	0.4		# Ellipticity dispersion
-doKappa		3		# 0 = gamma, 1 = kappa, 2 = g, 3 = g with linear KS
-doMask		0		# 0 = without (only 0 is available)
-maskPath	-		# Path of the mask
-  
-### Field & map
-strField 	rectangle	# Geometry: 'rectangle'
-Omega		180.0  180.0	# [arcmin] Field size (theta_x, theta_y)
-theta_pix	1.0		# [arcmin] Pixel size
+inGalCatPath	
+				## [string] Path of the input galaxy catalogue
+				##   Leave blank if want a regular grid or sample from a distribution
+inGalCatCol	0  1  2  -1  -1  -1  -1
+				## [7 int] -1 = skip, 0 = first column, etc.
+				##   Successively read as pos1, pos2, redshift, weight, kappa, e_1, e_2
+				##   Cannot skip pos1, pos2, redshift
+				##   (pos1, pos2) is (theta_x, theta_y) in [arcmin] if field = 0, (RA, DEC) in [deg] otherwise
+				##   weight should be given by shape measurement
+				##   If weight is skipped, consider uniform weighting with 2 / sigma_eps^2
+				##   (e_1, e_2) can also be (gamma_1, gamma_2) or (g_1, g_2)
+z_s		-1.0		## [float] Source redshift
+				##   If z_s > 0, fix all source galaxy redshifts at z_s
+				##   If z_s <= 0, use distribution parameters defined in hmParam.par
+dz_gal		0.01		## [float] Galaxy redshift binwidth
+doRandGalPos	1		## [int] 0 = regular, 1 = random
+				##   Forced to 1 if z_s <= 0
+n_gal		12.0		## [float | arcmin^-2] Galaxy number density
+sigma_eps	0.4		## [float] Ellipticity dispersion, sigma_eps^2 = <epsilon_1^2> + <epsilon_2^2> = 2 sigma_kappa^2
 
-### Filter
-doSmoothing	1		# 0 = without, 1 = binning and FFT, 2 = direct convolution, 4 = nonlinear filtering (not available), 
-#				# Sum for performing simultaneously multiple techniques, e.g. 5 = FFT + nonlinear
-FFT_nbFilters	2		# Number of linear filters for FFT
-FFT_strFilter	gauss gauss
-FFT_scale	 1.2   2.4
-#				# Filter type: 'gauss', 'star'
-#				# [arcmin] Filter size in arcmin
-DC_nbFilters	2		# Number of linear filters for direct convolution
-DC_strFilter	gauss gauss
-DC_scale	 1.2   2.4
-#				# Filter type: 'gauss', 'star'
-#				# [arcmin] Filter size in arcmin
-MRLens_nbScales	5		# Number of scales for MRLens (not available)
-MRLens_FDR	0.05		# False detection rate for MRLens (not available)
 
-### Peak historgram
-N_nu		9		# Number of S/N bins
-nu_bin		1.0  1.5  2.0  2.5  3.0  3.5  4.0  4.5  5.0  1e+15
-N_kappa		6		# Number of kappa bins (for nonlinear filtering)
-kappa_bin	0.02  0.03  0.04  0.06  0.10  0.16  1e+15
+## Masks
+doMask		1		## [int] 0 = without, 1 = random mask, 2 = maskPath
+maskPath	
+				## [string] Path of the mask 
+nbHoleTypes	3		## [int] Number of hole types for random mask
+				##   Ignored if doMask != 1
+holeRadius	6.4  3.9  3.9
+				## [float array | arcmin] Hole radius for random mask
+				##   Ignored if doMask != 1
+holeDensity	0.25  11  0.1
+				## [float array | deg^-2] Hole density for random mask
+				##   Ignored if doMask != 1
+stripeLRatio	0   0   4.0
+				## [float array] Ratio of stripe length to radius
+				##   Ignored if doMask != 1
+stripeWRatio	0   0   0.2
+				## [float array] Ratio of stripe width to radius
+				##   Ignored if doMask != 1
+
+
+### Lensing
+doLensing	1		## [int] 0 = read from inGalCatPath, 1 = compute lensing
+				##   Forced to 0 if inGalCatCol does not skip any of kappa, e_1, or e_2
+doKappa		2		## [int] 0 = gamma, 1 = kappa, 2 = g with linear KS, 3 = g with iterative KS, 4 = g with SS
+doSubtraction	2		## [int] 0 = without, 1 = subtract kappa_mean, 2 = subtract the mass sheet kappa_1
+				##   Ignored if doKappa = 0
+				##   If doSubtraction = 0, the computed kappa is always positive or zero, since the underdensity is not correctly considered by mass projection
+				##   If doSubtraction = 2, a mass sheet value kappa_1 (depending on the galaxy redshift) is subtracted 
+
+
+### Filters
+doSmoothing	1		## [int] 0 = without, 1 = binning and FFT, 2 = direct convolution
+				##   Sum for performing simultaneously multiple techniques, e.g. 3 = FFT + DC
+FFT_nbFilters	2		## [int] Number of linear filters for FFT
+				##   Forced to 0 if field = 2
+				##   Forced to 0 if doSmoothing without bit 1
+FFT_filter	0  1  2  2  2  3  3  3
+				## [int array] 0 = Gaussian, 1 = starlet, 2 = M_ap tanh, 3 = M_ap gamma_t
+				##   2 & 3 only allowed if doKappa != 1
+FFT_scale	1.6  3.2  6.4  12.8  1.6  3.2  6.4  12.8
+				## [float array | arcmin] Filter size for FFT
+DC_nbFilters	2		## [int] Number of linear filters for direct convolution
+				##   Forced to 0 if field = 1
+				##   Forced to 0 if doSmoothing without bit 2
+DC_filter	2    2
+				## [int array] 0 = Gaussian, 1 = starlet, 2 = M_ap tanh, 3 = M_ap gamma_t
+				##   0 & 1 only allowed if doKappa = 1
+				##   2 & 3 only allowed if doKappa != 1
+DC_scale	3.6  5.2
+				## [float array | arcmin] Filter size for direct convolution
+
+
+### Histograms
+doLocalNoise	1		## [int] 0 = uniform global noise level, 1 = local noise
+N_nu		13		## [int] Number of S/N bins
+bin_nu		0.0  0.5  1.0  1.5  2.0  2.5  3.0  3.5  4.0  4.5  5.0  5.5  6.0  1e+15
+				## [float array] Bin edge values
+				##   The number of bin_nu should be N_nu + 1
+
+
+### Outputs
+prefix		camelus_
+				## [string] Prefix for output files
+doFITS		1		## [int] 0 = no, 1 = yes
+				##   Forced to 0 if Camelus not linked to cfitsio
+outHaloCat	1		## [int] 0 = no, 1 = yes
+outGalCat	1		## [int] 0 = no, 1 = yes
+outMaps		1		## [int] 0 = no, 1 = yes
+outTruth	1		## [int] 0 = no, 1 = yes
+				##   Output noise-free maps
+outMask		1		## [int] 0 = no, 1 = yes
+outPeakList	0		## [int] 0 = no, 1 = yes
+outHist		0		## [int] 0 = no, 1 = yes
+outMultiscale	1		## [int] 0 = no, 1 = yes
+
 
 ### ABC
-ABC_obsPath	../demo/x_obs	# Path of the observation data
-ABC_f		3		# Dimension of parameter set
-ABC_doParam	0  5  6		# 0 = Omega_m, 1 = Omega_de, 2 = Omega_b, 3 = n_s, 4 = h_100,
-#				# 5 = sigma_8, 6 = w0_de,    7 = w1_de,   8 = c_0, 9 = beta_NFW
-ABC_Q		1200		# Number of particles
-ABC_r_stop	0.03		# Shutoff success rate
-ABC_summ	summ_gauss	# Summary type: 'summ_gauss'
+ABC_f		2		## [int] Dimension of parameter set
+ABC_doParam	0  5		
+				## [int array] Parameters to include into constraints
+				##   0 = Omega_m, 1 = Omega_de, 2 = Omega_b, 3 = n_s, 4 = h_100,
+				##   5 = sigma_8, 6 = w0_de,    7 = w1_de,   8 = c_0, 9 = beta_NFW
+ABC_Q		20		## [int] Number of particles
+ABC_r_stop	0.03		## [float] Shutoff success rate
+ABC_obsPath	
+				## [string] Path of the observation data
+ABC_doCorr	1		## [int] Distance assumed to be the chi-squared in this version
+				##   0 = uncorrelated inverse covariance, 1 = full inverse covariance
+ABC_invCovPath	
+				## [string] Path of the inverse covariance
 
