@@ -28,7 +28,7 @@
 typedef struct {
   double pos[2];       //-- [rad] Angular position
   double z;            //-- [-] Halo redshift
-  double a;            //-- [-] 1 / z
+  double a;            //-- [-] 1 / (1+z)
   double w;            //-- [Mpc/h] Comoving radial distance to halo
   double M;            //-- [M_sol/h] Halo mass
   double c;            //-- [-] Halo concentration
@@ -40,6 +40,7 @@ typedef struct {
   double theta_vir_sq; //-- [rad^2]
   double factor;       //-- factor = FOUR_PI_G_OVER_C2 * (D_A M f c_NFW^2 / 2 pi r_vir^2)
   double sinCosDEC[2]; //-- [-] sinDEC & cosDEC, only used if field > 0
+  double n_gal;        //-- N galaxies inside the halo as predicted by HOD model
 } halo_t;
 
 typedef struct halo_node {
@@ -64,6 +65,7 @@ typedef struct {
 } halo_map;
 
 
+
 //-- Functions related to halo_t, halo_node, halo_list
 void set_halo_t(cosmo_hm *chPar, peak_param *pkPar, halo_t *h, double pos[2], double z, double ww, double M, error **err);
 halo_node *initialize_halo_node(error **err);
@@ -78,6 +80,8 @@ void free_halo_map(halo_map *hMap);
 void reset_halo_map(halo_map *hMap);
 int append_halo_map(cosmo_hm* chPar, peak_param* pkPar, halo_map* hMap, double pos[2], double z, double ww, double M, error** err);
 void read_halo_map(char name[], cosmo_hm* chPar, peak_param* pkPar, halo_map* hMap, error** err);
+
+
 
 //-- Functions related to mass function
 double massFct(cosmo_hm_params *cANDp, double mass, error **err);
@@ -119,6 +123,14 @@ void outAsciiMassSheet(char name[], cosmo_hm *chPar, peak_param *pkPar, interpol
 void doMassFct(cosmo_hm *chPar, peak_param *pkPar, double z, error **err);
 void doMassSheet(cosmo_hm *chPar, peak_param *pkPar, double z_s, error **err);
 void doFastSimulation(cosmo_hm *chPar, peak_param *pkPar, error **err);
+
+/// NEW HOD
+void outputFastSimul_HOD(char name_cmhm[],char name[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
+void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
+
+
+
+
 
 #endif
 
