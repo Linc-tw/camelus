@@ -24,6 +24,9 @@
 #include "rayTracing.h"
 #include "smoothing.h"
 
+// MKDEBUG new, for pipeline_t, in Linc-tw all initialize_pipeline_t is in multiscale.
+#include "multiscale.h"
+
 //-- Functions related to local variance
 void makeKernelForVariance(peak_param *pkPar, FFT_arr *variance);
 void fillPixelVariance(gal_map *gMap, FFT_t *var);
@@ -36,6 +39,7 @@ int isPeak(double *kappa, int N1, int i, int j);
 int isPeak_float(float *kappa, int N1, int i, int j);
 int isPeakForTable(fftw_complex *table, int M, int i, int j);
 void selectPeaks(peak_param *pkPar, signal_map *kMap, double_arr *peakList, error **err);
+void computePeaks2(char name[], peak_param *peak, signal_map *kMap, double_arr *peakList, error **err);
 void cutSmallPeaks(double_arr *peakList, double nu_min);
 void outAsciiPeakField(FILE *file, peak_param *pkPar);
 void outAsciiPeakList(char name[], peak_param *pkPar, double_arr *peakList, int filterInd, error **err);

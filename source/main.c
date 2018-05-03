@@ -199,79 +199,88 @@ int main(int argc, char *argv[])
   //-- only catalogue of galaxies and haloes are produced 
   else if (task == 15) {
     if (argc != 4) {printInstructions(task, 1); return 1;}
-    char *input_name = arg2;
-    char *input_name2 = arg3;
-    doProduce_Catalog(input_name,input_name2, cmhm, peak, err); quitOnError(*err, __LINE__, stderr);
+    char *input_name  = argv[2];
+    char *input_name2 = argv[3];
+    doProduce_Catalog(input_name,input_name2, chPar, pkPar, err); quitOnError(*err, __LINE__, stderr);
   }
 
   //-- read catalogue of halo and galaxy then compute peak count / list / histogramm
   else if (task == 16) {
     if (argc != 5) {printInstructions(task, 1); return 1;}
-    char *input_name = arg2;
-    char *input_name2 = arg3;
-    char *opt = arg4;
-    doPeakList_withInputs(input_name,input_name2,opt, cmhm, peak, err);
+    char *input_name  = argv[2];
+    char *input_name2 = argv[3];
+    char *opt         = argv[4];
+    doPeakList_withInputs(input_name, input_name2, opt, chPar, pkPar, err);
     quitOnError(*err, __LINE__, stderr);
   }
 
   else if (task == 151) {
     if (argc != 5) {printInstructions(task, 1); return 1;}
-    int N = atoi(arg2);
-    char *input_catHal = arg3;
-    char *input_catGal = arg4;
-   doProduce_Catalog_N(N,input_catHal,input_catGal, cmhm, peak, err); quitOnError(*err, __LINE__, stderr);
+    int N = atoi(argv[2]);
+    char *input_catHal = argv[3];
+    char *input_catGal = argv[4];
+   doProduce_Catalog_N(N, input_catHal, input_catGal, chPar, pkPar, err); quitOnError(*err, __LINE__, stderr);
   }
 
   else if (task == 161) {
     if (argc != 6) {printInstructions(task, 1); return 1;}
-    int N = atoi(arg2);
-    char *input_name = arg3;
-    char *input_name2 = arg4;
-  	 char *opt = arg5;
- 	 doPeakList_withInputs_N(N,input_name,input_name2,opt, cmhm, peak, err);
+    int N = atoi(argv[2]);
+    char *input_name = argv[3];
+    char *input_name2 = argv[4];
+  	 char *opt = argv[5];
+ 	 doPeakList_withInputs_N(N, input_name, input_name2, opt, chPar, pkPar, err);
 	 quitOnError(*err, __LINE__, stderr);
   }
 
   else if (task == 171) {
     if (argc != 5) {printInstructions(task, 1); return 1;}
-    char *input_hal = arg2;
-    char *input_gal = arg3;
-	 char *opt = arg4;
- 	 doPeakList_withInputs_hod(input_hal,input_gal,opt, cmhm, peak, err); 
+    char *input_hal = argv[2];
+    char *input_gal = argv[3];
+	 char *opt = argv[4];
+ 	 doPeakList_withInputs_hod(input_hal, input_gal, opt, chPar, pkPar, err); 
 	 quitOnError(*err, __LINE__, stderr);
   }
 
   else if (task == 999) {
     if (argc != 5) {printInstructions(task, 1); return 1;}
-    int N = atoi(arg2);
-    char *input_name = arg3;
-    char *input_name2 = arg4;
+    int N = atoi(argv[2]);
+    char *input_name = argv[3];
+    char *input_name2 = argv[4];
 
 	 printf("Nb realisation : %i \n",N);
-	 printf("Input param : %s \n",input_name );
-	 printf("Output CatHalo : %s \n",input_name2 );
+	 printf("Input param : %s \n", input_name);
+	 printf("Output CatHalo : %s \n", input_name2);
 
-  	 read_cosmo_hm(input_name, &cmhm, err);       
+    // MKDEBUG: Changed the following lines, according to Lin-tw format, see Initialization above (line ~ 60)
+  	 read_cosmo_hm(input_name, chPar, pkPar, err);
 	 quitOnError(*err, __LINE__, stderr);
-    doProduce_Catalog_DM_HOD(N,input_name,input_name2, cmhm, peak, err);
+    checkParam(pkPar, err);                                          quitOnError(*err, __LINE__, stderr); //-- Check if some are missing
+    chPar = reinitialize_cosmo_hm(chPar, err);                       quitOnError(*err, __LINE__, stderr); //-- Precalculate some parameters
+    set_peak_param(chPar, pkPar, err);                               quitOnError(*err, __LINE__, stderr); //-- Precalculate some parameters
+
+    doProduce_Catalog_DM_HOD(N,input_name,input_name2, chPar, pkPar, err);
 	 quitOnError(*err, __LINE__, stderr);
   }
   
   else if (task == 900){
     if (argc != 6) {printInstructions(task, 1); return 1;}
-    int N = atoi(arg2);
-    char *input_name = arg3;
-    char *input_name2 = arg4;
-    char *input_name3 = arg5;
+    int N = atoi(argv[2]);
+    char *input_name = argv[3];
+    char *input_name2 = argv[4];
+    char *input_name3 = argv[5];
 
 	 printf("Nb realisation : %i \n",N);
 	 printf("Input param : %s \n",input_name );
 	 printf("Output CatHalo : %s \n",input_name2 );
 	 printf("Output CatGal : %s \n",input_name3 );
 
-  	 read_cosmo_hm(input_name, &cmhm, err);       
+    // MKDEBUG: Changed the following lines, according to Lin-tw format, see Initialization above (line ~ 60)
+  	 read_cosmo_hm(input_name, chPar, pkPar, err);
 	 quitOnError(*err, __LINE__, stderr);
-	 doProduce_Catalog_DM_galaxies(N,input_name,input_name2,input_name3, cmhm, peak, err);
+    checkParam(pkPar, err);                                          quitOnError(*err, __LINE__, stderr); //-- Check if some are missing
+    chPar = reinitialize_cosmo_hm(chPar, err);                       quitOnError(*err, __LINE__, stderr); //-- Precalculate some parameters
+    set_peak_param(chPar, pkPar, err);                               quitOnError(*err, __LINE__, stderr); //-- Precalculate some parameters
+	 doProduce_Catalog_DM_galaxies(N,input_name,input_name2,input_name3, chPar, pkPar, err);
 	 quitOnError(*err, __LINE__, stderr);
   }
   // Linc-tw: end tasks TablesRondes

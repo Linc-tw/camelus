@@ -1068,7 +1068,7 @@ void outputFastSimul_HOD(char name_cmhm[],char name[], cosmo_hm *cmhm, peak_para
   fprintf(file, "# Model = %s, field = %s, Omega = (%g, %g) [arcmin]\n", smassfct_t(cmhm->massfct), STR_FIELD_T(peak->field), peak->Omega[0], peak->Omega[1]);
   fprintf(file, "# z_halo_max = %g, N_z_halo = %d, M_min = %8.2e [M_sol/h], M_max = %8.2e\n", peak->z_halo_max, peak->N_z_halo, peak->M_min, peak->M_max);
   fprintf(file, "#\n");
-  outputCosmoParam(file, cmhm, peak);
+  outAsciiCosmoParam(file, cmhm, peak);
   fprintf(file, "#\n");
   
   output_halo_map_HOD(name_cmhm,file,cmhm, peak, hMap);
@@ -1080,6 +1080,7 @@ void outputFastSimul_HOD(char name_cmhm[],char name[], cosmo_hm *cmhm, peak_para
 
 
 
+// MKDEBUG Linc-tw: check related, new function outAscii_halo_map
 void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap)
 {
   double ng,ngc,ngs,Mh,zz,ngal_all ;
@@ -1089,14 +1090,8 @@ void output_halo_map_HOD(char name_cmhm[],FILE *file, cosmo_hm *cmhm, peak_param
   fprintf(file, "# Number of halos = %d\n", hMap->total);
   fprintf(file, "#\n");
   
-  if (peak->field == aardvark_hPatch04 || peak->field == aardvark_gPatch086) { //-- For aardvark, positions are RA, DEC in [deg]
-    fprintf(file,"#  theta_x   theta_y      w          z          M         Ngal_c    Ngal_s      Rv   \n");
-    fprintf(file, "# [deg]  [deg]    [Mpc/h]     [-]     [M_sol/h]      [-]       [-]     [arcmin]    \n");
-  }
-  else {
-    fprintf(file, "#  theta_x   theta_y      w          z          M         Ngal_c    Ngal_s      Rv \n");
-    fprintf(file,"# [arcmin]  [arcmin]    [Mpc/h]    [-]     [M_sol/h]       [-]       [-]     [arcmin]  \n");
-  }
+  fprintf(file, "#  theta_x   theta_y      w          z          M         Ngal_c    Ngal_s      Rv \n");
+  fprintf(file,"# [arcmin]  [arcmin]    [Mpc/h]    [-]     [M_sol/h]       [-]       [-]     [arcmin]  \n");
 
   halo_list *hList;
   halo_node *hNode;

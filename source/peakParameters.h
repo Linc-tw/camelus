@@ -49,24 +49,6 @@
 #define peak_setting  -9 + peak_base
 
 
-typedef enum {rectangle=0, circle=1, aardvark_hPatch04=2, aardvark_gPatch086=3} field_t;
-#define NB_FIELD_T 4
-#define STR_FIELD_T(i) ( \
-  i==0 ? "rectangle" : \
-  i==1 ? "circle" : \
-  i==2 ? "hPatch04" : \
-  i==3 ? "gPatch086" : \
-  "")
-
-typedef enum {gauss=0, star=1, M_ap_tanh=2, mrlens=3} filter_t;
-#define NB_FILTER_T 4
-#define STR_FILTER_T(i) ( \
-  i==0 ? "gauss" : \
-  i==1 ? "star" : \
-  i==2 ? "tanh" : \
-  i==3 ? "mrlens" : \
-  "")
-
 typedef enum {
   kappa_map=0, K_map=1,  kn_map=2,  KN_map=3, noise_map=4,    N_map=5, 
   gamma_map=6, R_map=7,  re_map=8,  RE_map=9, epsilon_map=10, E_map=11,
@@ -219,7 +201,6 @@ typedef struct {
 //-- Functions related to cosmo_hm
 cosmo_hm *initialize_cosmo_hm_default(error **err);
 void read_cosmo_hm(char name[], cosmo_hm **cmhm, error **err);
-void outputCosmoParam(FILE *file, cosmo_hm *cmhm, peak_param *peak);
 cosmo_hm *updateCmhm(cosmo_hm *oldCmhm, double Omega_m, double sigma_8, double w0_de, error **err);
 
 //-- Functions related to peak_param
