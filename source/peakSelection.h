@@ -56,9 +56,9 @@ void doPeakList_repeat(cosmo_hm *cmhm, peak_param *peak, int N, error **err);
 //-- New function
 
 void doProduce_Catalog(char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
-void doPeakList_withInputs(char fileName[], char fileName2[],char opt[],cosmo_hm *cmhm, peak_param *peak, error **err);
+void doPeakList_withInputs(char fileName[],char opt[],cosmo_hm *cmhm, peak_param *peak, error **err);
 void doProduce_Catalog_N(int N,char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
-void doPeakList_withInputs_N(int N,char fileName[], char fileName2[],char end[],cosmo_hm *cmhm, peak_param *peak, error **err);
+void doPeakList_withInputs_N(int N,char fileName[],char end[],cosmo_hm *cmhm, peak_param *peak, error **err);
 void doProduce_Catalog_DM_HOD(int N,char CmhmName[],char HaloFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
 void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[],cosmo_hm *cmhm, peak_param *peak, error **err);
 void doProduce_Catalog_DM_galaxies(int N, char CmhmName[], char HaloFileName[], char GalaxyFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);

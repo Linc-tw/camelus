@@ -150,11 +150,10 @@ int main(int argc, char *argv[])
   }
     //-- read catalogue of halo and galaxy then compute peak count / list / histogramm
   else if (task == 16) {
-    if (argc != 5) {printInstructions(task, 1); return 1;}
+    if (argc != 4) {printInstructions(task, 1); return 1;}
     char *input_name = arg2;
-    char *input_name2 = arg3;
-	char *opt = arg4;
- 	doPeakList_withInputs(input_name,input_name2,opt, cmhm, peak, err);
+	char *opt = arg3;
+ 	doPeakList_withInputs(input_name,opt, cmhm, peak, err);
 	quitOnError(*err, __LINE__, stderr);
   }
   else if (task == 151) {
@@ -165,12 +164,11 @@ int main(int argc, char *argv[])
     doProduce_Catalog_N(N,input_catHal,input_catGal, cmhm, peak, err); quitOnError(*err, __LINE__, stderr);
   }
   else if (task == 161) {
-    if (argc != 6) {printInstructions(task, 1); return 1;}
+    if (argc != 5) {printInstructions(task, 1); return 1;}
     int N = atoi(arg2);
     char *input_name = arg3;
-    char *input_name2 = arg4;
-	char *opt = arg5;
- 	doPeakList_withInputs_N(N,input_name,input_name2,opt, cmhm, peak, err);
+	char *opt = arg4;
+ 	doPeakList_withInputs_N(N,input_name,opt, cmhm, peak, err);
 	quitOnError(*err, __LINE__, stderr);
   }
   else if (task == 171) {
@@ -295,9 +293,9 @@ void printInstructions(int task, int printHeader)
            printf("  ./camelus 151 N halocat galcat        # Creates N halo and galaxy catalogues\n");
            break;
         case 16:
-           printf("  ./camelus 16 halocat galcat   end     # Reads halo/galaxy catalogues and creates peak histogram // end name files \n");
+           printf("  ./camelus 16 galcat   end     # Reads galaxy catalogues and creates peak histogram // end name files \n");
         case 161:
-           printf("  ./camelus 161 N halocat galcat  end   # Reads N halo/galaxy catalogues and creates peak histogram // end name files \n");
+           printf("  ./camelus 161 N galcat  end   # Reads N galaxy catalogues and creates peak histogram // end name files \n");
         case 171:
            printf("  ./camelus 171  halocat galcat_nolensed  end   # Reads halo/galaxy catalogues and compute lensing quantities // end name files \n");
 	   break;
