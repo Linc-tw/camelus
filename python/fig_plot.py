@@ -68,6 +68,7 @@ def nz(catHalo):
 	Ntot=Ngal_c*(1.0+Ngal_s) #=ngc*(1+ngs)
 	print("tot gal : {0} ".format(sum(Ntot)))
 	nnz2=30
+	print("make HOD")
 	zmin=min(z)
 	zz2=np.linspace(zmin,max(z),nnz2)
 	nz2=np.linspace(zmin,max(z),nnz2)*0
@@ -77,18 +78,22 @@ def nz(catHalo):
 		nz2[ii]=nz2[ii]+Ntot[j]		
 
 	plt.figure(1)
-	#nz2=nz2 #/(sum(nz2))
-	#plt.hist(z,bins=10,normed=True,color='b',alpha=0.5)
-	#zz=np.linspace(0.01,max(z)+0.1,len(zz2))
-	#nn2=nnz(zz)
-	#nn2=nn2*12.*180.*180. #/(sum(nn2))
-	dat = ascii.read('../build/g1')
-	z1 =dat['col3']
-	nz1=np.linspace(zmin,max(z),nnz2)*0
-	for j in range(len(z1)):
-		ii=int(((z1[j]-zmin)/dz)-0.5)
-		nz1[ii]=nz1[ii]+1	
-	plt.semilogy(zz2,nz1,color='r')
+	nz2=nz2 #/(sum(nz2))
+	plt.hist(z,bins=10,normed=True,color='b',alpha=0.5)
+	#zz=np.linspace(0.01,max(z),len(zz2))
+	nz1=nnz(zz2)
+	nz1=nz1*12.*180.*180./(sum(nz1))
+	#for ii in range(1,8):
+	#	print("make n(z) {0}".format(ii))
+	#	hh= '../build/g_random_00'+str(ii)
+	#	dat = ascii.read('../build/g1')
+	#	z1 =dat['col3']
+	#	nz1=np.linspace(zmin,max(z),nnz2)*0
+	#	for j in range(len(z1)):
+	#		ii=int(((z1[j]-zmin)/dz)-0.5)
+	#		nz1[ii]=nz1[ii]+1	
+	#	plt.semilogy(zz2,nz1,color='r',alpha=0.4)
+	plt.semilogy(zz2,nz1,color='r',alpha=0.4)
 	plt.semilogy(zz2,nz2,color='b')
 	plt.show()
 	return	
