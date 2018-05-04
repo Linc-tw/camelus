@@ -836,13 +836,13 @@ void outFits_gal_map(FITS_t *fits, peak_param *pkPar, gal_map *gMap)
 void read_gal_map(char name[], cosmo_hm *chPar, peak_param *pkPar, gal_map *gMap, error **err)
 {
   reset_gal_map(gMap);
-  
+
   //-- Open
   FILE *file = fopen_err(name, "r", err); forwardError(*err, __LINE__,);
   if (pkPar->verbose < 2) {
     printf("Reading...\r"); fflush(stdout);
   }
-  
+
   //-- Column indices, inGalCatCol successively read as pos1, pos2, z, weight, kappa, e_1, e_2
   int pos1Ind  = pkPar->inGalCatCol[0];
   int pos2Ind  = pkPar->inGalCatCol[1];
@@ -851,14 +851,14 @@ void read_gal_map(char name[], cosmo_hm *chPar, peak_param *pkPar, gal_map *gMap
   int kappaInd = pkPar->inGalCatCol[4];
   int e1Ind    = pkPar->inGalCatCol[5];
   int e2Ind    = pkPar->inGalCatCol[6];
-  
+
   int count  = 0;
   int count2 = 0;
   double factor = (pkPar->field == 0) ? ARCMIN_TO_RADIAN : DEGREE_TO_RADIAN;
-  
+
   char kv[STRING_LENGTH_MAX][256], buffer[STRING_LENGTH_MAX];
   double pos[2], gamma[2], z, weight, kappa;
-  
+
   //-- Read
   int c = fgetc(file);
   while (c != EOF) {
@@ -868,27 +868,27 @@ void read_gal_map(char name[], cosmo_hm *chPar, peak_param *pkPar, gal_map *gMap
       fgets(buffer, STRING_LENGTH_MAX, file);
       getKeyAndValues(buffer, kv);
       count++;
-      
+
       pos[0]   = atof(kv[pos1Ind]) * factor; //-- [rad]
       pos[1]   = atof(kv[pos2Ind]) * factor; //-- [rad]
       z        = atof(kv[zInd]);
       weight   = (weiInd < 0)   ? ((pkPar->doNoise == 0) ? 1.0 : 1.0 / (SQ(pkPar->sigma_half))) : atof(kv[weiInd]); //-- Constant weight
-      
+
       if (kappaInd < 0 && e1Ind < 0) {
-	count2 += append_gal_map(chPar, pkPar, gMap, pos, z, weight, err);
-	forwardError(*err, __LINE__,);
+        count2 += append_gal_map(chPar, pkPar, gMap, pos, z, weight, err);
+        forwardError(*err, __LINE__,);
       }
       else {
-	kappa    = (kappaInd < 0) ? 0.0 : atof(kv[kappaInd]);
-	gamma[0] = (e1Ind < 0)    ? 0.0 : atof(kv[e1Ind]);
-	gamma[1] = (e2Ind < 0)    ? 0.0 : atof(kv[e2Ind]);
-	count2  += appendWithLensing_gal_map(pkPar, gMap, pos, z, weight, kappa, gamma, err); forwardError(*err, __LINE__,);
+        kappa    = (kappaInd < 0) ? 0.0 : atof(kv[kappaInd]);
+        gamma[0] = (e1Ind < 0)    ? 0.0 : atof(kv[e1Ind]);
+        gamma[1] = (e2Ind < 0)    ? 0.0 : atof(kv[e2Ind]);
+        count2  += appendWithLensing_gal_map(pkPar, gMap, pos, z, weight, kappa, gamma, err); forwardError(*err, __LINE__,);
       }
     }
     c = fgetc(file);
   }
   fclose(file);
-  
+
   //-- Check
   testErrorRet(count2!=gMap->total, peak_match, "Number not matched after reading files", *err, __LINE__,);
   if (pkPar->verbose < 3) {
@@ -907,9 +907,9 @@ void read_gal_map(char name[], cosmo_hm *chPar, peak_param *pkPar, gal_map *gMap
 void makeRegularGalaxies(cosmo_hm *chPar, peak_param *pkPar, gal_map *gMap, error **err)
 {
   //-- Regular implies necessairily fixed redshift.
-  
+
   reset_gal_map(gMap);
-  
+
   double *Omega = pkPar->Omega;
   int M1 = (int)round(Omega[0] * sqrt(pkPar->n_gal));
   int M2 = (int)round(Omega[1] * sqrt(pkPar->n_gal));
@@ -917,7 +917,7 @@ void makeRegularGalaxies(cosmo_hm *chPar, peak_param *pkPar, gal_map *gMap, erro
   int HP_length = pkPar->HP_length;
   long HP_first = pkPar->HP_first;
   double weight = (pkPar->doNoise == 0) ? 1.0 : 1.0 / (SQ(pkPar->sigma_half));
-  
+
   double pos[2];
   //hpint64 pixNest;
   int i, j;

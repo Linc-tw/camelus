@@ -589,11 +589,12 @@ void doPeakList_withInputs(char fileName[], char fileName2[],char end[], cosmo_h
     printf("Problem input files missing \n");
   }
   else {
-    printf(" Input file for halo : \"%s\" \n", fileName);
-    printf(" Input file for galaxies : \"%s\" \n", fileName2);
+    printf(" Reading file for halo \"%s\"...\n", fileName);
     read_halo_map(fileName, cmhm, peak, pipe->hMap, err);                                forwardError(*err, __LINE__,);
+    printf(" Reading file for galaxies : \"%s\"...\n", fileName2);
     read_gal_map2(fileName2, cmhm, peak, pipe->gMap, err);                                forwardError(*err, __LINE__,);
   }
+  printf("Creating map and output\n");
   makeMapAndOutputAll2(fileName, fileName2, cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err); forwardError(*err, __LINE__,);
 
   // MKDEBUG  used to be computeLocalVariance_arr

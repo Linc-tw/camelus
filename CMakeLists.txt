@@ -12,6 +12,8 @@
 cmake_minimum_required(VERSION 2.6)
 project(camelus)
 
+set(CMAKE_BUILD_TYPE Debug)
+
 ## Use pkg-config to find modules
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(REQ_PKG REQUIRED gsl fftw3)

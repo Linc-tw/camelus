@@ -228,7 +228,6 @@ void read_halo_map(char name[], cosmo_hm *chPar, peak_param *pkPar, halo_map *hM
       count2 += append_halo_map(chPar, pkPar, hMap, pos, z, ww, M, err); forwardError(*err, __LINE__,);
     }
     c = fgetc(file);
-    printf("fgetc\n");
   }
   fclose(file);
   

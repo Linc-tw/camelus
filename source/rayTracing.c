@@ -1222,6 +1222,8 @@ void read_gal_map2(char name[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap,
 {
   //-- WARNING: D_S, w_s are not read.
   
+  double factor = (peak->field == 0) ? ARCMIN_TO_RADIAN : DEGREE_TO_RADIAN;
+
   FILE *file = fopen_err(name, "r", err); forwardError(*err, __LINE__,);
   printf("Reading...\r");
   fflush(stdout);
@@ -1235,7 +1237,9 @@ void read_gal_map2(char name[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap,
     if (c == (int)'#') buffer1 = fgets(buffer, STRING_LENGTH_MAX, file);
     else {
       ungetc(c, file);
-      buffer2 = fscanf(file, "%lf %lf %lf \n", &pos[0], &pos[1], &z );   
+      buffer2 = fscanf(file, "%lf %lf %lf %lf %lf %lf\n", &pos[0], &pos[1], &z, &kappa, gamma, gamma+1);   
+      pos[0] *= factor;
+      pos[1] *= factor;
       appendWithSignal_gal_map2(cmhm, gMap, z, pos, err); forwardError(*err, __LINE__,);
       count++;
     }
@@ -1248,6 +1252,7 @@ void read_gal_map2(char name[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap,
 
   return;
 }
+
 void appendWithSignal_gal_map2(cosmo_hm *cmhm, gal_map *gMap, double z, double pos[2], error **err)
 {
   double theta_pix_inv = gMap->theta_pix_inv;
@@ -1260,6 +1265,7 @@ void appendWithSignal_gal_map2(cosmo_hm *cmhm, gal_map *gMap, double z, double p
   gMap->total++;
   return;
 }
+
 void appendWithSignal_gal_list2(cosmo_hm *cmhm, gal_list *gList, double z, double pos[2], error **err)
 {
   if (gList->length == 0) {

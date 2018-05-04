@@ -600,6 +600,7 @@ void set_peak_param(cosmo_hm *chPar, peak_param *pkPar, error **err)
 {
   //-- Precomputed part - Parameter files
   u_int32_t seed   = (strchr(pkPar->seed, 'r') == NULL) ? strtoul(pkPar->seed, NULL, 10) : renewSeed();
+  printf("MKDEBUG initialize rng with seed = %u\n", seed);
   pkPar->generator = initializeGenerator(seed);
   
   //-- Precomputed part - Field
