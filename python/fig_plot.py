@@ -88,6 +88,20 @@ def nz(catHalo):
 	plt.show()
 	return	
 	
+def nzg(catHalo):
+	plt.close('all')
+	dat = ascii.read(catHalo)
+	z =dat['col3']
+	plt.hist(z,bins=10,normed=True,color='b',alpha=0.5)
+	zz=np.linspace(0.0001,max(z),10)
+	nn2=nnz(zz)
+	#nn2=nn2/(sum(nn2))
+	plt.plot(zz,nn2,color='r')*10.*6.
+	#plt.plot(zz2,nz2,'+')
+	#plt.plot(zz2,nz2,color='b')
+	plt.show()
+	return	
+
 def nnz(z):
 	z0=0.5
 	alpha=2.
