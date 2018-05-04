@@ -38,8 +38,8 @@ void setWithSignal_gal_t(cosmo_hm *cmhm, gal_t *g, double z, double pos[2], doub
   g->gamma[1] = gamma[1];
   g->pos[0]   = pos[0];
   g->pos[1]   = pos[1];
-  g->w;  // MKDEBUG ????
-  g->D_s;
+  //g->w;  // MKDEBUG ???? commented
+  //g->D_s;
   return;
 }
 
@@ -82,7 +82,7 @@ void appendWithSignal_gal_map(cosmo_hm *cmhm, gal_map *gMap, double z, double po
 
 void output_gal_map(FILE *file, peak_param *peak, gal_map *gMap)
 {
-   fprintf(file, "# Type = %s, number of galaxies = %d\n", STR_MAPTYPE_T(gMap->type), gMap->total);
+   fprintf(file, "# Type = %s, number of galaxies = %d\n", STR_MAP_T(gMap->type), gMap->total);
    fprintf(file, "#\n");
 
    gal_list *gList;
@@ -782,45 +782,45 @@ void subtractMean(peak_param *pkPar, gal_map *gMap, interpolator_t *k1Inter)
   gal_t *g;
   double kappa1;
   int i, k;
-  
+
   //-- Compute kappa_mean of all galaxies and subtract
   if (pkPar->doSubtraction == 1) {
     //-- Get mean
     for (i=0; i<gMap->length; i++) {
       gList = gMap->map[i];
       for (k=0, gNode=gList->first; k<gList->size; k++, gNode=gNode->next) {
-	g = gNode->g;
-	mean += g->kappa * g->weight;
+        g = gNode->g;
+        mean += g->kappa * g->weight;
       }
       totWeight += gList->totWeight;
     }
-    
+
     mean /= totWeight;
     gMap->kappa_mean = mean;
-    
+
     //-- Subtract
     for (i=0; i<gMap->length; i++) {
       gList = gMap->map[i];
       for (k=0, gNode=gList->first; k<gList->size; k++, gNode=gNode->next) {
-	gNode->g->kappa -= mean;
+        gNode->g->kappa -= mean;
       }
     }
   }
-  
+
   //-- Compute the mass sheet kappa_1 at z_s of each galaxy and subtract
   else if (pkPar->doSubtraction == 2) {
     //-- Subtract and compute kappa_mean
     for (i=0; i<gMap->length; i++) {
       gList = gMap->map[i];
       for (k=0, gNode=gList->first; k<gList->size; k++, gNode=gNode->next) {
-	g = gNode->g;
-	kappa1    = execute_interpolator_t(k1Inter, g->z, 1); //-- border = 1
-	g->kappa -= kappa1;
-	mean     += g->kappa * g->weight;
+        g = gNode->g;
+        kappa1    = execute_interpolator_t(k1Inter, g->z, 1); //-- border = 1
+        g->kappa -= kappa1;
+        mean     += g->kappa * g->weight;
       }
       totWeight += gList->totWeight;
     }
-    
+
     //-- Stock kappa_mean
     mean /= totWeight;
     gMap->kappa_mean = mean;
@@ -984,7 +984,7 @@ void lensingCatalogueAndOutput(cosmo_hm *chPar, peak_param *pkPar, halo_map *hMa
   char name[STRING_LENGTH_MAX];
   
   //-- Lensing
-  lensingForMap(cmhm, peak, hMap, gMap, err);
+  lensingForMap(chPar, pkPar, hMap, gMap, err);
   forwardError(*err, __LINE__,);
   
   //-- Subtract mean
@@ -1157,17 +1157,20 @@ void doProfile(cosmo_hm *chPar, peak_param *pkPar, double z_l, double M, double 
   return;
 }
 
-void lensingCatalogueAndOutputAll2(char fileName[],cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, gal_map *gMap, error **err)
+// MKDEBUG: removed const from halo_map (to avoid warning); new k1Inter for subtractMean
+void lensingCatalogueAndOutputAll2(char fileName[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_map *gMap, interpolator_t *k1Inter, error **err)
 {
   //-- Lensing
   lensingForMap(cmhm, peak, hMap, gMap, err); forwardError(*err, __LINE__,);
   
   //-- Subtract mean
-  if (peak->doKappa != 0) subtractMean(peak, gMap);
+  if (peak->doKappa != 0) subtractMean(peak, gMap, k1Inter);
   
   //-- gamma to g
   if (peak->doKappa >= 2) makeG(gMap);
-  outputGalaxies(fileName, cmhm, peak, gMap);
+  // MKDEBUG replaced according to Linc-tw
+  //outputGalaxies(fileName, cmhm, peak, gMap);
+  outAsciiGalCat(fileName, cmhm, peak, gMap, err); forwardError(*err, __LINE__,);
   
   //-- Add noise
   //if (peak->doNoise == 1) {
@@ -1287,8 +1290,8 @@ void setWithSignal_gal_t2(cosmo_hm *cmhm, gal_t *g, double z, double pos[2], err
   g->a        = 1.0/(1.0+z);
   g->pos[0]   = pos[0];
   g->pos[1]   = pos[1];
-  g->w;
-  g->D_s;
+  //g->w;  // MKDEBUG commented
+  //g->D_s;
   return;
 }
 
@@ -1306,14 +1309,14 @@ void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo
   fprintf(file, "# Model = %s, field = %s, Omega = (%g, %g) [arcmin]\n", smassfct_t(cmhm->massfct), STR_FIELD_T(peak->field), peak->Omega[0], peak->Omega[1]);
   fprintf(file, "# z_halo_max = %g, N_z_halo = %d, M_min = %8.2e [M_sol/h], M_max = %8.2e\n", peak->z_halo_max, peak->N_z_halo, peak->M_min, peak->M_max);
   fprintf(file, "#\n");
-  outputCosmoParam(file, cmhm, peak);
+  outAsciiCosmoParam(file, cmhm, peak);
   fprintf(file, "#\n");
 
   fprintf(file2, "# Galaxy catalogue\n");
   fprintf(file2,  "# Field = %s, Omega = (%g, %g) [arcmin]\n", STR_FIELD_T(peak->field), peak->Omega[0], peak->Omega[1]);
   fprintf(file2, "# n_gal = %g [arcmin^-2], z_s = %g\n", peak->n_gal, peak->z_s);
   fprintf(file2, "#\n");
-  outputCosmoParam(file2, cmhm, peak);
+  outAsciiCosmoParam(file2, cmhm, peak);
   fprintf(file2, "#\n");
 
   //printf("test3 \n");
@@ -1332,7 +1335,7 @@ void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo
 
 
 /// A revoir BEUG
-void output2_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_list *gList)
+void output2_halo_map_galaxies(FILE *file, FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_list *gList)
 {
   halo_list *hList;
   halo_node *hNode;
@@ -1340,10 +1343,10 @@ void output2_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_para
   int i,j,k;
 
   srand(time(NULL));
-  
+
   fprintf(file, "# Number of halos = %d\n", hMap->total);
   fprintf(file, "#\n");
-  
+
   if (peak->field == aardvark_hPatch04 || peak->field == aardvark_gPatch086) { //-- For aardvark, positions are RA, DEC in [deg]
     fprintf(file,"#  theta_x   theta_y      w          z          M         Ngal_c    Ngal_s      Rv   \n");
     fprintf(file, "# [deg]  [deg]    [Mpc/h]     [-]     [M_sol/h]      [-]       [-]     [arcmin]    \n");
@@ -1354,17 +1357,17 @@ void output2_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_para
   }
   fprintf(file2, "#\n");
   fprintf(file2, "#\n");
-  
- 
+
+
   fprintf(file2, "#  theta_x   theta_y      z      halo_id    \n  ");
   fprintf(file2,"# [arcmin]  [arcmin]      [-]       [-]      \n");
-  
+
   //printf("test5 \n");
 
   halo_t *h;
 
   cmhm->zmin=0.01 ;
-		
+
   double vol_z=vc(cmhm,cmhm->zmin,cmhm->zmax,err);
   double deg2rad=3.14/180.;
   double arc2dec=1./60.;
@@ -1377,6 +1380,8 @@ void output2_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_para
   cmhm->log10M1=log10(M1) ;
   cmhm->log10M_min = log10(Mmin) ;
 
+  // MKDEBUG new, following Linc-tw:doProfile
+  double weight     = (peak->sigma_half > 0.0) ? 1.0 / (SQ(peak->sigma_half)) : 1.0;
 
   //printf("l = %i  \n",hMap->length);
   for (i=0; i<hMap->length; i++) {
@@ -1388,41 +1393,46 @@ void output2_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_para
       double Mh=h->M;
       double Ds;
 
-		//printf("Mmin %9.3E    \n",Mmin);
-        double ngc = Ngal_c(cmhm, Mh, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
-        forwardError(*err, __LINE__,);
-        double ngs = Ngal_s(cmhm, Mh, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
-        forwardError(*err, __LINE__,);
-      
+      //printf("Mmin %9.3E    \n",Mmin);
+      double ngc = Ngal_c(cmhm, Mh, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
+      forwardError(*err, __LINE__,);
+      double ngs = Ngal_s(cmhm, Mh, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
+      forwardError(*err, __LINE__,);
+
       fprintf(file, "%9.3f  %9.3f    %8.3f  %7.5f  %9.3e   %8.3f  %8.3f   %9.3f  \n", h->pos[0], h->pos[1], h->w, h->z, Mh,ngc,ngs,h->r_vir);
 
       Ds  = h->a * f_K(cmhm->cosmo, h->w, err);
-      
-      if( (rand()/(double)RAND_MAX)<ngc) {
-	append_gal_list(cmhm, gList,h->z, h->w, Ds, h->pos, err); forwardError(*err, __LINE__,);
-	fprintf(file2, "%9.3f  %9.3f   %7.5f  %i  \n", h->pos[0], h->pos[1], h->z, j);
-      }
-  
-    for (k = 0;k<ngc*ngs+0.5;k++) {
+      peak->w_s = h->w;
+      peak->D_s = Ds;
 
-	int bool = 1;
-	double r;
-	while(bool){
-	  double rtest = (rand()/(double)RAND_MAX);
-	  if( NFW(5*rtest) > (rand()/(double)RAND_MAX)) {
-	    bool = 0;
-	    r = rtest*h->r_vir;
-	  }
-	}
-	double theta = 2*M_PI*(rand()/(double)RAND_MAX);
-	double phi = acos(2*(rand()/(double)RAND_MAX)-1);
-	double pos[2];
+      if( (rand()/(double)RAND_MAX)<ngc) {
+        // MKDEBUG diff. arg. in Linc-tw
+        append_gal_list(cmhm, peak, gList, h->pos, h->z, weight, err); forwardError(*err, __LINE__,);
+        fprintf(file2, "%9.3f  %9.3f   %7.5f  %i  \n", h->pos[0], h->pos[1], h->z, j);
+      }
+
+      for (k = 0;k<ngc*ngs+0.5;k++) {
+
+        int bool = 1;
+        double r;
+        while(bool){
+          double rtest = (rand()/(double)RAND_MAX);
+          if( NFW(5*rtest) > (rand()/(double)RAND_MAX)) {
+            bool = 0;
+            r = rtest*h->r_vir;
+          }
+        }
+        double theta = 2*M_PI*(rand()/(double)RAND_MAX);
+        double phi = acos(2*(rand()/(double)RAND_MAX)-1);
+        double pos[2];
         pos[0] = cos(theta) * sin(phi) * r + h->pos[0];
         pos[1] = sin(theta) * sin(phi) * r + h->pos[1];
-	append_gal_list(cmhm, gList, h->z, h->w, Ds,h->pos, err); forwardError(*err, __LINE__,);
-	fprintf(file2, "%9.3f  %9.3f   %7.5f  %i  \n", pos[0], pos[1], h->z, j);
+        // MKDEBUG diff. arg. in Linc-tw
+        //append_gal_list(cmhm, gList, h->z, h->w, Ds,h->pos, err); forwardError(*err, __LINE__,);
+        append_gal_list(cmhm, peak, gList, h->pos, h->z, weight, err); forwardError(*err, __LINE__,);
+        fprintf(file2, "%9.3f  %9.3f   %7.5f  %i  \n", pos[0], pos[1], h->z, j);
       }
-      
+
       //printf("ok \n");
     }
   }
@@ -1438,6 +1448,10 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
   error *myerr = NULL, **err = &myerr;
   int i,j,ii,k;
   double Ds,Mh;
+
+  // MKDEBUG new, following Linc-tw:doProfile
+  double weight     = (peak->sigma_half > 0.0) ? 1.0 / (SQ(peak->sigma_half)) : 1.0;
+
   ii=0;
   srand(time(NULL));
   fprintf(file, "# Number of halos = %d\n", hMap->total);
@@ -1453,7 +1467,7 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
   }
   fprintf(file2, "#\n");
   fprintf(file2, "#\n");
-  
+
   fprintf(file2, "#  theta_x   theta_y      z        \n  ");
   fprintf(file2,"# [arcmin]  [arcmin]      [-]       \n");
 
@@ -1464,38 +1478,42 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
     hList = hMap->map[i];
     for (j=0, hNode=hList->first; j<hList->size; j++, hNode=hNode->next) {
       h=hNode->h;
- 	  Mh=h->M;
-        double ngc = Ngal_c(cmhm,h->M, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
-        forwardError(*err, __LINE__,);
-        double ngs = Ngal_s(cmhm,h->M, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
-        forwardError(*err, __LINE__,);
-        ii=ii+ngc*(1.0+ngs);
+      Mh=h->M;
+      double ngc = Ngal_c(cmhm,h->M, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
+      forwardError(*err, __LINE__,);
+      double ngs = Ngal_s(cmhm,h->M, cmhm->log10Mstar_min, cmhm->log10Mstar_max, err);
+      forwardError(*err, __LINE__,);
+      ii=ii+ngc*(1.0+ngs);
       fprintf(file, "%9.3f  %9.3f    %8.3f  %7.5f  %9.3e   %8.3f  %8.3f   %9.3f  \n", h->pos[0], h->pos[1], h->w, h->z, Mh,ngc,ngs,h->r_vir);
 
-       Ds  = h->a * f_K(cmhm->cosmo, h->w, err);
+      Ds  = h->a * f_K(cmhm->cosmo, h->w, err);
+      peak->w_s = h->w;
+      peak->D_s = Ds;
       if( (rand()/(double)RAND_MAX)<ngc) {
-	append_gal_list(cmhm, gList,h->z, h->w, Ds, h->pos, err); forwardError(*err, __LINE__,);
-	fprintf(file2, "%9.3f  %9.3f   %7.5f   \n", h->pos[0], h->pos[1], h->z);
+        // MKDEBUG diff. arg. in Linc-tw
+        append_gal_list(cmhm, peak, gList, h->pos, h->z, weight, err); forwardError(*err, __LINE__,);
+        fprintf(file2, "%9.3f  %9.3f   %7.5f   \n", h->pos[0], h->pos[1], h->z);
       }
-     
+
       for (k = 0;k<ngc*ngs+0.5;k++) {
-	//printf("k = %i  \n",k);
-	int bool = 1;
-	double r;
-	while(bool){
-	  double rtest = (rand()/(double)RAND_MAX);
-	  if( NFW(5*rtest) > (rand()/(double)RAND_MAX)) {
-	    bool = 0;
-	    r = rtest*h->r_vir;
-	  }
-	}
-	double theta = 2*M_PI*(rand()/(double)RAND_MAX);
-	double phi = acos(2*(rand()/(double)RAND_MAX)-1);
-	double pos[2];
-    pos[0] = cos(theta) * sin(phi) * r + h->pos[0];
-    pos[1] = sin(theta) * sin(phi) * r + h->pos[1];
-	append_gal_list(cmhm, gList, h->z, h->w, Ds,h->pos, err); forwardError(*err, __LINE__,);
-	fprintf(file2, "%9.3f  %9.3f   %7.5f   \n", pos[0], pos[1], h->z);
+        //printf("k = %i  \n",k);
+        int bool = 1;
+        double r;
+        while(bool){
+          double rtest = (rand()/(double)RAND_MAX);
+          if( NFW(5*rtest) > (rand()/(double)RAND_MAX)) {
+            bool = 0;
+            r = rtest*h->r_vir;
+          }
+        }
+        double theta = 2*M_PI*(rand()/(double)RAND_MAX);
+        double phi = acos(2*(rand()/(double)RAND_MAX)-1);
+        double pos[2];
+        pos[0] = cos(theta) * sin(phi) * r + h->pos[0];
+        pos[1] = sin(theta) * sin(phi) * r + h->pos[1];
+        // MKDEBUG diff. arg. in Linc-tw
+        append_gal_list(cmhm, peak, gList, h->pos, h->z, weight, err); forwardError(*err, __LINE__,);
+        fprintf(file2, "%9.3f  %9.3f   %7.5f   \n", pos[0], pos[1], h->z);
       }
     }
   }

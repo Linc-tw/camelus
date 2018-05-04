@@ -11,6 +11,9 @@
 
 #include "commonHeader.h"
 
+// MKDEBUG New for STR_MAP...
+#include "parameters.h"
+
 #ifndef __CAMELUS_RAY_TRACING__
 #define __CAMELUS_RAY_TRACING__
 
@@ -77,7 +80,7 @@ void doProfile(cosmo_hm *chPar, peak_param *pkPar, double z_l, double M, double 
 void doRayTracing(cosmo_hm *chPar, peak_param *pkPar, error **err);
 
 //-- New function
-void lensingCatalogueAndOutputAll2(char fileName[],cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, gal_map *gMap, error **err);
+void lensingCatalogueAndOutputAll2(char fileName[],cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_map *gMap, interpolator_t *k1Inter, error **err);
 
 
 void read_gal_map2(char name[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, error **err);

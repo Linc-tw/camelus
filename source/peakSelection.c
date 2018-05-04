@@ -594,9 +594,9 @@ void doPeakList_withInputs(char fileName[], char fileName2[],char end[], cosmo_h
     read_halo_map(fileName, cmhm, peak, pipe->hMap, err);                                forwardError(*err, __LINE__,);
     read_gal_map2(fileName2, cmhm, peak, pipe->gMap, err);                                forwardError(*err, __LINE__,);
   }
-  makeMapAndOutputAll2(fileName,fileName2, cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err); forwardError(*err, __LINE__,);
+  makeMapAndOutputAll2(fileName, fileName2, cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err); forwardError(*err, __LINE__,);
 
-  // MKDEBUG 
+  // MKDEBUG  used to be computeLocalVariance_arr
   makeLocalVariance(peak, pipe->gMap, pipe->variance);
    
   // MKDEBUG: Replaced with lines from multiscale.c:mapToMultiscale_FFT/DC
@@ -668,7 +668,7 @@ void doProduce_Catalog(char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, p
   free_sampler_arr(sampArr);
 
   cleanOrMakeOrResample(cmhm, peak, pipe->gSamp, pipe->gMap, pipe->mask, err);            forwardError(*err, __LINE__,);
-  lensingCatalogueAndOutputAll2(GalFileName, cmhm, peak, pipe->hMap, pipe->gMap, err);
+  lensingCatalogueAndOutputAll2(GalFileName, cmhm, peak, pipe->hMap, pipe->gMap, pipe->k1Inter, err);
 
   free_pipeline_t(pipe);
 
@@ -724,7 +724,7 @@ void doProduce_Catalog_N(int N,char HaloFileName[],char GalFileName[], cosmo_hm 
 
     cleanOrMakeOrResample(cmhm, peak, pipe->gSamp, pipe->gMap, pipe->mask, err);
     forwardError(*err, __LINE__,);
-    lensingCatalogueAndOutputAll2(GalFileName2, cmhm, peak, pipe->hMap, pipe->gMap, err);
+    lensingCatalogueAndOutputAll2(GalFileName2, cmhm, peak, pipe->hMap, pipe->gMap, pipe->k1Inter, err);
 
     free_pipeline_t(pipe);
 
@@ -779,6 +779,8 @@ void doPeakList_withInputs_N(int N,char fileName[], char fileName2[],char end[],
        hist_t *nuHist       = initialize_hist_t(peak->N_nu);
        setHist_nu(peak, nuHist);
        */
+
+  // MKDEBUG: Check new Linc-tw funtion readCatOrMakeSimulAndOutput
 
     if ((fileName == NULL)||(fileName2 == NULL)) {
       //-- no input files
@@ -838,24 +840,27 @@ void doProduce_Catalog_DM_HOD(int N,char CmhmName[],char HaloFileName[], cosmo_h
 
   printf("-----------------------------  HOD Ngal  -------------------------------\n");
   for (i=0; i<N; i++) {
-  	   halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);
-	   forwardError(*err,__LINE__,);
-	   //-- Carry out fast simulation
-	   sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
-	   setMassSamplers(cmhm, peak, sampArr, err); 
-       forwardError(*err, __LINE__,);
-	   makeFastSimul(cmhm, peak, sampArr, hMap, err);
-       forwardError(*err, __LINE__,);
-   	   sprintf(HaloFileName2, "%s_%3.3d",HaloFileName, i+1);
-	   outputFastSimul_HOD(CmhmName,HaloFileName2, cmhm, peak, hMap);
-	   free_sampler_arr(sampArr);
-  	   free_halo_map(hMap);
-	}
+    halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);
+    forwardError(*err,__LINE__,);
+    //-- Carry out fast simulation
+    sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
+    setMassSamplers(cmhm, peak, sampArr, 1, err); 
+    forwardError(*err, __LINE__,);
+    makeFastSimul(cmhm, peak, sampArr, hMap, err);
+    forwardError(*err, __LINE__,);
+    sprintf(HaloFileName2, "%s_%3.3d", HaloFileName, i+1);
+    // MKDEBUG Replaced, new name in Linc-tw
+    //outputFastSimul_HOD(CmhmName, HaloFileName2, cmhm, peak, hMap);
+    outAsciiHaloCat(HaloFileName, cmhm, peak, hMap, err);
+    forwardError(*err, __LINE__,);
+    free_sampler_arr(sampArr);
+    free_halo_map(hMap);
+  }
   return;
 }
 
 
-void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[],cosmo_hm *cmhm, peak_param *peak, error **err)
+void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[], char end[], cosmo_hm *cmhm, peak_param *peak, error **err)
 {
   int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
   
@@ -867,6 +872,10 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[]
   sprintf(fpeakListPos, "peakListPos_%s",end);
   sprintf(fpeakHist, "peakhist_%s",end);
 
+  // MKDEBUG: New structure in Linc-tw, replaced lines below.
+  pipeline_t *pipe = initialize_pipeline_t(cmhm, peak, err); forwardError(*err, __LINE__,);
+
+  /*
   halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
   sampler_t *galSamp   = initialize_sampler_t(peak->N_z_gal);
   setGalaxySampler(cmhm, peak, galSamp, err);                                                       forwardError(*err, __LINE__,);
@@ -882,59 +891,74 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[]
   double_arr *peakList = initialize_double_arr(length);
   hist_t *nuHist       = initialize_hist_t(peak->N_nu);
   setHist_nu(peak, nuHist);
+  */
 
- // printf(" read inpute 0 : \"%s\" \n", fileName);
   if ((fileNameHal == NULL)||(fileNameGal == NULL)) {
     //-- no input files
-    	printf("Problem input files missing \n");
+    printf("Problem input files missing \n");
   }
   else {
     printf(" Input file for halo : \"%s\" \n", fileNameHal);
     printf(" Input file for galaxies : \"%s\" \n", fileNameGal);
-    read_halo_map(fileNameHal, cmhm, peak, hMap, err); 
+    read_halo_map(fileNameHal, cmhm, peak, pipe->hMap, err); 
     forwardError(*err, __LINE__,);
     printf("halo read \n");
-    read_gal_map2(fileNameGal, cmhm, peak, gMap, err);
+    read_gal_map2(fileNameGal, cmhm, peak, pipe->gMap, err);
     forwardError(*err, __LINE__,);
     printf("gal read \n");
   }
 
 
-  makeMapAndOutputAll2(fileNameHal,fileNameGal, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err);
+  makeMapAndOutputAll2(fileNameHal, fileNameGal, cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err);
   forwardError(*err, __LINE__,);
 
   // MKDEBUG used to be computeLocalVariance_arr
-  makeLocalVariance(peak, pipe->gMap, variance);
+  makeLocalVariance(peak, pipe->gMap, pipe->variance);
 
-  if (peak->DC_nbFilters) kappaToSNR_DC(peak, gMap, DCSmoother->array[0], kMap);
-  else                         kappaToSNR_FFT(peak, gMap, FFTSmoother->array[0], kMap, variance->array[0]);
+  // MKDEBUG: Replaced with lines from multiscale.c:mapToMultiscale_FFT/DC
+  //if (peak->DC_nbFilters) kappaToSNR_DC(peak, gMap, DCSmoother->array[0], kMap);
+  //else                         kappaToSNR_FFT(peak, gMap, FFTSmoother->array[0], kMap, variance->array[0]);
+  int j;
+  for (j=0; j<peak->FFT_nbFilters; j++) {
+    kappaToSNR_FFT(peak, pipe->gMap, pipe->FFTSmoother->array[j], pipe->kMap, pipe->variance->array[j], j);
+  }
+  for (j=0; j<peak->DC_nbFilters; j++) {
+    kappaToSNR_DC(peak, pipe->DCSmoother->array[j], pipe->kMap, j);
+  }
 
-  lensingCatalogueAndOutputAll(cmhm, peak, hMap, gMap, err);                 forwardError(*err, __LINE__,);
-  makeMapAndOutputAll(cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err); forwardError(*err, __LINE__,);
+  // MKDEBUG replaced after Linc-tw. Needs to be checked.
+  //lensingCatalogueAndOutputAll(cmhm, peak, pipe->hMap, pipe->gMap, err);                 forwardError(*err, __LINE__,);
+  sprintf(peak->prefix, "galCat");
+  lensingCatalogueAndOutput(cmhm, peak, pipe->hMap, pipe->gMap, pipe->k1Inter, err); forwardError(*err, __LINE__,);
+
+  // MKDEBUG replaced to Linc-tw. Question: is noise now added, whereas before it was not?
+  // Also: What about gMap2?
+  //makeMapAndOutputAll(cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err); forwardError(*err, __LINE__,);
+  gal_map *gMap2 = NULL;
+  makeMapsAndOutput(cmhm, peak, pipe->gMap, gMap2, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err);   forwardError(*err, __LINE__,);
   // MKDEBUG used to be computeLocalVariance_arr
-  makeLocalVariance(peak, gMap, variance);
+  makeLocalVariance(peak, pipe->gMap, pipe->variance);
 
    
-  selectPeaks(peak, kMap, peakList, err);   forwardError(*err, __LINE__,);
+  selectPeaks(peak, pipe->kMap, pipe->peakList, err);   forwardError(*err, __LINE__,);
 
 
-  outputPeakList(fpeakList, peak, peakList);
-  computePeaks2(fpeakListPos,peak,kMap,peakList,err);
+  // MKDEBUG replaced. The following will only write peaks from 0th filter!
+  //outputPeakList(fpeakList, peak, peakList);
+  outAsciiPeakList(fpeakList, peak, pipe->peakList, 0, err);
+
+  computePeaks2(fpeakListPos, peak, pipe->kMap, pipe->peakList, err);
   int silent = 1;
-  makeHist(peakList, nuHist, silent);
-  outputHist(fpeakHist, nuHist);
+  makeHist(pipe->peakList, pipe->nuHist, silent);
+  //outputHist(fpeakHist, nuHist);
+  outAsciiHist(fpeakHist, peak, pipe->nuHist, 0, err);
+  forwardError(*err, __LINE__,);
+
 
   //computePeaks2("TEST_TABLE_PEAK",peak,kMap,peakList,err);
-  free_halo_map(hMap);
-  free_sampler_t(galSamp);
-  free_gal_map(gMap);
-  free_short_mat(CCDMask);
-  free_FFT_arr(FFTSmoother);
-  free_FFT_arr(DCSmoother);
-  free_map_t(kMap);
-  free_FFT_arr(variance);
-  free_double_arr(peakList);
-  free_hist_t(nuHist);
+
+  free_pipeline_t(pipe);
+
   printf("------------------------------------------------------------------------\n");
   return;
 }
@@ -952,14 +976,17 @@ void doProduce_Catalog_DM_galaxies(int N, char CmhmName[], char HaloFileName[], 
     forwardError(*err,__LINE__,);
     //-- Carry out fast simulation
     sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
-    setMassSamplers(cmhm, peak, sampArr, err); 
+    setMassSamplers(cmhm, peak, sampArr, 1, err); 
     forwardError(*err, __LINE__,);
     makeFastSimul(cmhm, peak, sampArr, hMap, err);
     forwardError(*err, __LINE__,);
     sprintf(HaloFileName2, "%s_%3.3d",HaloFileName, i+1);
     sprintf(GalaxyFileName2, "%s_%3.3d",GalaxyFileName, i+1);
     //printf("test \n");
-    outputFastSimul_galaxies(CmhmName, HaloFileName2, GalaxyFileName2, cmhm, peak, hMap);
+    // MKDEBUG Replaced, new name in Linc-tw
+    //outputFastSimul_galaxies(CmhmName, HaloFileName2, GalaxyFileName2, cmhm, peak, hMap);
+    outAsciiHaloCat(HaloFileName, cmhm, peak, hMap, err);
+    forwardError(*err, __LINE__,);
     //printf("test2 \n");
     free_sampler_arr(sampArr);
     free_halo_map(hMap);

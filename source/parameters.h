@@ -85,7 +85,6 @@ typedef enum {gauss=0, star=1, M_ap_tanh=2, mrlens=3} filter_t;
   "")
 
 
-
 typedef enum {
   kappa_map=0, K_map=1,  kn_map=2,  KN_map=3, noise_map=4,    N_map=5, 
   gamma_map=6, R_map=7,  re_map=8,  RE_map=9, epsilon_map=10, E_map=11,

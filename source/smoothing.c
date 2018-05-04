@@ -1440,94 +1440,93 @@ void outFits_fftw_complex(FITS_t *fits, peak_param *pkPar, fftw_complex *table, 
   int field = pkPar->field;
   double theta_pix = pkPar->theta_pix;
   double factor = (field == 0) ? RADIAN_TO_ARCMIN : RADIAN_TO_DEGREE;
-  
+
   double *pix, pos[2];
   float fBuff;
   int i, j, jM;
-  
+
   if (field < 2) {
     if (type < 6) {
       addColumn(fits, "THX",   TFLOAT, "arcmin");
       addColumn(fits, "THY",   TFLOAT, "arcmin");
       addColumn(fits, "VALUE", TFLOAT, "-       ");
-      
+
       for (j=0; j<N2; j++) {
-	jM = j * M;
-	for (i=0; i<N1; i++) {
-	  getPixPos(pos, theta_pix, i, j);
-	  fBuff = (float)(pos[0] * factor); writeTableColumn(fits, 0, 1, &fBuff);
-	  fBuff = (float)(pos[1] * factor); writeTableColumn(fits, 1, 1, &fBuff);
-	  fBuff = (float)table[i+jM][0];    writeTableColumn(fits, 2, 1, &fBuff);
-	  nextRow(fits);
-	}
+        jM = j * M;
+        for (i=0; i<N1; i++) {
+          getPixPos(pos, theta_pix, i, j);
+          fBuff = (float)(pos[0] * factor); writeTableColumn(fits, 0, 1, &fBuff);
+          fBuff = (float)(pos[1] * factor); writeTableColumn(fits, 1, 1, &fBuff);
+          fBuff = (float)table[i+jM][0];    writeTableColumn(fits, 2, 1, &fBuff);
+          nextRow(fits);
+        }
       }
     }
-    
+
     else {
       addColumn(fits, "THX",    TFLOAT, "arcmin");
       addColumn(fits, "THY",    TFLOAT, "arcmin");
       addColumn(fits, "VALUE1", TFLOAT, "-       ");
       addColumn(fits, "VALUE2", TFLOAT, "-       ");
-      
+
       for (j=0; j<N2; j++) {
-	jM = j * M;
-	for (i=0; i<N1; i++) {
-	  pix = table[i+jM];
-	  getPixPos(pos, theta_pix, i, j);
-	  fBuff = (float)(pos[0] * factor); writeTableColumn(fits, 0, 1, &fBuff);
-	  fBuff = (float)(pos[1] * factor); writeTableColumn(fits, 1, 1, &fBuff);
-	  fBuff = (float)pix[0];            writeTableColumn(fits, 2, 1, &fBuff);
-	  fBuff = (float)pix[1];            writeTableColumn(fits, 3, 1, &fBuff);
-	  nextRow(fits);
-	}
+        jM = j * M;
+        for (i=0; i<N1; i++) {
+          pix = table[i+jM];
+          getPixPos(pos, theta_pix, i, j);
+          fBuff = (float)(pos[0] * factor); writeTableColumn(fits, 0, 1, &fBuff);
+          fBuff = (float)(pos[1] * factor); writeTableColumn(fits, 1, 1, &fBuff);
+          fBuff = (float)pix[0];            writeTableColumn(fits, 2, 1, &fBuff);
+          fBuff = (float)pix[1];            writeTableColumn(fits, 3, 1, &fBuff);
+          nextRow(fits);
+        }
       }
     }
   }
-  
-<<<<<<< HEAD
+
   else {
     if (type < 6) {
       addColumn(fits, "IPIX",  TINT, "pix");
       addColumn(fits, "JPIX",  TINT, "pix");
       addColumn(fits, "VALUE", TFLOAT, "-       ");
-      
+
       for (j=0; j<N2; j++) {
-	jM = j * M;
-	for (i=0; i<N1; i++) {
-	                                      writeTableColumn(fits, 0, 1, &i);
-	                                      writeTableColumn(fits, 1, 1, &j);
-	  fBuff = (float)table[i+jM][0]; writeTableColumn(fits, 2, 1, &fBuff);
-	  nextRow(fits);
-	}
+        jM = j * M;
+        for (i=0; i<N1; i++) {
+          writeTableColumn(fits, 0, 1, &i);
+          writeTableColumn(fits, 1, 1, &j);
+          fBuff = (float)table[i+jM][0]; writeTableColumn(fits, 2, 1, &fBuff);
+          nextRow(fits);
+        }
       }
     }
-    
+
     else {
       addColumn(fits, "IPIX",   TINT, "pix");
       addColumn(fits, "JPIX",   TINT, "pix");
       addColumn(fits, "VALUE1", TFLOAT, "-       ");
       addColumn(fits, "VALUE2", TFLOAT, "-       ");
-      
+
       for (j=0; j<N2; j++) {
-	jM = j * M;
-	for (i=0; i<N1; i++) {
-	  pix = table[i+jM];
-	                              writeTableColumn(fits, 0, 1, &i);
-	                              writeTableColumn(fits, 1, 1, &j);
-	  fBuff = (float)pix[0]; writeTableColumn(fits, 2, 1, &fBuff);
-	  fBuff = (float)pix[1]; writeTableColumn(fits, 3, 1, &fBuff);
-	  nextRow(fits);
-	}
+        jM = j * M;
+        for (i=0; i<N1; i++) {
+          pix = table[i+jM];
+          writeTableColumn(fits, 0, 1, &i);
+          writeTableColumn(fits, 1, 1, &j);
+          fBuff = (float)pix[0]; writeTableColumn(fits, 2, 1, &fBuff);
+          fBuff = (float)pix[1]; writeTableColumn(fits, 3, 1, &fBuff);
+          nextRow(fits);
+        }
       }
     }
-   // Linc-tw: The following lines are removed
-  //if (peak->FFT_nbFilters || peak->doNonlinear) {
+    // Linc-tw: The following lines are removed
+    //if (peak->FFT_nbFilters || peak->doNonlinear) {
     // //-- Bin and stock information in smoother->array[0]->before
     //signalMean_gal_map(peak, gMap, err); forwardError(*err, __LINE__,);
     //galaxyBinning(gMap, FFTSmoother->array[0]); //-- Only in the first one
-   // // if (peak->printMode < 2) printf("Binned galaxies\n");
-  //}
-  
+    // // if (peak->printMode < 2) printf("Binned galaxies\n");
+  }
+
   int nbPix = N1 * N2;
   addLineSpread(fits);
   addKeyword(fits, TINT, "NBPIX", &nbPix, "[-] Number of pixels");
@@ -1859,6 +1858,45 @@ void makeMaps(peak_param *pkPar, gal_map *gMap, FFT_arr *FFTSmoother, FFT_arr *D
   return;
 }
 
+// MKDEBUG copied from TablesRondes, removed in Linc-tw
+void makeTrueMap(char name[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, FFT_arr *FFTSmoother, FFT_arr *DCSmoother, signal_map *kMap, int semiTruth, error **err)
+{
+  int doKappa = peak->doKappa;
+  if (doKappa == 1 && semiTruth == 1) return;
+  if (doKappa == 0 && semiTruth == 0) return;
+
+  reset_gal_map(gMap);
+  read_gal_map(name, cmhm, peak, gMap, err); forwardError(*err, __LINE__,);
+
+  //-- Temporary settings
+  int FFT_nbFilters = peak->FFT_nbFilters;
+  int DC_nbFilters  = peak->DC_nbFilters;
+  peak->FFT_nbFilters = 1;
+  peak->DC_nbFilters  = 0;
+
+  //-- Semi-true kappa
+  if (semiTruth == 1) {
+    pixelization(peak, gMap, FFTSmoother, DCSmoother, err); forwardError(*err, __LINE__,);
+    // MKDEBUG replaced with Linc-tw:inversion
+    //if (doKappa == 2) invertByIterKS_arr(peak, gMap, FFTSmoother, DCSmoother, kMap);
+    //else              invertByLinKS_arr(peak, gMap, FFTSmoother, DCSmoother);
+    inversion(peak, FFTSmoother, DCSmoother, kMap);
+  }
+
+  //-- True kappa
+  else {
+    peak->doKappa = 1;
+    pixelization(peak, gMap, FFTSmoother, DCSmoother, err); forwardError(*err, __LINE__,);
+    peak->doKappa = doKappa;
+  }
+
+  //-- Turn setthings back
+  peak->FFT_nbFilters = FFT_nbFilters;
+  peak->DC_nbFilters  = DC_nbFilters;
+  return;
+}
+
+
 void makeMapsAndOutput(cosmo_hm *chPar, peak_param *pkPar, gal_map *gMap, gal_map *gMap2, FFT_arr *FFTSmoother, FFT_arr *DCSmoother, signal_map *kMap, error **err)
 {
   //-- Map making main function: kappa/gamma/g/g-linear, noiseless/noisy, unsmoothed/smoothed
@@ -2021,7 +2059,7 @@ void makeMapAndOutputAll2(char fileName[], char fileName2[], cosmo_hm *cmhm, pea
   int doKappa       = peak->doKappa;
   int FFT_nbFilters = peak->FFT_nbFilters;
   int DC_nbFilters  = peak->DC_nbFilters;
-  int doNonlinear   = peak->doNonlinear;
+  //int doNonlinear   = peak->doNonlinear; // removed in Linc-tw
   int typeForNoise  = peak->doNoise * 2;
   int typeForG      = (int)(doKappa >= 2) * 6;
   int outputInd     = 0; //-- This index is changeable.
@@ -2030,58 +2068,83 @@ void makeMapAndOutputAll2(char fileName[], char fileName2[], cosmo_hm *cmhm, pea
   FFT_t *firstFFTSmoo, *outputFFTSmoo, *outputDCSmoo, *trueSmoo;
   
   if (DC_nbFilters)                 outputDCSmoo  = DCSmoother->array[outputInd];
-  if (FFT_nbFilters || doNonlinear) outputFFTSmoo = FFTSmoother->array[outputInd];
+  if (FFT_nbFilters) outputFFTSmoo = FFTSmoother->array[outputInd];
   firstFFTSmoo = FFTSmoother->array[0];
   
   //-- Mask
-  outputMask("mask", peak, gMap, kMap, err); forwardError(*err, __LINE__,);
+  // MKDEBUG replaced name Linc-tw
+  //outputMask("mask", peak, gMap, kMap, err); forwardError(*err, __LINE__,);
+  outAsciiMask("mask", peak, gMap, kMap, err); forwardError(*err, __LINE__,);
+
   
   //-- Pixelization
-  pixelization(peak, gMap, FFTSmoother, DCSmoother, err); forwardError(*err, __LINE__,);
+  // MKDEBUG replaced the following commands pixellization, invert..., smoothBy..., now in Linc-tw:makeMaps
+  makeMaps(peak, gMap, FFTSmoother, DCSmoother, kMap, err); forwardError(*err, __LINE__,);
+
+  //pixelization(peak, gMap, FFTSmoother, DCSmoother, err); forwardError(*err, __LINE__,);
+
   if (DC_nbFilters) {
-    if (doKappa == 1)          outputMapFromTable("kappaMap_DC",            cmhm, peak, outputDCSmoo->before, K_map+typeForNoise);
-    else                       outputMapFromTable("gammaOrGMap_DC",         cmhm, peak, outputDCSmoo->before, R_map+typeForG+typeForNoise);
+    // MKDEBUG: Modified in Linc-tw, here only writing 0th filter
+    if (doKappa == 1) {
+      outputMapFromTable("kappaMap_DC",            cmhm, peak, outputDCSmoo->before, K_map+typeForNoise, 0, err);
+      forwardError(*err, __LINE__,);
+    } else  {
+      outputMapFromTable("gammaOrGMap_DC",         cmhm, peak, outputDCSmoo->before, R_map+typeForG+typeForNoise, 0, err);
+      forwardError(*err, __LINE__,);
+    }
   }
-  if (FFT_nbFilters || doNonlinear) {
-    if (doKappa == 1)          outputMapFromTable("kappaMap_unsmoothed",    cmhm, peak, firstFFTSmoo->before, kappa_map+typeForNoise);
-    else                       outputMapFromTable("gammaOrGMap_unsmoothed", cmhm, peak, firstFFTSmoo->before, gamma_map+typeForG+typeForNoise);
+  if (FFT_nbFilters) {
+    if (doKappa == 1) {
+      outputMapFromTable("kappaMap_unsmoothed",    cmhm, peak, firstFFTSmoo->before, kappa_map+typeForNoise, 0, err);
+      forwardError(*err, __LINE__,);
+    } else {
+      outputMapFromTable("gammaOrGMap_unsmoothed", cmhm, peak, firstFFTSmoo->before, gamma_map+typeForG+typeForNoise, 0, err);
+      forwardError(*err, __LINE__,);
+    }
   }
   
   //-- Inversion
   if (doKappa == 2) {
-    invertByIterKS_arr(peak, gMap, FFTSmoother, DCSmoother, kMap);
-    if (DC_nbFilters)                  outputMapFromTable("kappaMap_DC",         cmhm, peak, outputDCSmoo->before, K_map+typeForNoise);
-    if (FFT_nbFilters || doNonlinear)  outputMapFromTable("kappaMap_unsmoothed", cmhm, peak, firstFFTSmoo->before, kappa_map+typeForNoise);
+    //invertByIterKS_arr(peak, gMap, FFTSmoother, DCSmoother, kMap);
+    if (DC_nbFilters) {
+      outputMapFromTable("kappaMap_DC",         cmhm, peak, outputDCSmoo->before, K_map+typeForNoise, 0, err);
+        forwardError(*err, __LINE__,);
+    }
+    if (FFT_nbFilters) {
+      outputMapFromTable("kappaMap_unsmoothed", cmhm, peak, firstFFTSmoo->before, kappa_map+typeForNoise, 0, err);
+    }
   }
   else if (doKappa == 0 || doKappa == 3) {
-    invertByLinKS_arr(peak, gMap, FFTSmoother, DCSmoother);
-    if (DC_nbFilters)                  outputMapFromTable("kappaMap_DC",         cmhm, peak, outputDCSmoo->before, K_map+typeForNoise);
-    if (FFT_nbFilters || doNonlinear)  outputMapFromTable("kappaMap_unsmoothed", cmhm, peak, firstFFTSmoo->before, kappa_map+typeForNoise);
+    //invertByLinKS_arr(peak, gMap, FFTSmoother, DCSmoother);
+    if (DC_nbFilters) {
+      outputMapFromTable("kappaMap_DC",         cmhm, peak, outputDCSmoo->before, K_map+typeForNoise, 0, err);
+      forwardError(*err, __LINE__,);
+    }
+    if (FFT_nbFilters) {
+      outputMapFromTable("kappaMap_unsmoothed", cmhm, peak, firstFFTSmoo->before, kappa_map+typeForNoise, 0, err);
+      forwardError(*err, __LINE__,);
+    }
   }
-  
-  if (doNonlinear) {
-    //-- MRLens
-    sprintf(option, "-k -C2 -c2 -s%f -F1 -n%d", peak->MRLens_FDR, peak->MRLens_nbScales);
-    outfitsMapFromTable("kappaMap_unsmoothed.fits", peak, firstFFTSmoo->before, kMap);
-    MRLensFiltering(peak, "../../mrlens/wl_t2_filter", option, "kappaMap_unsmoothed.fits", "kappaMap_mrlens.fits", "> log_mrlens");
-  }
-  
+
   if (FFT_nbFilters) {
     //-- FFT smoothing
-    smoothByFFT_arr(peak, gMap, FFTSmoother);
-    outputMapFromTable("kappaMap_FFT", cmhm, peak, outputFFTSmoo->after, K_map+typeForNoise);
+    //smoothByFFT_arr(peak, gMap, FFTSmoother);
+    outputMapFromTable("kappaMap_FFT", cmhm, peak, outputFFTSmoo->after, K_map+typeForNoise, 0, err);
+    forwardError(*err, __LINE__,);
   }
   
   if (doKappa != 1) {
     //-- Semi-truth
     makeTrueMap(fileName2, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, 1, err); forwardError(*err, __LINE__,);
-    outputMapFromTable("kappaMap_semiTruth", cmhm, peak, firstFFTSmoo->before, kappa_map);
+    outputMapFromTable("kappaMap_semiTruth", cmhm, peak, firstFFTSmoo->before, kappa_map, 0, err); forwardError(*err, __LINE__,);
+    forwardError(*err, __LINE__,);
   }
   
   if (doKappa != 0) {
     //-- Truth
     makeTrueMap(fileName2, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, 0, err); forwardError(*err, __LINE__,);
-    outputMapFromTable("kappaMap_truth", cmhm, peak, firstFFTSmoo->before, kappa_map);
+    outputMapFromTable("kappaMap_truth", cmhm, peak, firstFFTSmoo->before, kappa_map, 0, err); forwardError(*err, __LINE__,);
+    forwardError(*err, __LINE__,);
   }
 
 	printf("fin map \n");

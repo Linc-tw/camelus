@@ -26,9 +26,11 @@ field		0		## [int] 0 = rectangle, 1 = projected HEALPix, 2 = HEALPix
 				##   If field = 0, ray-tracing with the Cartesian distance then filtering
 				##   If field = 1, ray-tracing with the angular distance then project then FFT
 				##   If field = 2, ray-tracing with the angular distance then direct convolution
-Omega		372.8  372.8	## [2 float | arcmin] Field size (theta_x, theta_y)
+//Omega		372.8  372.8	## [2 float | arcmin] Field size (theta_x, theta_y)
+Omega           180.0  180.0 
 				##   Ignored if field = 2
-theta_pix	0.8		## [float | arcmin] Pixel size
+//theta_pix	0.8		## [float | arcmin] Pixel size
+theta_pix       1.0
 				##   Forced to 1.0 if field = 2
 nside		8		## [int] N_side of the field
 				##   Ignored if field = 0
@@ -42,7 +44,6 @@ HP_resol	512		## [int] Resolution for HEALPix regular galaxies or maps
 
 
 ### Halos
-<<<<<<< HEAD
 inHaloCatPath	
 				## [string] Path of the input halo catalogue
 				##   Leave blank if sample halos from a mass function
@@ -53,7 +54,8 @@ inHaloCatCol	0  1  2  3  4
 				##   (pos1, pos2) is (theta_x, theta_y) in [arcmin] if field = 0, (RA, DEC) in [deg] otherwise
 z_halo_min	0.05		## [float] Minimum halo redshift
 z_halo_max	1.0		## [float] Maximum halo redshift
-N_z_halo	95		## [int] Number of halo redshift bins
+// MKDEBUG: Linc-tw set N_z_halo to 95!
+N_z_halo	30		## [int] Number of halo redshift bins
 M_min		1e+12		## [float | M_sol/h] Minimum halo mass
 M_max		1e+17		## [float | M_sol/h] Maximum halo mass
 dlogM		0.001		## [float] Halo mass binwidth
@@ -82,7 +84,8 @@ sigma_eps	0.4		## [float] Ellipticity dispersion, sigma_eps^2 = <epsilon_1^2> + 
 
 
 ## Masks
-doMask		1		## [int] 0 = without, 1 = random mask, 2 = maskPath
+// MKDEBUG Linc-tw set this to 1 (previously not possible)
+doMask		0		## [int] 0 = without, 1 = random mask, 2 = maskPath
 maskPath	
 				## [string] Path of the mask 
 nbHoleTypes	3		## [int] Number of hole types for random mask
@@ -117,34 +120,41 @@ doSmoothing	1		## [int] 0 = without, 1 = binning and FFT, 2 = direct convolution
 FFT_nbFilters	2		## [int] Number of linear filters for FFT
 				##   Forced to 0 if field = 2
 				##   Forced to 0 if doSmoothing without bit 1
-FFT_filter	0  1  2  2  2  3  3  3
+// Question for Linc-tw: Does this not need to match FFT_nbFilters?
+#FFT_filter	0  1  2  2  2  3  3  3
+FFT_filter      0  0
 				## [int array] 0 = Gaussian, 1 = starlet, 2 = M_ap tanh, 3 = M_ap gamma_t
 				##   2 & 3 only allowed if doKappa != 1
-FFT_scale	1.6  3.2  6.4  12.8  1.6  3.2  6.4  12.8
+//FFT_scale	1.6  3.2  6.4  12.8  1.6  3.2  6.4  12.8
+FFT_scale       1.2  2.4
 				## [float array | arcmin] Filter size for FFT
 DC_nbFilters	2		## [int] Number of linear filters for direct convolution
 				##   Forced to 0 if field = 1
 				##   Forced to 0 if doSmoothing without bit 2
-DC_filter	2    2
+//DC_filter	2    2
+DC_filter       0    0
 				## [int array] 0 = Gaussian, 1 = starlet, 2 = M_ap tanh, 3 = M_ap gamma_t
 				##   0 & 1 only allowed if doKappa = 1
 				##   2 & 3 only allowed if doKappa != 1
-DC_scale	3.6  5.2
+//DC_scale	3.6  5.2
+DC_scale        1.2  2.4
 				## [float array | arcmin] Filter size for direct convolution
 
 
 ### Histograms
 doLocalNoise	1		## [int] 0 = uniform global noise level, 1 = local noise
-N_nu		13		## [int] Number of S/N bins
-bin_nu		0.0  0.5  1.0  1.5  2.0  2.5  3.0  3.5  4.0  4.5  5.0  5.5  6.0  1e+15
+//N_nu		13		## [int] Number of S/N bins
+N_nu            9
+//bin_nu		0.0  0.5  1.0  1.5  2.0  2.5  3.0  3.5  4.0  4.5  5.0  5.5  6.0  1e+15
+nu_bin          1.0  1.5  2.0  2.5  3.0  3.5  4.0  4.5  5.0  1e+15
 				## [float array] Bin edge values
 				##   The number of bin_nu should be N_nu + 1
-
 
 ### Outputs
 prefix		camelus_
 				## [string] Prefix for output files
-doFITS		1		## [int] 0 = no, 1 = yes
+//doFITS		1		## [int] 0 = no, 1 = yes
+doFITS          0
 				##   Forced to 0 if Camelus not linked to cfitsio
 outHaloCat	1		## [int] 0 = no, 1 = yes
 outGalCat	1		## [int] 0 = no, 1 = yes
@@ -156,50 +166,9 @@ outPeakList	0		## [int] 0 = no, 1 = yes
 outHist		0		## [int] 0 = no, 1 = yes
 outMultiscale	1		## [int] 0 = no, 1 = yes
 
-=======
-z_halo_max	2			# Maxmimum redshift for halos
-N_z_halo 	30			# Number of sampling redshift bins
-M_min		1e+12		# [M_sol/h] Minimum sampling mass
-M_max		1e+17		# [M_sol/h] Maximum sampling mass
-
-### Galaxies
-z_s		-1.0			# If z_s > 0, all source galaxies fixed at z_s
-#					# If z_s < 0, use nofz_hm.dat as redshift distribution law parameters
-doRandGalPos 1     	# 0 = regular, 1 = random,2=new dist
-#					# If z_s < 0, doRandGalPos is automatically set to 1
-n_gal		12.0		# [arcmin^-2] Galaxy number density
-sigma_eps	0.4		# Ellipticity dispersion
-doKappa		3		# 0 = gamma, 1 = kappa, 2 = g, 3 = g with linear KS
-doMask		0		# 0 = without (only 0 is available)
-maskPath	-			# Path of the mask
-  
-### Field & map
-strField 	rectangle		# Geometry: 'rectangle'
-Omega		180.0  180.0		# [arcmin] Field size (theta_x, theta_y)
-theta_pix	1.0				# [arcmin] Pixel size
-
-### Filter
-doSmoothing	1		# 0 = without, 1 = binning and FFT, 2 = direct convolution, 4 = nonlinear filtering (not available), 
-#					# Sum for performing simultaneously multiple techniques, e.g. 5 = FFT + nonlinear
-FFT_nbFilters	2	# Number of linear filters for FFT
-FFT_strFilter	gauss gauss
-FFT_scale	 1.2   2.4
-#					# Filter type: 'gauss', 'star'
-#					# [arcmin] Filter size in arcmin
-DC_nbFilters	2		# Number of linear filters for direct convolution
-DC_strFilter	gauss gauss
-DC_scale	 1.2   2.4
-#					# Filter type: 'gauss', 'star'
-#					# [arcmin] Filter size in arcmin
-MRLens_nbScales	5	# Number of scales for MRLens (not available)
-MRLens_FDR	0.05		# False detection rate for MRLens (not available)
-
-### Peak historgram
-N_nu		9		# Number of S/N bins
-nu_bin		1.0  1.5  2.0  2.5  3.0  3.5  4.0  4.5  5.0  1e+15
-N_kappa		6		# Number of kappa bins (for nonlinear filtering)
-kappa_bin	0.02  0.03  0.04  0.06  0.10  0.16  1e+15
->>>>>>> origin/TableRondeDev
+// MKDEBUG the following is removed in Linc-tw
+//N_kappa		6		# Number of kappa bins (for nonlinear filtering)
+//kappa_bin	0.02  0.03  0.04  0.06  0.10  0.16  1e+15
 
 ### ABC
 ABC_f		2		## [int] Dimension of parameter set

@@ -49,27 +49,6 @@
 #define peak_setting  -9 + peak_base
 
 
-typedef enum {
-  kappa_map=0, K_map=1,  kn_map=2,  KN_map=3, noise_map=4,    N_map=5, 
-  gamma_map=6, R_map=7,  re_map=8,  RE_map=9, epsilon_map=10, E_map=11,
-  g_map=12,    G_map=13, ge_map=14, GE_map=15, 
-  peak_list=16, noise_list=17, mask_map=18
-} mapType_t;
-#define NB_MAPTYPE_T 19
-#define STR_MAPTYPE_T(i) ( \
-  i==0  ? "kappa map"   : i==1 ?  "K map"  : \
-  i==2  ? "k+n map"     : i==3 ?  "K+N map" : \
-  i==4  ? "n map"       : i==5 ?  "N map" : \
-  i==6  ? "gamma map"   : i==7 ?  "R map" : \
-  i==8  ? "r+e map"     : i==9  ? "R+E map" : \
-  i==10 ? "epsilon map" : i==11 ? "E map" : \
-  i==12 ? "g map"       : i==13 ? "G map" : \
-  i==14 ? "g+e map"     : i==15 ? "G+E map" : \
-  i==16 ? "Peak list" : \
-  i==17 ? "Noise list" : \
-  i==18 ? "Mask" : \
-  "")
-
 //-- Peak parameters
 typedef struct {
   //----------------------------------------------------------------------
