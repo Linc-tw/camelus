@@ -917,12 +917,12 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[]
   
   char fpeakList[STRING_LENGTH_MAX];
   char fpeakListPos[STRING_LENGTH_MAX];
-  char fpeakHist[STRING_LENGTH_MAX];
+  char fgalCat[STRING_LENGTH_MAX];
 
 
   sprintf(fpeakList, "peakList_%s",end);
   sprintf(fpeakListPos, "peakListPos_%s",end);
-  sprintf(fpeakHist, "peakhist_%s",end);
+  sprintf(fgalCat, "%s_%s",fileNameGal,end);
 
 
   halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
@@ -958,9 +958,9 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[]
 
   //makeMapAndOutputAll2(fileNameHal,fileNameGal, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err);
   //forwardError(*err, __LINE__,);
-  printf("Map2 \n");
+  //printf("Map2 \n");
 
-  computeLocalVariance_arr(peak, gMap, variance);
+  //computeLocalVariance_arr(peak, gMap, variance);
    
   //  if (peak->doNonlinear)       selectPeaks_mrlens("kappaMap_mrlens.fits", peak, gMap, peakList);
   //  else if (peak->DC_nbFilters) kappaToSNR_DC(peak, gMap, DCSmoother->array[0], kMap);
@@ -974,18 +974,18 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[]
   // computeLocalVariance_arr(peak, gMap, variance);
   // printf("Variance \n");//if (peak->doNonlinear)       selectPeaks_mrlens("kappaMap_mrlens.fits", peak, gMap, peakList);
   
-  printf("Variance \n");
+  //printf("Variance \n");
    
-  selectPeaks(peak, kMap, peakList, err);   forwardError(*err, __LINE__,);
-  printf("PEAKS \n");
+  //selectPeaks(peak, kMap, peakList, err);   forwardError(*err, __LINE__,);
+  //printf("PEAKS \n");
 
 
-  outputPeakList(fpeakList, peak, peakList);
-  computePeaks2(fpeakListPos,peak,kMap,peakList,err);
-  int silent = 1;
-  makeHist(peakList, nuHist, silent);
-  outputHist(fpeakHist, nuHist);
-  printf("Hist \n");
+  //outputPeakList(fpeakList, peak, peakList);
+  //computePeaks2(fpeakListPos,peak,kMap,peakList,err);
+  //int silent = 1;
+  //makeHist(peakList, nuHist, silent);
+  //outputHist(fpeakHist, nuHist);
+  //printf("Hist \n");
 
   //computePeaks2("TEST_TABLE_PEAK",peak,kMap,peakList,err);
   free_halo_map(hMap);
