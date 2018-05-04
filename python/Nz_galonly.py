@@ -53,6 +53,7 @@ def main():
     Nzs_gal = np.load(cats_dir + 'Nzs_galonly.npy')
     print Nzs_gal.shape, Nzs_gal
     zs = Nzs_gal[0,1][1:]-dz/2
+    print 'z span: {} - {}'.format(np.min(zs), np.max(zs))
     print 'Average number of generated galaxies (galaxy catalog):\t{}'.format(np.mean([np.sum(count) for count in Nzs_gal[:,0]]))
     CamZs = [CamelusNz(zee) for zee in zs]
     CamZs /= np.sum(CamZs)

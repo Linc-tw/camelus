@@ -94,7 +94,7 @@ void makeMapAndOutputAll(cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, FFT_ar
 void doKMap(char fileName[], cosmo_hm *cmhm, peak_param *peak, int doNoise, error **err);
 
 //-- New functions
-void makeMapAndOutputAll2(char fileName[], char fileName2[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, FFT_arr *FFTSmoother, FFT_arr *DCSmoother, map_t *kMap, error **err);
+void makeMapAndOutputAll2(char fileName[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, FFT_arr *FFTSmoother, FFT_arr *DCSmoother, map_t *kMap, error **err);
 
 #endif
 
