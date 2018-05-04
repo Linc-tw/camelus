@@ -1636,9 +1636,9 @@ void doProfile(char fileName[], cosmo_hm *cmhm, peak_param *peak, double z_l, do
 }
 void lensingCatalogueAndOutputAll2(char fileName[],cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, gal_map *gMap, error **err)
 {
+
   //-- Lensing
   lensingForMap(cmhm, peak, hMap, gMap, err); forwardError(*err, __LINE__,);
-  
   //-- Subtract mean
   if (peak->doKappa != 0) subtractMean(peak, gMap);
   
@@ -1777,17 +1777,36 @@ void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo
 }
 
 
+void outputFastSimul_galaxies2(char name_cmhm[], char name[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap,gal_map *gMap)
+{
 
-/// A revoir BEUG
-void output2_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_list *gList)
+  error *myerr = NULL, **err = &myerr;
+
+  FILE *file = fopen(name, "w");
+
+  fprintf(file, "# Halo list, fast simulation\n");
+  fprintf(file, "# Model = %s, field = %s, Omega = (%g, %g) [arcmin]\n", smassfct_t(cmhm->massfct), STR_FIELD_T(peak->field), peak->Omega[0], peak->Omega[1]);
+  fprintf(file, "# z_halo_max = %g, N_z_halo = %d, M_min = %8.2e [M_sol/h], M_max = %8.2e\n", peak->z_halo_max, peak->N_z_halo, peak->M_min, peak->M_max);
+  fprintf(file, "#\n");
+  outputCosmoParam(file, cmhm, peak);
+  fprintf(file, "#\n");
+  output_halo_map_galaxies2(file,cmhm, peak, hMap, gMap);
+  fclose(file);
+  printf("\"%s\" made\n", name);
+
+  return;
+}
+
+
+void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_map *gMap)
 {
   halo_list *hList;
   halo_node *hNode;
   error *myerr = NULL, **err = &myerr;
-  int i,j,k;
-
+  int i,j,ii,k;
+  double Ds,Mh;
+  ii=0;
   srand(time(NULL));
-  
   fprintf(file, "# Number of halos = %d\n", hMap->total);
   fprintf(file, "#\n");
   

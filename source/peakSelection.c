@@ -1027,3 +1027,4 @@ void doProduce_Catalog_DM_galaxies(int N, char CmhmName[], char HaloFileName[], 
   }
   return;
 }
+  for (i=0; i<N; i++) {

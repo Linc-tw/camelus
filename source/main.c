@@ -224,9 +224,11 @@ int main(int argc, char *argv[])
 	printf("Nb realisation : %i \n",N);
 	printf("Input param : %s \n",input_name );
 	printf("Output CatHalo : %s \n",input_name2 );
+	printf("Output CatGal : %s \n",input_name3 );
 
   	read_cosmo_hm(input_name, &cmhm, err);       
 	quitOnError(*err, __LINE__, stderr);
+	doProduce_Catalog_DM_galaxies_HOD_N(N,input_name,input_name2,input_name3, cmhm, peak, err);
 	quitOnError(*err, __LINE__, stderr);
   }
     
