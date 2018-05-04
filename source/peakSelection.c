@@ -919,9 +919,11 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[]
   char fpeakListPos[STRING_LENGTH_MAX];
   char fpeakHist[STRING_LENGTH_MAX];
 
+
   sprintf(fpeakList, "peakList_%s",end);
   sprintf(fpeakListPos, "peakListPos_%s",end);
   sprintf(fpeakHist, "peakhist_%s",end);
+
 
   halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
   sampler_t *galSamp   = initialize_sampler_t(peak->N_z_gal);
@@ -947,17 +949,16 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[]
   else {
   	printf(" Input file for halo : \"%s\" \n", fileNameHal);
   	printf(" Input file for galaxies : \"%s\" \n", fileNameGal);
-    read_halo_map(fileNameHal, cmhm, hMap, err); 
+    read_halo_map2(fileNameHal, cmhm, hMap, err); 
 	forwardError(*err, __LINE__,);
-	printf("halo read \n");
     read_gal_map2(fileNameGal, cmhm,peak, gMap, err);
-    forwardError(*err, __LINE__,);
-    printf("gal read \n");
+    forwardError(*err, __LINE__,);;
   }
 
 
-  makeMapAndOutputAll2(fileNameHal,fileNameGal, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err);
-  forwardError(*err, __LINE__,);
+  //makeMapAndOutputAll2(fileNameHal,fileNameGal, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err);
+  //forwardError(*err, __LINE__,);
+  printf("Map2 \n");
 
   computeLocalVariance_arr(peak, gMap, variance);
    
@@ -966,10 +967,14 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[]
   else                         kappaToSNR_FFT(peak, gMap, FFTSmoother->array[0], kMap, variance->array[0]);
 
   lensingCatalogueAndOutputAll(cmhm, peak, hMap, gMap, err);                 forwardError(*err, __LINE__,);
-  makeMapAndOutputAll(cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err); forwardError(*err, __LINE__,);
+  printf("lens \n");
+  makeMapAndOutputAll2(fileNameHal, fileNameGal, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err); forwardError(*err, __LINE__,);
+  printf("Map1 \n");
   computeLocalVariance_arr(peak, gMap, variance);
+  printf("Variance \n");
    
   selectPeaks(peak, kMap, peakList, err);   forwardError(*err, __LINE__,);
+  printf("PEAKS \n");
 
 
   outputPeakList(fpeakList, peak, peakList);
@@ -977,6 +982,7 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[]
   int silent = 1;
   makeHist(peakList, nuHist, silent);
   outputHist(fpeakHist, nuHist);
+  printf("Hist \n");
 
   //computePeaks2("TEST_TABLE_PEAK",peak,kMap,peakList,err);
   free_halo_map(hMap);
