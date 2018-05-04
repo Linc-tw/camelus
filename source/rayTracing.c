@@ -1636,15 +1636,20 @@ void doProfile(char fileName[], cosmo_hm *cmhm, peak_param *peak, double z_l, do
 }
 void lensingCatalogueAndOutputAll2(char fileName[],cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, gal_map *gMap, error **err)
 {
+printf("3 nb gal %i \n",gMap->total);
 
   //-- Lensing
   lensingForMap(cmhm, peak, hMap, gMap, err); forwardError(*err, __LINE__,);
-
+printf("4 nb gal %i \n",gMap->total);
+	
   //-- Subtract mean
   if (peak->doKappa != 0) subtractMean(peak, gMap);
-  
+	printf("5 nb gal %i \n",gMap->total);
+	  
   //-- gamma to g
   if (peak->doKappa >= 2) makeG(gMap);
+	printf("6 nb gal %i \n",gMap->total);
+	
   outputGalaxies(fileName, cmhm, peak, gMap);
   
   //-- Add noise
@@ -1880,9 +1885,10 @@ void output_halo_map_galaxies2(FILE *file, cosmo_hm *cmhm, peak_param *peak, hal
   halo_list *hList;
   halo_node *hNode;
   error *myerr = NULL, **err = &myerr;
-  int i,j,ii,k;
+  int i,j,ii,ii2,k;
   double Ds,Mh;
   ii=0;
+  ii2=0;
   srand(time(NULL));
   printf( "Number of halos = %d\n", hMap->total);
 
@@ -1913,27 +1919,35 @@ void output_halo_map_galaxies2(FILE *file, cosmo_hm *cmhm, peak_param *peak, hal
        	Ds  = h->a * f_K(cmhm->cosmo, h->w, err);
       	if( (rand()/(double)RAND_MAX)<ngc) {
 			append_gal_map(cmhm, gMap,h->z, h->w, Ds, h->pos, err); forwardError(*err, __LINE__,);
+        		ii2=ii2+1;
       	}
      
-      	for (k = 0;k<ngc*ngs+0.5;k++) {
+      	for (k = 1;k<ngc*ngs;k++) {
 			int bool = 1;
 			double r;
-			while(bool){
+			while(bool == 1){
 	  			double rtest = (rand()/(double)RAND_MAX);
 	  			if( NFW(5*rtest) > (rand()/(double)RAND_MAX)) {
 	    			bool = 0;
 	    			r = rtest*h->r_vir;
 	  			}
-		}
-		double theta = 2*M_PI*(rand()/(double)RAND_MAX);
-		double phi = acos(2*(rand()/(double)RAND_MAX)-1);
-		double pos[2];
-		pos[0] = cos(theta) * sin(phi) * r + h->pos[0];
-		pos[1] = sin(theta) * sin(phi) * r + h->pos[1];
-		append_gal_map(cmhm, gMap, h->z, h->w, Ds,h->pos, err); forwardError(*err, __LINE__,);
+
+			}
+			double theta = 2*M_PI*(rand()/(double)RAND_MAX);
+			double phi = acos(2*(rand()/(double)RAND_MAX)-1);
+			double posg[2];
+			posg[0] =  cos(theta) * sin(phi) * r + h->pos[0];
+			posg[1] = sin(theta) * sin(phi) * r + h->pos[1];
+
+			if((posg[0] > 180)||(posg[0]<0)||(posg[1] > 180)||(posg[1]<0)){
+			}else{
+				append_gal_map(cmhm, gMap, h->z, h->w, Ds,posg, err); forwardError(*err, __LINE__,);
+		  	  	ii2=ii2+1;
+			}
       }
     }
   }
   printf("Nb galaxies created : %i \n",ii);
+  printf("Nb galaxies created arrondi : %i \n",ii2);
   return;
 }
