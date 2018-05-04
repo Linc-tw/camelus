@@ -1027,4 +1027,44 @@ void doProduce_Catalog_DM_galaxies(int N, char CmhmName[], char HaloFileName[], 
   }
   return;
 }
+
+
+void doProduce_Catalog_DM_galaxies_HOD_N(int N, char CmhmName[], char HaloFileName[], char GalaxyFileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
+{
+  int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
+  char HaloFileName2[STRING_LENGTH_MAX], GalaxyFileName2[STRING_LENGTH_MAX];
+  int i;
+
+  
+  printf("-----------------------------  HOD galaxy Ngal  -------------------------------\n");
   for (i=0; i<N; i++) {
+    halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);
+ 	gal_map *gMap = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); 
+
+    //-- Carry out fast simulation
+    sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
+    setMassSamplers(cmhm, peak, sampArr, err); 
+    forwardError(*err, __LINE__,);
+    makeFastSimul(cmhm, peak, sampArr, hMap, err); // FAIT hMap 
+    forwardError(*err, __LINE__,);
+
+    sprintf(HaloFileName2, "%s_%3.3d",HaloFileName, i+1);
+    sprintf(GalaxyFileName2, "%s_%3.3d",GalaxyFileName, i+1);
+
+    outputFastSimul_galaxies2(CmhmName,HaloFileName2,cmhm,peak,hMap,gMap);
+ 	forwardError(*err, __LINE__,);
+
+  	lensingCatalogueAndOutputAll2(GalaxyFileName2,cmhm, peak, hMap, gMap, err);
+	forwardError(*err, __LINE__,);
+
+    free_sampler_arr(sampArr);
+    free_halo_map(hMap);
+    free_halo_map(gMap);
+  }
+  return;
+}
+
+
+
+
+
