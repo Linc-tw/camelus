@@ -1055,8 +1055,6 @@ void doProduce_Catalog_DM_galaxies_HOD_N(int N, char CmhmName[], char HaloFileNa
     sprintf(GalaxyFileName2, "%s_%3.3d",GalaxyFileName, i+1);
     outputFastSimul_galaxies2(CmhmName,HaloFileName2,cmhm,peak,hMap,gMap);
  	forwardError(*err, __LINE__,);
-	printf("2 nb gal %i \n",gMap->total);
-	break;
   	lensingCatalogueAndOutputAll2(GalaxyFileName2,cmhm, peak, hMap, gMap, err);
 	forwardError(*err, __LINE__,);
 
