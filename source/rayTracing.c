@@ -1636,7 +1636,6 @@ void doProfile(char fileName[], cosmo_hm *cmhm, peak_param *peak, double z_l, do
 }
 void lensingCatalogueAndOutputAll2(char fileName[],cosmo_hm *cmhm, peak_param *peak, const halo_map *hMap, gal_map *gMap, error **err)
 {
-printf("3 nb gal %i \n",gMap->total);
 
   //-- Lensing
   lensingForMap(cmhm, peak, hMap, gMap, err); forwardError(*err, __LINE__,);
