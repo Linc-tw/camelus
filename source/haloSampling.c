@@ -158,7 +158,7 @@ void append_halo_map(cosmo_hm *cmhm, halo_map *hMap, double z, double M, double 
 {
   double theta_pix = hMap->theta_pix;
   int i = (int)((pos[0] - hMap->limits[0]) / theta_pix);
-  int j = (int)((pos[1] - hMap->limits[2]) / theta_pix);
+  int j = (int)((pos[1] - hMap->limits[2]-0.001) / theta_pix);
   append_halo_list(cmhm, hMap->map[i+j*hMap->N1], z, M, pos, err); forwardError(*err, __LINE__,);
   hMap->total++;
   return;
@@ -181,7 +181,7 @@ void read_halo_map(char name[], cosmo_hm *cmhm, halo_map *hMap, error **err)
       ungetc(c, file);
       printf("begin fscanf \n");
       buffer2 = fscanf(file, "%lf %lf %*f %lf %lf\n", &pos[0], &pos[1], &z, &M);
-      printf("%lf %lf %lf %lf\n", &pos[0], &pos[1], &z, &M);
+      printf("%f %f %f %f\n", pos[0], pos[1], z, M);
       append_halo_map(cmhm, hMap, z, M, pos, err); forwardError(*err, __LINE__,);
       printf("append\n");
       count++;

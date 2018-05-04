@@ -1742,7 +1742,7 @@ void setWithSignal_gal_t2(cosmo_hm *cmhm, gal_t *g, double z, double pos[2], err
 void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap)
 {
   error *myerr = NULL, **err = &myerr;
-  gal_list *gList = initialize_gal_list(err); forwardError(*err, __LINE__,);
+  gal_map *gMap = initialize_gal_map(hMap->N1,hMap->N2,hMap->theta_pix,err); forwardError(*err, __LINE__,);
   FILE *file = fopen(name, "w");
   FILE *file2 = fopen(name2, "w");
 
@@ -1761,9 +1761,9 @@ void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo
   fprintf(file2, "#\n");
 
   //printf("test3 \n");
-  output_halo_map_galaxies(file,file2,cmhm, peak, hMap, gList);
+  output_halo_map_galaxies(file,file2,cmhm, peak, hMap, gMap);
   //printf("test4 \n");
-  free_gal_list(gList);
+  free_gal_map(gMap);
   //printf("Gfreen \n");
   fclose(file);
   fclose(file2);
@@ -1875,7 +1875,7 @@ void output2_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_para
 
 
 
-void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_list *gList)
+void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_map *gMap)
 {
   halo_list *hList;
   halo_node *hNode;
@@ -1918,7 +1918,7 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
 
        Ds  = h->a * f_K(cmhm->cosmo, h->w, err);
       if( (rand()/(double)RAND_MAX)<ngc) {
-	append_gal_list(cmhm, gList,h->z, h->w, Ds, h->pos, err); forwardError(*err, __LINE__,);
+	append_gal_map(cmhm, gMap,h->z, h->w, Ds, h->pos, err); forwardError(*err, __LINE__,);
 	fprintf(file2, "%9.3f  %9.3f   %7.5f   \n", h->pos[0], h->pos[1], h->z);
       }
      
@@ -1938,7 +1938,7 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
 	double pos[2];
     pos[0] = cos(theta) * sin(phi) * r + h->pos[0];
     pos[1] = sin(theta) * sin(phi) * r + h->pos[1];
-	append_gal_list(cmhm, gList, h->z, h->w, Ds,h->pos, err); forwardError(*err, __LINE__,);
+	append_gal_map(cmhm, gMap, h->z, h->w, Ds,h->pos, err); forwardError(*err, __LINE__,);
 	fprintf(file2, "%9.3f  %9.3f   %7.5f   \n", pos[0], pos[1], h->z);
       }
     }
@@ -1946,7 +1946,6 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
   printf("Nb galaxies created : %i \n",ii);
   return;
 }
-
 
 double NFW(double x)
 {
