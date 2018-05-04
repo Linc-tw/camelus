@@ -34,43 +34,30 @@ def ComputeNz(filename, dz):
 def main():
     """Read Camelus-generated halo catalog and populate them following a HOD. Syntax:
     
-    > python Nz.py path/to/catalogfolders/ halcat galcat dz
+    > python Nz.py path/to/catalogfolders/ dz
     
-    Where halcat and galcat are the stubs of the filenames for halo and galaxy
-    catalogs to be read, respectively, and dz is the redshift bin width.
+    Where dz is the redshift bin width.
     
     """
-    cats_dir, halcat_name, galcat_name = sys.argv[1], sys.argv[2], sys.argv[3]
-    dz = float(sys.argv[4])
-    stub_length = len(halcat_name)
-    halcat_files = [catfile for catfile in os.listdir(cats_dir) 
-                    if halcat_name == catfile[:stub_length]]
-    stub_length = len(galcat_name)
-    galcat_files = [catfile for catfile in os.listdir(cats_dir) 
-                    if galcat_name == catfile[:stub_length]]
-    Nzs_hal = np.array([ComputeNzFromHalo(cats_dir+filename, dz) 
-                for filename in halcat_files])
-    Nzs_gal = np.array([ComputeNz(cats_dir+filename, dz) 
-                for filename in galcat_files])
-    np.save(cats_dir+'Nzs_hal.npy', Nzs_hal)
-    np.save(cats_dir+'Nzs_gal.npy', Nzs_gal)
-    #Nzs_hal = np.load(cats_dir + 'Nzs_hal.npy')
-    #Nzs_gal = np.load(cats_dir + 'Nzs_gal.npy')
+    cats_dir = sys.argv[1]
+    dz = float(sys.argv[2])
+    Nzs_hal = np.load(cats_dir + 'Nzs_hal.npy')
+    Nzs_gal = np.load(cats_dir + 'Nzs_gal.npy')
     n_tot_hal = np.mean([np.sum(count) for count in Nzs_hal[:,0]])
     print 'Average number of generated galaxies (HOD):\t{}'.format(n_tot_hal)
     print 'Average number of generated galaxies (galaxy catalog):\t{}'.format(np.mean([np.sum(count) for count in Nzs_gal[:,0]]))
     zs = Nzs_hal[0,1][1:]-dz/2
     HOD_n = np.mean(Nzs_hal[:,0])
     #HOD_n /= np.sum(HOD_n)
-    plt.errorbar(zs, HOD_n, np.std(Nzs_hal[:,0]),
+    plt.semilogy(zs, HOD_n,
                  label='HOD population')
-    CamZs = [CamelusNz(zee) for zee in zs]
+    #CamZs = [CamelusNz(zee) for zee in zs]
     #CamZs /= np.sum(CamZs)
-    plt.plot(zs, CamZs, label='Camelus n(z)')
+    #plt.plot(zs, CamZs, label='Camelus n(z)')
     zs = Nzs_gal[0,1][1:]-dz/2
     gal_n = np.mean(Nzs_gal[:,0]).astype('float')
     #gal_n /= np.sum(gal_n)
-    plt.errorbar(zs, gal_n, np.std(gal_n),
+    plt.semilogy(zs, gal_n, c='r',
                  label='Camelus random population')
     plt.xlabel(r'$z$')
     plt.ylabel(r'$n(z)$')

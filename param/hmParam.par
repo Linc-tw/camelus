@@ -6,7 +6,7 @@ cosmo_file     ../param/cosmoParam.par
 ### Redshift distribution
 # n(x) \propto x^alpha * exp(-x^beta)
 # where x = z / z_0
-par_nz		0.1  1.2  2.0  1.0  0.5		# zmin zmax alpha beta z_0
+par_nz		0.1  2.0  2.0  1.0  0.5		# zmin zmax alpha beta z_0
 
 ### Halomodel parameters, dark matter
 
