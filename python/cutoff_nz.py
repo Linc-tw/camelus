@@ -74,17 +74,23 @@ def read_n_mean(galcat_path) :
     line = linecache.getline(galcat_path,3)
     return np.float(line.split()[3])
 
-def CutOff(fullzs, randoms, bin_edges, dz=None):
+def CamelusNz(z, alpha=2., beta=1., z_0=.5):
+    x = z/z_0
+    return x**alpha * np.exp(-x**beta)
+
+def CutOff(fullzs, bin_edges, nobj, dz=None):
     """apply cut off
     """
     if bin_edges is None:
         bin_edges = np.arange(0,np.max(fullzs)+dz,dz)
     select_idx = []
-    for lf, rf in zip(bin_edges, bin_edges[1:]):
+    zmid = [rf-(rf-lf)/2 for lf, rf in zip(bin_edges, bin_edges[1:])]
+    nz = np.array([CamelusNz(z) for z in zmid])
+    nz = (nz * nobj/np.sum(nz)).astype(int)
+    for nb_rand, (lf, rf) in zip(nz,zip(bin_edges, bin_edges[1:])):
         print '   > Working on z bin [{},{}]'.format(lf,rf)
         zidx = np.where((fullzs>lf) & (fullzs<=rf))[0]
         nb_hod = len(zidx)
-        nb_rand = len(np.where((randoms>lf) & (randoms<=rf))[0])
         if nb_hod < nb_rand:
             print '/!\/!\ Not enough sources for this redshift bin!\t{} v {} for HOD and random cats. /!\/!\ '.format(nb_hod,nb_rand)
             nb_rand = nb_hod
@@ -93,7 +99,7 @@ def CutOff(fullzs, randoms, bin_edges, dz=None):
     print '   > Total number of sources : {}'.format(len(select_idx))
     return select_idx
     
-def ConvertCats(galcat_dir, filename, randomname, bin_edges, savestub, savestub_b, dz=None):
+def ConvertCats(galcat_dir, filename, bin_edges, savestub, savestub_b, nobj, dz=None):
     """Read, compute local densities and apply bias to given galaxy catalog.
 
         Parameters
@@ -113,7 +119,6 @@ def ConvertCats(galcat_dir, filename, randomname, bin_edges, savestub, savestub_
     """
     print ' > Applying bias to galaxy catalog {}.'.format(filename)
     galcat = np.loadtxt(galcat_dir+filename)
-    randoms = np.loadtxt(galcat_dir+randomname)
     # read average density
     nmean = read_n_mean(galcat_dir+filename)
     # compute local densities from galaxy catalogs
@@ -124,7 +129,7 @@ def ConvertCats(galcat_dir, filename, randomname, bin_edges, savestub, savestub_
     galcat_b = np.copy(galcat)
     # apply cutoff
     print ' > Applying cutoff to galaxy catalogs {}.'.format(filename)
-    select_idx = CutOff(galcat[:,2], randoms[:,2], bin_edges, dz)
+    select_idx = CutOff(galcat[:,2], bin_edges, nobj, dz)
     cutoff = galcat[select_idx,:]
     cutoff_b = galcat_b[select_idx,:]
     print ' > Cutoff performed.'.format(filename)
@@ -138,10 +143,10 @@ def ConvertCats(galcat_dir, filename, randomname, bin_edges, savestub, savestub_
 def main():
     """Apply bias to Camelus-generated galaxy catalogs. Syntax:
     
-    > python cutoff.py path/to/catalogfolders/ galcat randomcat dz output_cutoff output_cutoff_b [zmin] [zmax]
+    > python cutoff.py path/to/catalogfolders/ galcat nobj dz output_cutoff output_cutoff_b [zmin] [zmax]
     
     """
-    galcat_dir, galcat_name, randomcat_name = sys.argv[1], sys.argv[2], sys.argv[3]
+    galcat_dir, galcat_name, nobj = sys.argv[1], sys.argv[2], float(sys.argv[3])
     dz = float(sys.argv[4])
     savestub, savestub_b = sys.argv[5], sys.argv[6]
     if len(sys.argv) > 7:
@@ -153,11 +158,8 @@ def main():
     stub_length = len(galcat_name)
     galcat_files = [catfile for catfile in os.listdir(galcat_dir) 
                     if galcat_name == catfile[:stub_length]]
-    stub_length = len(randomcat_name)
-    random_files = [catfile for catfile in os.listdir(galcat_dir) 
-                    if randomcat_name == catfile[:stub_length]]
-    _ = [ConvertCats(galcat_dir, filename, randomname, bin_edges, savestub, savestub_b, dz) for 
-         filename, randomname in zip(galcat_files,random_files)]
+    _ = [ConvertCats(galcat_dir, filename, bin_edges, savestub, savestub_b, nobj, dz) for 
+         filename in galcat_files]
     
 if __name__ == "__main__":
     main()
