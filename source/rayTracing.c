@@ -61,8 +61,9 @@ void setWithSignal_gal_t(cosmo_hm *cmhm, gal_t *g, double z, double pos[2], doub
   g->gamma[1] = gamma[1];
   g->pos[0]   = pos[0];
   g->pos[1]   = pos[1];
-  g->w;
-  g->D_s;
+  g->w = w(cmhm->cosmo, g->a, 0, err);       forwardError(*err, __LINE__,); //-- wOmegar = 0
+  g->D_s = g->a * f_K(cmhm->cosmo, g->w, err); forwardError(*err, __LINE__,);
+
   return;
 }
 
@@ -975,9 +976,11 @@ void outputProfile(char name[], cosmo_hm *cmhm, peak_param *peak, halo_t *h, dou
 void lensingForPair(cosmo_hm *cmhm, halo_t *h, gal_t *g, int doKappa, error **err)
 {
   //-- Lensing for a halo-galaxy pair
-  testErrorRet(g==NULL, peak_null, "Empty galaxy", *err, __LINE__,);
   
+  testErrorRet(g==NULL, peak_null, "Empty galaxy", *err, __LINE__,);
+ 
   if (g->z <= h->z) return; //-- Source in front of lens
+  //printf("w gal = %f, w hal = %f \n",g->w,h->w);
   double theta_sq = DIST_2D_SQ(h->pos, g->pos);
   if (doKappa == 1) {
     //-- Compute projected kappa
@@ -1731,8 +1734,8 @@ void setWithSignal_gal_t2(cosmo_hm *cmhm, gal_t *g, double z, double pos[2], err
   g->a        = 1.0/(1.0+z);
   g->pos[0]   = pos[0];
   g->pos[1]   = pos[1];
-  g->w;
-  g->D_s;
+  g->w = w(cmhm->cosmo, g->a, 0, err);       forwardError(*err, __LINE__,); //-- wOmegar = 0
+  g->D_s = g->a * f_K(cmhm->cosmo, g->w, err); forwardError(*err, __LINE__,);
   return;
 }
 

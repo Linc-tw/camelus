@@ -213,6 +213,24 @@ int main(int argc, char *argv[])
 	doProduce_Catalog_DM_galaxies(N,input_name,input_name2,input_name3, cmhm, peak, err);
 	quitOnError(*err, __LINE__, stderr);
   }
+
+   else if (task == 971){
+    if (argc != 6) {printInstructions(task, 1); return 1;}
+    int N = atoi(arg2);
+    char *input_name = arg3;
+    char *input_name2 = arg4;
+    char *input_name3 = arg5;
+
+	printf("Nb realisation : %i \n",N);
+	printf("Input param : %s \n",input_name );
+	printf("Output CatHalo : %s \n",input_name2 );
+	printf("Output CatGal_lensed : %s \n",input_name3 );
+
+  	read_cosmo_hm(input_name, &cmhm, err);       
+	quitOnError(*err, __LINE__, stderr);
+	doProduce_Catalog_DM_galaxies(N,input_name,input_name2,input_name3, cmhm, peak, err);
+	quitOnError(*err, __LINE__, stderr);
+  }
     
   else {
     printInstructions(-1, 1);
