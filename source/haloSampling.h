@@ -72,6 +72,7 @@ void free_halo_map(halo_map *hMap);
 void reset_halo_map(halo_map *hMap);
 void append_halo_map(cosmo_hm *cmhm, halo_map *hMap, double z, double M, double pos[2], error **err);
 void read_halo_map(char name[], cosmo_hm *cmhm, halo_map *hMap, error **err);
+void read_halo_map2(char name[], cosmo_hm *cmhm, halo_map *hMap, error **err);
 void output_halo_map(FILE *file, peak_param *peak, halo_map *hMap);
 
 

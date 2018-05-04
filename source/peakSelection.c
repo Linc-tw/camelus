@@ -962,15 +962,18 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[]
 
   computeLocalVariance_arr(peak, gMap, variance);
    
-  if (peak->doNonlinear)       selectPeaks_mrlens("kappaMap_mrlens.fits", peak, gMap, peakList);
-  else if (peak->DC_nbFilters) kappaToSNR_DC(peak, gMap, DCSmoother->array[0], kMap);
-  else                         kappaToSNR_FFT(peak, gMap, FFTSmoother->array[0], kMap, variance->array[0]);
+  //  if (peak->doNonlinear)       selectPeaks_mrlens("kappaMap_mrlens.fits", peak, gMap, peakList);
+  //  else if (peak->DC_nbFilters) kappaToSNR_DC(peak, gMap, DCSmoother->array[0], kMap);
+  //  else                         kappaToSNR_FFT(peak, gMap, FFTSmoother->array[0], kMap, variance->array[0]);
 
-  lensingCatalogueAndOutputAll(cmhm, peak, hMap, gMap, err);                 forwardError(*err, __LINE__,);
-  printf("lens \n");
-  makeMapAndOutputAll2(fileNameGal, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err); forwardError(*err, __LINE__,);
-  printf("Map1 \n");
-  computeLocalVariance_arr(peak, gMap, variance);
+  printf(" ok \n");	
+  lensingCatalogueAndOutputAll2(fgalCat,cmhm, peak, hMap, gMap, err);                 forwardError(*err, __LINE__,);
+  // printf("lens \n");
+  //  makeMapAndOutputAll2(fileNameHal, fileNameGal, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err); forwardError(*err, __LINE__,);
+  // printf("Map1 \n");
+  // computeLocalVariance_arr(peak, gMap, variance);
+  // printf("Variance \n");//if (peak->doNonlinear)       selectPeaks_mrlens("kappaMap_mrlens.fits", peak, gMap, peakList);
+  
   printf("Variance \n");
    
   selectPeaks(peak, kMap, peakList, err);   forwardError(*err, __LINE__,);
