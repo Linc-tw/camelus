@@ -1639,15 +1639,12 @@ void lensingCatalogueAndOutputAll2(char fileName[],cosmo_hm *cmhm, peak_param *p
 
   //-- Lensing
   lensingForMap(cmhm, peak, hMap, gMap, err); forwardError(*err, __LINE__,);
-printf("4 nb gal %i \n",gMap->total);
 	
   //-- Subtract mean
   if (peak->doKappa != 0) subtractMean(peak, gMap);
-	printf("5 nb gal %i \n",gMap->total);
 	  
   //-- gamma to g
   if (peak->doKappa >= 2) makeG(gMap);
-	printf("6 nb gal %i \n",gMap->total);
 	
   outputGalaxies(fileName, cmhm, peak, gMap);
   
