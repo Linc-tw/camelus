@@ -110,7 +110,6 @@ def ConvertCats(galcat_dir, filename, bin_edges, savestub, savestub_b, nobj, dz=
     # apply bias
     galcat_b = ApplyBias(galcat, delta, nmean)
     print ' > Bias applied.'
-    galcat_b = np.copy(galcat)
     # apply cutoff
     print ' > Applying cutoff to galaxy catalogs {}.'.format(filename)
     select_idx = CutOff(galcat[:,2], bin_edges, nobj, dz)
