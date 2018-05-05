@@ -58,22 +58,6 @@ def ApplyBias(galcat, delta, n, b= 0.00856):
     galcat_b[:,-2:] *= (1+m)
     return galcat_b
 
-def read_n_mean(galcat_path) :
-    """Read mean density from Camelus-generated galaxy catalog.
-
-        Parameters
-        ----------
-        galcat_path : str
-            Path to galaxy catalog.
-
-        Returns
-        -------
-        n_mean : float
-            Average density in catalog.
-    """
-    line = linecache.getline(galcat_path,3)
-    return np.float(line.split()[3])
-
 def CamelusNz(z, alpha=2., beta=1., z_0=.5):
     x = z/z_0
     return x**alpha * np.exp(-x**beta)
@@ -119,10 +103,10 @@ def ConvertCats(galcat_dir, filename, bin_edges, savestub, savestub_b, nobj, dz=
     """
     print ' > Applying bias to galaxy catalog {}.'.format(filename)
     galcat = np.loadtxt(galcat_dir+filename)
-    # read average density
-    nmean = read_n_mean(galcat_dir+filename)
     # compute local densities from galaxy catalogs
     delta = ComputeDensity(galcat)
+    # compute average density
+    nmean = np.mean(delta[0])
     # apply bias
     galcat_b = ApplyBias(galcat, delta, nmean)
     print ' > Bias applied.'
