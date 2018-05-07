@@ -38,8 +38,83 @@ void setWithSignal_gal_t(cosmo_hm *cmhm, gal_t *g, double z, double pos[2], doub
   g->gamma[1] = gamma[1];
   g->pos[0]   = pos[0];
   g->pos[1]   = pos[1];
-  //g->w;  // MKDEBUG ???? commented
-  //g->D_s;
+  g->w = w(cmhm->cosmo, g->a, 0, err);       forwardError(*err, __LINE__,); //-- wOmegar = 0
+  g->D_s = g->a * f_K(cmhm->cosmo, g->w, err); forwardError(*err, __LINE__,);
+
+  return;
+}
+
+gal_node *initialize_gal_node(error **err)
+{
+  gal_node *gNode = (gal_node*)malloc_err(sizeof(gal_node), err); forwardError(*err, __LINE__, NULL);
+  gNode->g        = (gal_t*)malloc_err(sizeof(gal_t), err);       forwardError(*err, __LINE__, NULL);;
+  gNode->next     = NULL;
+  return gNode;
+}
+
+gal_list *initialize_gal_list(error **err)
+{
+  gal_list *gList = (gal_list*)malloc_err(sizeof(gal_list), err); forwardError(*err, __LINE__, NULL);
+  gList->length   = 0;
+  gList->size     = 0;
+  gList->mean[0]  = 0.0;
+  gList->mean[1]  = 0.0;
+  gList->first    = NULL;
+  gList->last     = NULL;
+  return gList;
+}
+
+void free_gal_list(gal_list *gList)
+{
+  gal_node *gNode;
+  while (gList->first != NULL) {
+    gNode        = gList->first;
+    gList->first = gNode->next;
+    if (gNode->g) {free(gNode->g); gNode->g = NULL;}
+    free(gNode); gNode = NULL;
+  }
+  free(gList); gList = NULL;
+  return;
+}
+
+void cleanLensing_gal_list(gal_list *gList)
+{
+  gal_node *gNode = gList->first;
+  while (gNode != NULL) {
+    gNode->g->kappa    = 0.0;
+    gNode->g->gamma[0] = 0.0;
+    gNode->g->gamma[1] = 0.0;
+    gNode              = gNode->next;
+  }
+  return;
+}
+
+void reset_gal_list(gal_list *gList)
+{
+  gList->size    = 0;
+  gList->mean[0] = 0.0;
+  gList->mean[1] = 0.0;
+  return;
+}
+
+void append_gal_list(cosmo_hm *cmhm, gal_list *gList, double z, double w_s, double D_s, double pos[2], error **err)
+{
+  if (gList->length == 0) {
+    gList->first = initialize_gal_node(err);              forwardError(*err, __LINE__,);
+    gList->last  = gList->first;
+    gList->length++;
+  }
+  else if (gList->length == gList->size) {
+    gList->last->next = initialize_gal_node(err);         forwardError(*err, __LINE__,);
+    gList->last       = gList->last->next;
+    gList->length++;
+  }
+  else if (gList->size == 0) gList->last = gList->first;
+  else                       gList->last = gList->last->next;
+  
+  set_gal_t(cmhm, gList->last->g, z, w_s, D_s, pos, err); forwardError(*err, __LINE__,);
+  gList->size++;
+>>>>>>> origin/TableRondeDev
   return;
 }
 
@@ -652,7 +727,6 @@ void outAsciiProfile(char name[], cosmo_hm *chPar, peak_param *pkPar, halo_t *h,
 void lensingForPair(cosmo_hm *chPar, peak_param *pkPar, halo_t *h, gal_t *g, error **err)
 {
   //-- Lensing for a halo-galaxy pair
-  testErrorRet(g==NULL, peak_null, "Empty galaxy", *err, __LINE__,);
   
   if (g->w <= h->w) return; //-- Source in front of lens
   
@@ -1296,8 +1370,8 @@ void setWithSignal_gal_t2(cosmo_hm *cmhm, gal_t *g, double z, double pos[2], err
   g->a        = 1.0/(1.0+z);
   g->pos[0]   = pos[0];
   g->pos[1]   = pos[1];
-  //g->w;  // MKDEBUG commented
-  //g->D_s;
+  g->w = w(cmhm->cosmo, g->a, 0, err);       forwardError(*err, __LINE__,); //-- wOmegar = 0
+  g->D_s = g->a * f_K(cmhm->cosmo, g->w, err); forwardError(*err, __LINE__,);
   return;
 }
 
@@ -1307,7 +1381,7 @@ void setWithSignal_gal_t2(cosmo_hm *cmhm, gal_t *g, double z, double pos[2], err
 void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap)
 {
   error *myerr = NULL, **err = &myerr;
-  gal_list *gList = initialize_gal_list(err); forwardError(*err, __LINE__,);
+  gal_map *gMap = initialize_gal_map(hMap->N1,hMap->N2,hMap->theta_pix,err); forwardError(*err, __LINE__,);
   FILE *file = fopen(name, "w");
   FILE *file2 = fopen(name2, "w");
 
@@ -1326,9 +1400,9 @@ void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo
   fprintf(file2, "#\n");
 
   //printf("test3 \n");
-  output_halo_map_galaxies(file,file2,cmhm, peak, hMap, gList);
+  output_halo_map_galaxies(file,file2,cmhm, peak, hMap, gMap);
   //printf("test4 \n");
-  free_gal_list(gList);
+  free_gal_map(gMap);
   //printf("Gfreen \n");
   fclose(file);
   fclose(file2);
@@ -1447,7 +1521,7 @@ void output2_halo_map_galaxies(FILE *file, FILE *file2, cosmo_hm *cmhm, peak_par
 
 
 
-void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_list *gList)
+void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_map *gMap)
 {
   halo_list *hList;
   halo_node *hNode;
@@ -1526,7 +1600,6 @@ void output_halo_map_galaxies(FILE *file,FILE *file2, cosmo_hm *cmhm, peak_param
   printf("Nb galaxies created : %i \n",ii);
   return;
 }
-
 
 double NFW(double x)
 {

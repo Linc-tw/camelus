@@ -2028,7 +2028,7 @@ void makeMapsAndOutput(cosmo_hm *chPar, peak_param *pkPar, gal_map *gMap, gal_ma
 
 
 // MKDEBUG map_t -> signal_map 
-void makeMapAndOutputAll2(char fileName[], char fileName2[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, FFT_arr *FFTSmoother, FFT_arr *DCSmoother, signal_map *kMap, error **err)
+void makeMapAndOutputAll2(char fileName[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, FFT_arr *FFTSmoother, FFT_arr *DCSmoother, signal_map *kMap, error **err)
 {
   //-- Map making main function: kappa/gamma/g/g-linear, noiseless/noisy, unsmoothed/smoothed
   //--
@@ -2135,14 +2135,14 @@ void makeMapAndOutputAll2(char fileName[], char fileName2[], cosmo_hm *cmhm, pea
   
   if (doKappa != 1) {
     //-- Semi-truth
-    makeTrueMap(fileName2, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, 1, err); forwardError(*err, __LINE__,);
+    makeTrueMap(fileName, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, 1, err); forwardError(*err, __LINE__,);
     outputMapFromTable("kappaMap_semiTruth", cmhm, peak, firstFFTSmoo->before, kappa_map, 0, err); forwardError(*err, __LINE__,);
     forwardError(*err, __LINE__,);
   }
   
   if (doKappa != 0) {
     //-- Truth
-    makeTrueMap(fileName2, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, 0, err); forwardError(*err, __LINE__,);
+    makeTrueMap(fileName, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, 0, err); forwardError(*err, __LINE__,);
     outputMapFromTable("kappaMap_truth", cmhm, peak, firstFFTSmoo->before, kappa_map, 0, err); forwardError(*err, __LINE__,);
     forwardError(*err, __LINE__,);
   }

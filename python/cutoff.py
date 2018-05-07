@@ -74,22 +74,26 @@ def read_n_mean(galcat_path) :
     line = linecache.getline(galcat_path,3)
     return np.float(line.split()[3])
 
-def CutOff(fullzs, randoms, dz):
+def CutOff(fullzs, randoms, bin_edges):
     """apply cut off
     """
-    bin_edges = np.arange(0,np.max(fullzs)+dz,dz)
+    if bin_edges is None:
+        bin_edges = np.arange(0,np.max(fullzs)+dz,dz)
     select_idx = []
     for lf, rf in zip(bin_edges, bin_edges[1:]):
         print '   > Working on z bin [{},{}]'.format(lf,rf)
         zidx = np.where((fullzs>lf) & (fullzs<=rf))[0]
+        nb_hod = len(zidx)
         nb_rand = len(np.where((randoms>lf) & (randoms<=rf))[0])
-        print '     > Number of sources: {}'.format(nb_rand)
+        if nb_hod > nb_rand:
+            print '/!\/!\ Not enough sources for this redshift bin!\t{} v {} for HOD and random cats. /!\/!\ '.format(nb_hod,nb_rand)
+            nb_rand = nb_hod
         this_selection = np.random.choice(zidx, nb_rand, False)
         select_idx += list(this_selection)
     print '   > Total number of sources : {}'.format(len(select_idx))
     return select_idx
     
-def ConvertCats(galcat_dir, filename, randomname, dz, savestub, savestub_b):
+def ConvertCats(galcat_dir, filename, randomname, bin_edges, savestub, savestub_b):
     """Read, compute local densities and apply bias to given galaxy catalog.
 
         Parameters
@@ -119,7 +123,7 @@ def ConvertCats(galcat_dir, filename, randomname, dz, savestub, savestub_b):
     print ' > Bias applied.'
     # apply cutoff
     print ' > Applying cutoff to galaxy catalogs {}.'.format(filename)
-    select_idx = CutOff(galcat[:,2], randoms[:,2], dz)
+    select_idx = CutOff(galcat[:,2], randoms[:,2], bin_edges)
     cutoff = galcat[select_idx,:]
     cutoff_b = galcat_b[select_idx,:]
     print ' > Cutoff performed.'.format(filename)
@@ -139,13 +143,19 @@ def main():
     galcat_dir, galcat_name, randomcat_name = sys.argv[1], sys.argv[2], sys.argv[3]
     dz = float(sys.argv[4])
     savestub, savestub_b = sys.argv[5], sys.argv[6]
+    if len(sys.argv) > 7:
+        zmin = float(sys.argv[7])
+        zmax = float(sys.argv[8])
+        bin_edges = np.arange(zmin,zmax+dz,dz)
+    else:
+        bin_edges = None
     stub_length = len(galcat_name)
     galcat_files = [catfile for catfile in os.listdir(galcat_dir) 
                     if galcat_name == catfile[:stub_length]]
     stub_length = len(randomcat_name)
     random_files = [catfile for catfile in os.listdir(galcat_dir) 
                     if randomcat_name == catfile[:stub_length]]
-    _ = [ConvertCats(galcat_dir, filename, randomname, dz, savestub, savestub_b) for 
+    _ = [ConvertCats(galcat_dir, filename, randomname, bin_edges, savestub, savestub_b) for 
          filename, randomname in zip(galcat_files,random_files)]
     
 if __name__ == "__main__":

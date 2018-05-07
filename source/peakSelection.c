@@ -552,7 +552,7 @@ void outFitsHist(char name[], peak_param *pkPar, hist_t *hist, int filterInd)
 
 // New functions for TablesRondes
      
-void doPeakList_withInputs(char fileName[], char fileName2[],char end[], cosmo_hm *cmhm, peak_param *peak, error **err)
+void doPeakList_withInputs(char fileName[], char end[], cosmo_hm *cmhm, peak_param *peak, error **err)
 {
   int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
   
@@ -565,10 +565,11 @@ void doPeakList_withInputs(char fileName[], char fileName2[],char end[], cosmo_h
   sprintf(fpeakHist, "peakhist_%s",end);
 
   // MKDEBUG: New structure in Linc-tw, replaced lines below.
+  // To check: no halo file name
   pipeline_t *pipe = initialize_pipeline_t(cmhm, peak, err); forwardError(*err, __LINE__,);
 
   /*
-  halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
+  //halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); forwardError(*err, __LINE__,);
   sampler_t *galSamp   = initialize_sampler_t(peak->N_z_gal);
   setGalaxySampler(cmhm, peak, galSamp, err);                                                       forwardError(*err, __LINE__,);
   gal_map *gMap        = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);  forwardError(*err, __LINE__,);
@@ -584,18 +585,16 @@ void doPeakList_withInputs(char fileName[], char fileName2[],char end[], cosmo_h
   setHist_nu(peak, nuHist);
   */
 
-  if ((fileName == NULL)||(fileName2 == NULL)) {
+  if (fileName == NULL) {
     //-- no input files
     printf("Problem input files missing \n");
   }
   else {
-    printf(" Reading file for halo \"%s\"...\n", fileName);
-    read_halo_map(fileName, cmhm, peak, pipe->hMap, err);                                forwardError(*err, __LINE__,);
-    printf(" Reading file for galaxies : \"%s\"...\n", fileName2);
-    read_gal_map2(fileName2, cmhm, peak, pipe->gMap, err);                                forwardError(*err, __LINE__,);
+    printf(" Reading file for galaxies : \"%s\"...\n", fileName);
+    read_gal_map2(fileName, cmhm, peak, pipe->gMap, err);                                forwardError(*err, __LINE__,);
   }
   printf("Creating map and output\n");
-  makeMapAndOutputAll2(fileName, fileName2, cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err); forwardError(*err, __LINE__,);
+  makeMapAndOutputAll2(fileName, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err); forwardError(*err, __LINE__,);
 
   // MKDEBUG  used to be computeLocalVariance_arr
   makeLocalVariance(peak, pipe->gMap, pipe->variance);
@@ -736,7 +735,7 @@ void doProduce_Catalog_N(int N,char HaloFileName[],char GalFileName[], cosmo_hm 
 }
 
 
-void doPeakList_withInputs_N(int N,char fileName[], char fileName2[],char end[],cosmo_hm *cmhm, peak_param *peak, error **err)
+void doPeakList_withInputs_N(int N,char fileName[],char end[],cosmo_hm *cmhm, peak_param *peak, error **err)
 {
     
   char HaloFileName2[STRING_LENGTH_MAX];
@@ -867,11 +866,13 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[], char end[
   
   char fpeakList[STRING_LENGTH_MAX];
   char fpeakListPos[STRING_LENGTH_MAX];
-  char fpeakHist[STRING_LENGTH_MAX];
+  char fgalCat[STRING_LENGTH_MAX];
+
 
   sprintf(fpeakList, "peakList_%s",end);
   sprintf(fpeakListPos, "peakListPos_%s",end);
-  sprintf(fpeakHist, "peakhist_%s",end);
+  sprintf(fgalCat, "%s_%s",fileNameGal,end);
+
 
   // MKDEBUG: New structure in Linc-tw, replaced lines below.
   pipeline_t *pipe = initialize_pipeline_t(cmhm, peak, err); forwardError(*err, __LINE__,);
@@ -955,8 +956,6 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[], char end[
   outAsciiHist(fpeakHist, peak, pipe->nuHist, 0, err);
   forwardError(*err, __LINE__,);
 
-
-  //computePeaks2("TEST_TABLE_PEAK",peak,kMap,peakList,err);
 
   free_pipeline_t(pipe);
 

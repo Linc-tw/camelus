@@ -57,12 +57,12 @@ log10Mstar_max	12
 
 # Common parameters
 log10M_min           11.77	 # Minimum halo mass for central galaxies [Msol/h]
-log10M1              12.83   # Scale mass for satellite galaxies [Msol/h]
-log10M0		11.54  			 # Minimum halo mass for satellite galaxies [Msol/h]
+log10M1              12.84   # Scale mass for satellite galaxies [Msol/h]
+log10M0		10.98  			 # Minimum halo mass for satellite galaxies [Msol/h]
 # If set to -1: M0 will be = M_min (Brown et al. 2008) during sampling
-sigma_log_M	    0.50	         # Central galaxy dispersion (Brown et al. 2008)
-alpha           1.07	         # Satellite power-law slope
-eta		        0.0	         # Fraction of halos with central galaxy of given type, 0 <= eta <= 1
+sigma_log_M	    0.337	         # Central galaxy dispersion (Brown et al. 2008)
+alpha           1.17	         # Satellite power-law slope
+eta		        0.5	         # Fraction of halos with central galaxy of given type, 0 <= eta <= 1
 
 
 

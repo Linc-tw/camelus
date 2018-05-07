@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 
 
 def ComputeNzFromHalo(filename, dz):
-    print ' > Working on file {}...'.format(filename)
     halcat = np.loadtxt(filename)
     zs = halcat[:,3]
     Ngals = halcat[:,5] * (1+halcat[:,6])
@@ -48,35 +47,25 @@ def main():
     stub_length = len(galcat_name)
     galcat_files = [catfile for catfile in os.listdir(cats_dir) 
                     if galcat_name == catfile[:stub_length]]
-    Nzs_hal = np.array([ComputeNzFromHalo(cats_dir+filename, dz) 
-                for filename in halcat_files])
     Nzs_gal = np.array([ComputeNz(cats_dir+filename, dz) 
                 for filename in galcat_files])
-    np.save(cats_dir+'Nzs_hal.npy', Nzs_hal)
-    np.save(cats_dir+'Nzs_gal.npy', Nzs_gal)
-    #Nzs_hal = np.load(cats_dir + 'Nzs_hal.npy')
-    #Nzs_gal = np.load(cats_dir + 'Nzs_gal.npy')
-    n_tot_hal = np.mean([np.sum(count) for count in Nzs_hal[:,0]])
-    print 'Average number of generated galaxies (HOD):\t{}'.format(n_tot_hal)
-    print 'Average number of generated galaxies (galaxy catalog):\t{}'.format(np.mean([np.sum(count) for count in Nzs_gal[:,0]]))
-    zs = Nzs_hal[0,1][1:]-dz/2
-    HOD_n = np.mean(Nzs_hal[:,0])
-    #HOD_n /= np.sum(HOD_n)
-    plt.errorbar(zs, HOD_n, np.std(Nzs_hal[:,0]),
-                 label='HOD population')
-    CamZs = [CamelusNz(zee) for zee in zs]
-    #CamZs /= np.sum(CamZs)
-    plt.plot(zs, CamZs, label='Camelus n(z)')
+    np.save(cats_dir+'Nzs_galonly.npy', Nzs_gal)
+    Nzs_gal = np.load(cats_dir + 'Nzs_galonly.npy')
+    print Nzs_gal.shape, Nzs_gal
     zs = Nzs_gal[0,1][1:]-dz/2
+    print 'Average number of generated galaxies (galaxy catalog):\t{}'.format(np.mean([np.sum(count) for count in Nzs_gal[:,0]]))
+    CamZs = [CamelusNz(zee) for zee in zs]
+    CamZs /= np.sum(CamZs)
+    plt.plot(zs, CamZs, label='Camelus n(z)')
     gal_n = np.mean(Nzs_gal[:,0]).astype('float')
-    #gal_n /= np.sum(gal_n)
+    gal_n /= np.sum(gal_n)
     plt.errorbar(zs, gal_n, np.std(gal_n),
                  label='Camelus random population')
     plt.xlabel(r'$z$')
     plt.ylabel(r'$n(z)$')
     plt.legend(loc=5, bbox_to_anchor=(1.6,.5))
     #plt.show()
-    plt.savefig(cats_dir+'Nz_plot.png', bbox_inches='tight')
+    plt.savefig(cats_dir+'Nz_plot_galonly.png', bbox_inches='tight')
     
     
 if __name__ == "__main__":
