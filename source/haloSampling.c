@@ -237,46 +237,10 @@ void read_halo_map(char name[], cosmo_hm *chPar, peak_param *pkPar, halo_map *hM
   return;
 }
 
-void read_halo_map2(char name[], cosmo_hm *cmhm, halo_map *hMap, error **err)
-{
-  FILE *file = fopen_err(name, "r", err); forwardError(*err, __LINE__,);
-  printf("Reading halo map...\r");
-  fflush(stdout);
-  
-  char buffer[STRING_LENGTH_MAX], *buffer1;
-  int buffer2, count = 0;
-  double pos[2], w, z, M;
-  
-  int c = fgetc(file);
-  while (c != EOF) {
-    if (c == (int)'#') buffer1 = fgets(buffer, STRING_LENGTH_MAX, file);
-    else {
-      ungetc(c, file);
-      //printf("begin fscanf \n");
-      buffer2 = fscanf(file, "%lf %lf %*f %lf %lf %*f %*f %*f\n", &pos[0], &pos[1], &z, &M);
-      //printf("%f %f %f %f\n", pos[0], pos[1], z, M);
-      append_halo_map(cmhm, hMap, z, M, pos, err); forwardError(*err, __LINE__,);
-      //printf("append\n");
-      count++;
-    }
-    c = fgetc(file);
-    //printf("fgetc\n");
-  }
-
-  printf("Done\n");
-  
-  fclose(file);
-  testErrorRet(count!=hMap->total, peak_match, "Halo number match error", *err, __LINE__,);
-  printf("\"%s\" read       \n", name);
-  printf("%d halos generated\n", count);
-  return;
-}
-
 void output_halo_map(FILE *file, peak_param *peak, halo_map *hMap)
 {
   fprintf(file, "# Number of halos = %d\n", hMap->total);
   fprintf(file, "#\n");
->>>>>>> origin/TableRondeDev
   
   //-- Check
   testErrorRet(count2!=hMap->total, peak_match, "Number not matched after reading files", *err, __LINE__,);
