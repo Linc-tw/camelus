@@ -91,7 +91,8 @@ void setWithSignal_gal_t2(cosmo_hm *cmhm, gal_t *g, double z, double pos[2], err
 
 void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
 void output_halo_map_galaxies(FILE *file, FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_map *gMap);
-
+void output_halo_map_galaxies2(FILE *file, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_map *gMap);
+void outputFastSimul_galaxies2(char name_cmhm[], char name[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap,gal_map *gMap);
 
 double NFW(double x);
 #endif

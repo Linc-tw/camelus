@@ -552,7 +552,7 @@ void outFitsHist(char name[], peak_param *pkPar, hist_t *hist, int filterInd)
 
 // New functions for TablesRondes
      
-void doPeakList_withInputs(char fileName[], char end[], cosmo_hm *cmhm, peak_param *peak, error **err)
+void doPeakList_withInputs(char fileName[], char fileName2[], char end[], cosmo_hm *cmhm, peak_param *peak, error **err)
 {
   int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
   
@@ -594,7 +594,7 @@ void doPeakList_withInputs(char fileName[], char end[], cosmo_hm *cmhm, peak_par
     read_gal_map2(fileName, cmhm, peak, pipe->gMap, err);                                forwardError(*err, __LINE__,);
   }
   printf("Creating map and output\n");
-  makeMapAndOutputAll2(fileName, cmhm, peak, gMap, FFTSmoother, DCSmoother, kMap, err); forwardError(*err, __LINE__,);
+  makeMapAndOutputAll2(fileName, fileName2, cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err); forwardError(*err, __LINE__,);
 
   // MKDEBUG  used to be computeLocalVariance_arr
   makeLocalVariance(peak, pipe->gMap, pipe->variance);
@@ -735,7 +735,7 @@ void doProduce_Catalog_N(int N,char HaloFileName[],char GalFileName[], cosmo_hm 
 }
 
 
-void doPeakList_withInputs_N(int N,char fileName[],char end[],cosmo_hm *cmhm, peak_param *peak, error **err)
+void doPeakList_withInputs_N(int N, char fileName[], char fileName2[], char end[], cosmo_hm *cmhm, peak_param *peak, error **err)
 {
     
   char HaloFileName2[STRING_LENGTH_MAX];
@@ -866,12 +866,12 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[], char end[
   
   char fpeakList[STRING_LENGTH_MAX];
   char fpeakListPos[STRING_LENGTH_MAX];
-  char fgalCat[STRING_LENGTH_MAX];
+  char fpeakHist[STRING_LENGTH_MAX];
 
 
   sprintf(fpeakList, "peakList_%s",end);
   sprintf(fpeakListPos, "peakListPos_%s",end);
-  sprintf(fgalCat, "%s_%s",fileNameGal,end);
+  sprintf(fpeakHist, "peakhist_%s",end);
 
 
   // MKDEBUG: New structure in Linc-tw, replaced lines below.
@@ -993,3 +993,58 @@ void doProduce_Catalog_DM_galaxies(int N, char CmhmName[], char HaloFileName[], 
   }
   return;
 }
+
+
+void doProduce_Catalog_DM_galaxies_HOD_N(int N, char CmhmName[], char HaloFileName[], char GalaxyFileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
+{
+	int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
+	char HaloFileName2[STRING_LENGTH_MAX], GalaxyFileName2[STRING_LENGTH_MAX];
+	int i;
+
+
+	printf("-----------------------------  HOD galaxy Ngal  -------------------------------\n");
+	for (i=0; i<N; i++) {
+
+		// MKDEBUG: New structure in Linc-tw, replaced lines below.
+		pipeline_t *pipe = initialize_pipeline_t(cmhm, peak, err); forwardError(*err, __LINE__,);
+
+		/*
+			halo_map *hMap       = initialize_halo_map(peak->resol[0], peak->resol[1], peak->theta_pix, err);
+			gal_map *gMap = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); 
+			gal_map *gMap_bias = initialize_gal_map(peak->resol[0], peak->resol[1], peak->theta_pix, err); 
+			*/
+
+		//-- Carry out fast simulation
+		sampler_arr *sampArr = initialize_sampler_arr(peak->N_z_halo, peak->N_M);
+		setMassSamplers(cmhm, peak, sampArr, 1, err); 
+		forwardError(*err, __LINE__,);
+		makeFastSimul(cmhm, peak, sampArr, pipe->hMap, err); // FAIT hMap 
+		forwardError(*err, __LINE__,);
+
+		sprintf(HaloFileName2, "%s_%3.3d",HaloFileName, i+1);
+		sprintf(GalaxyFileName2, "%s_%3.3d",GalaxyFileName, i+1);
+		outputFastSimul_galaxies2(CmhmName,HaloFileName2,cmhm,peak, pipe->hMap, pipe->gMap);
+		forwardError(*err, __LINE__,);
+		lensingCatalogueAndOutputAll2(GalaxyFileName2,cmhm, peak, pipe->hMap, pipe->gMap, pipe->k1Inter, err);
+		forwardError(*err, __LINE__,);
+
+		//AddBias(cmhm, peak, gMap, gMap_bias, err);
+		forwardError(*err, __LINE__,);
+
+		free_pipeline_t(pipe);
+
+
+		/*
+			free_sampler_arr(sampArr);
+			free_halo_map(hMap);
+			free_gal_map(gMap);
+			free_gal_map(gMap_bias);
+			*/
+	}
+	return;
+}
+
+
+
+
+

@@ -242,14 +242,25 @@ void output_halo_map(FILE *file, peak_param *peak, halo_map *hMap)
   fprintf(file, "# Number of halos = %d\n", hMap->total);
   fprintf(file, "#\n");
   
-  //-- Check
-  testErrorRet(count2!=hMap->total, peak_match, "Number not matched after reading files", *err, __LINE__,);
-  if (pkPar->verbose < 3) {
-    printf("Read \"%s\"   \n", name);
-    printf("Found %d halos, generated %d\n", count, count2);
+  if (peak->field == aardvark_hPatch04 || peak->field == aardvark_gPatch086) { //-- For aardvark, positions are RA, DEC in [deg]
+    fprintf(file, "#       RA        DEC         w        z          M\n");
+    fprintf(file, "#     [deg]      [deg]   [Mpc/h]      [-]  [M_sol/h]\n");
   }
-  else if (pkPar->verbose == 3) {
-    printf("Read %d halos, ", count2); fflush(stdout);
+  else {
+    fprintf(file, "#   theta_x    theta_y        w        z          M\n");
+    fprintf(file, "#  [arcmin]   [arcmin]   [Mpc/h]      [-]  [M_sol/h]\n");
+  }
+  
+  halo_list *hList;
+  halo_node *hNode;
+  halo_t *h;
+  int i, j; 
+  for (i=0; i<hMap->length; i++) {
+    hList = hMap->map[i];
+    for (j=0, hNode=hList->first; j<hList->size; j++, hNode=hNode->next) {
+      h = hNode->h; 
+      fprintf(file, "  %9.3f  %9.3f  %8.3f  %7.5f  %9.3e \n", h->pos[0], h->pos[1], h->w, h->z, h->M);
+    }
   }
   return;
 }

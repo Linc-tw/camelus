@@ -208,8 +208,9 @@ int main(int argc, char *argv[])
   else if (task == 16) {
     if (argc != 5) {printInstructions(task, 1); return 1;}
     char *input_name  = argv[3];
-    char *opt         = argv[4];
-    doPeakList_withInputs(input_name, opt, chPar, pkPar, err);
+    char *input_name2  = argv[4];
+    char *opt         = argv[5];
+    doPeakList_withInputs(input_name, input_name2, opt, chPar, pkPar, err);
     quitOnError(*err, __LINE__, stderr);
   }
 
@@ -225,8 +226,9 @@ int main(int argc, char *argv[])
     if (argc != 6) {printInstructions(task, 1); return 1;}
     int N = atoi(argv[3]);
     char *input_name = argv[4];
-  	 char *opt = argv[5];
- 	 doPeakList_withInputs_N(N, input_name, opt, chPar, pkPar, err);
+    char *input_name2 = argv[5];
+  	 char *opt = argv[6];
+ 	 doPeakList_withInputs_N(N, input_name, input_name2, opt, chPar, pkPar, err);
 	 quitOnError(*err, __LINE__, stderr);
   }
 
@@ -303,11 +305,11 @@ int main(int argc, char *argv[])
 	printf("Nb realisation : %i \n",N);
 	printf("Input param : %s \n",input_name );
 	printf("Output CatHalo : %s \n",input_name2 );
-	printf("Output CatGal_lensed : %s \n",input_name3 );
+	printf("Output CatGal : %s \n",input_name3 );
 
   	read_cosmo_hm(input_name, &cmhm, err);       
 	quitOnError(*err, __LINE__, stderr);
-	doProduce_Catalog_DM_galaxies(N,input_name,input_name2,input_name3, cmhm, peak, err);
+	doProduce_Catalog_DM_galaxies_HOD_N(N,input_name,input_name2,input_name3, cmhm, peak, err);
 	quitOnError(*err, __LINE__, stderr);
   }
     
@@ -385,6 +387,8 @@ int main(int argc, char *argv[])
 	   break;
         case 900:
            printf("  ./camelus 900 N paramhm halocat galcat   # create catalog haloes with Ngal and galaxy catalog \n");
+        case 971:
+           printf("  ./camelus 971 N paramhm halocat galcat   # create catalog haloes with Ngal, corresponding galaxy catalog and its lensing quantities \n");
         case 999:
            printf("  ./camelus 999 N paramhm halocat   # create catalog haloes with Ngal \n");
            break;
