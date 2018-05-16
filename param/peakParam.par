@@ -19,7 +19,7 @@ seed		1234
 				## [int or string] Seed for generating random numbers
 				##   If seed is int, suggested range = [0, 4294967295]
 				##   Put anything containing 'r' for a random seed
-verbose		0		## [int] 0 = default, 1 = all, 2 = no flush, 3 = line mode, 4 = pipeline off & realization on, 5 = MPI, 99 = silent
+verbose		0 		## [int] 0 = default, 1 = all, 2 = no flush, 3 = line mode, 4 = pipeline off & realization on, 5 = MPI, 99 = silent
 
 
 ### Field
@@ -118,7 +118,7 @@ doSubtraction	1		## [int] 0 = without, 1 = subtract kappa_mean, 2 = subtract the
 ### Filters
 doSmoothing	1		## [int] 0 = without, 1 = binning and FFT, 2 = direct convolution
 				##   Sum for performing simultaneously multiple techniques, e.g. 3 = FFT + DC
-FFT_nbFilters	2		## [int] Number of linear filters for FFT
+FFT_nbFilters	1		## [int] Number of linear filters for FFT
 				##   Forced to 0 if field = 2
 				##   Forced to 0 if doSmoothing without bit 1
 # Question for Linc-tw: Does this not need to match FFT_nbFilters?
@@ -163,8 +163,8 @@ outMaps		1		## [int] 0 = no, 1 = yes
 outTruth	1		## [int] 0 = no, 1 = yes
 				##   Output noise-free maps
 outMask		1		## [int] 0 = no, 1 = yes
-outPeakList	0		## [int] 0 = no, 1 = yes
-outHist		0		## [int] 0 = no, 1 = yes
+outPeakList	1		## [int] 0 = no, 1 = yes
+outHist		1		## [int] 0 = no, 1 = yes
 outMultiscale	1		## [int] 0 = no, 1 = yes
 
 # MKDEBUG the following is removed in Linc-tw

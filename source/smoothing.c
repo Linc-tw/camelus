@@ -1095,76 +1095,76 @@ void outAscii_fftw_complex(FILE *file, peak_param *pkPar, fftw_complex *table, m
   if (type == proj_mask) fprintf(file, "# 0 = activated, 1 = masked\n");
   fprintf(file, "# Number of pixels = %d\n", N1 * N2);
   fprintf(file, "#\n");
-  
+
   if (pkPar->field < 2) {
-    if (type == proj_mask) {
-      fprintf(file, "#  theta_x   theta_y  mask\n");
-      fprintf(file, "# [arcmin]  [arcmin]   [-]\n");
-      
-      for (j=0; j<N2; j++) {
-	jM = j * M;
-	for (i=0; i<N1; i++) {
-	  getPixPos(pos, theta_pix, i, j);
-	  fprintf(file, "  %8.3f  %8.3f  %4.0f\n", pos[0]*RADIAN_TO_ARCMIN, pos[1]*RADIAN_TO_ARCMIN, table[i+jM][0]);
-	}
-      }
-    }
-    
-    else if (type < 6) {
-      fprintf(file, "#  theta_x   theta_y        value\n");
-      fprintf(file, "# [arcmin]  [arcmin]          [-]\n");
-      
-      for (j=0; j<N2; j++) {
-	jM = j * M;
-	for (i=0; i<N1; i++) {
-	  getPixPos(pos, theta_pix, i, j);
-	  fprintf(file, "  %8.3f  %8.3f  %11.4e\n", pos[0]*RADIAN_TO_ARCMIN, pos[1]*RADIAN_TO_ARCMIN, table[i+jM][0]);
-	}
-      }
-    }
-    
-    else {
-      fprintf(file, "#  theta_x   theta_y       value1       value2\n");
-      fprintf(file, "# [arcmin]  [arcmin]          [-]          [-]\n");
-      
-      for (j=0; j<N2; j++) {
-	jM = j * M;
-	for (i=0; i<N1; i++) {
-	  pix = table[i+jM];
-	  getPixPos(pos, theta_pix, i, j);
-	  fprintf(file, "  %8.3f  %8.3f  %11.4e  %11.4e\n", pos[0]*RADIAN_TO_ARCMIN, pos[1]*RADIAN_TO_ARCMIN, pix[0], pix[1]);
-	}
-      }
-    }
+	  if (type == proj_mask) {
+		  fprintf(file, "#  theta_x   theta_y  mask\n");
+		  fprintf(file, "# [arcmin]  [arcmin]   [-]\n");
+
+		  for (j=0; j<N2; j++) {
+			  jM = j * M;
+			  for (i=0; i<N1; i++) {
+				  getPixPos(pos, theta_pix, i, j);
+				  fprintf(file, "  %8.3f  %8.3f  %4.0f\n", pos[0]*RADIAN_TO_ARCMIN, pos[1]*RADIAN_TO_ARCMIN, table[i+jM][0]);
+			  }
+		  }
+	  }
+
+	  else if (type < 6) {
+		  fprintf(file, "#  theta_x   theta_y        value\n");
+		  fprintf(file, "# [arcmin]  [arcmin]          [-]\n");
+
+		  for (j=0; j<N2; j++) {
+			  jM = j * M;
+			  for (i=0; i<N1; i++) {
+				  getPixPos(pos, theta_pix, i, j);
+				  fprintf(file, "  %8.3f  %8.3f  %11.4e\n", pos[0]*RADIAN_TO_ARCMIN, pos[1]*RADIAN_TO_ARCMIN, table[i+jM][0]);
+			  }
+		  }
+	  }
+
+	  else {
+		  fprintf(file, "#  theta_x   theta_y       value1       value2\n");
+		  fprintf(file, "# [arcmin]  [arcmin]          [-]          [-]\n");
+
+		  for (j=0; j<N2; j++) {
+			  jM = j * M;
+			  for (i=0; i<N1; i++) {
+				  pix = table[i+jM];
+				  getPixPos(pos, theta_pix, i, j);
+				  fprintf(file, "  %8.3f  %8.3f  %11.4e  %11.4e\n", pos[0]*RADIAN_TO_ARCMIN, pos[1]*RADIAN_TO_ARCMIN, pix[0], pix[1]);
+			  }
+		  }
+	  }
   }
-  
+
   else {
-    if (type < 6) {
-      fprintf(file, "#    i      j         value\n");
-      fprintf(file, "# [pix]  [pix]          [-]\n");
-      
-      for (j=0; j<N2; j++) {
-	jM = j * M;
-	for (i=0; i<N1; i++) {
-	  fprintf(file, "  %5d  %5d  %11.4e\n", i, j, table[i+jM][0]);
-	}
-      }
-    }
-    
-    else {
-      fprintf(file, "#    i      j        value1       value2\n");
-      fprintf(file, "# [pix]  [pix]          [-]          [-]\n");
-      
-      for (j=0; j<N2; j++) {
-	jM = j * M;
-	for (i=0; i<N1; i++) {
-	  pix = table[i+jM];
-	  fprintf(file, "  %5d  %5d  %11.4e  %11.4e\n", i, j, pix[0], pix[1]);
-	}
-      }
-    }
+	  if (type < 6) {
+		  fprintf(file, "#    i      j         value\n");
+		  fprintf(file, "# [pix]  [pix]          [-]\n");
+
+		  for (j=0; j<N2; j++) {
+			  jM = j * M;
+			  for (i=0; i<N1; i++) {
+				  fprintf(file, "  %5d  %5d  %11.4e\n", i, j, table[i+jM][0]);
+			  }
+		  }
+	  }
+
+	  else {
+		  fprintf(file, "#    i      j        value1       value2\n");
+		  fprintf(file, "# [pix]  [pix]          [-]          [-]\n");
+
+		  for (j=0; j<N2; j++) {
+			  jM = j * M;
+			  for (i=0; i<N1; i++) {
+				  pix = table[i+jM];
+				  fprintf(file, "  %5d  %5d  %11.4e  %11.4e\n", i, j, pix[0], pix[1]);
+			  }
+		  }
+	  }
   }
-  
+
   return;
 }
 
@@ -1847,6 +1847,7 @@ void makeMaps(peak_param *pkPar, gal_map *gMap, FFT_arr *FFTSmoother, FFT_arr *D
 {
   //-- Map making main function: kappa/gamma/g, noiseless/noisy, unsmoothed/smoothed
     
+  printf("%d %g %g\n", kMap->type, kMap->value1[0], kMap->value2[0]);
   //-- Binning + DC
   pixelization(pkPar, gMap, FFTSmoother, DCSmoother, err); forwardError(*err, __LINE__,);
   
@@ -2028,7 +2029,7 @@ void makeMapsAndOutput(cosmo_hm *chPar, peak_param *pkPar, gal_map *gMap, gal_ma
 
 
 // MKDEBUG map_t -> signal_map 
-void makeMapAndOutputAll2(char fileName[], char fileName2[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, FFT_arr *FFTSmoother, FFT_arr *DCSmoother, signal_map *kMap, error **err)
+void makeMapAndOutputAll2(char fileName[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, FFT_arr *FFTSmoother, FFT_arr *DCSmoother, signal_map *kMap, error **err)
 {
   //-- Map making main function: kappa/gamma/g/g-linear, noiseless/noisy, unsmoothed/smoothed
   //--
@@ -2077,11 +2078,13 @@ void makeMapAndOutputAll2(char fileName[], char fileName2[], cosmo_hm *cmhm, pea
   outAsciiMask("mask", peak, gMap, kMap, err); forwardError(*err, __LINE__,);
 
   
-  //-- Pixelization
-  // MKDEBUG replaced the following commands pixellization, invert..., smoothBy..., now in Linc-tw:makeMaps
-  makeMaps(peak, gMap, FFTSmoother, DCSmoother, kMap, err); forwardError(*err, __LINE__,);
+  // MKDEBUG in principle we should replace the following commands pixellization, invert..., smoothBy..., now in Linc-tw:makeMaps,
+  // with makeMaps, but somehow this did not work, check again.
 
-  //pixelization(peak, gMap, FFTSmoother, DCSmoother, err); forwardError(*err, __LINE__,);
+	// MKDEBUG reverted to pix
+  //makeMaps(peak, gMap, FFTSmoother, DCSmoother, kMap, err); forwardError(*err, __LINE__,);
+
+  pixelization(peak, gMap, FFTSmoother, DCSmoother, err); forwardError(*err, __LINE__,);
 
   if (DC_nbFilters) {
     // MKDEBUG: Modified in Linc-tw, here only writing 0th filter
@@ -2106,6 +2109,7 @@ void makeMapAndOutputAll2(char fileName[], char fileName2[], cosmo_hm *cmhm, pea
   //-- Inversion
   if (doKappa == 2) {
     //invertByIterKS_arr(peak, gMap, FFTSmoother, DCSmoother, kMap);
+	 inversion(peak, FFTSmoother, DCSmoother, kMap);
     if (DC_nbFilters) {
       outputMapFromTable("kappaMap_DC",         cmhm, peak, outputDCSmoo->before, K_map+typeForNoise, 0, err);
         forwardError(*err, __LINE__,);
@@ -2115,7 +2119,9 @@ void makeMapAndOutputAll2(char fileName[], char fileName2[], cosmo_hm *cmhm, pea
     }
   }
   else if (doKappa == 0 || doKappa == 3) {
+	// MKDEBUG replaced
     //invertByLinKS_arr(peak, gMap, FFTSmoother, DCSmoother);
+	 inversion(peak, FFTSmoother, DCSmoother, kMap);
     if (DC_nbFilters) {
       outputMapFromTable("kappaMap_DC",         cmhm, peak, outputDCSmoo->before, K_map+typeForNoise, 0, err);
       forwardError(*err, __LINE__,);
@@ -2128,7 +2134,7 @@ void makeMapAndOutputAll2(char fileName[], char fileName2[], cosmo_hm *cmhm, pea
 
   if (FFT_nbFilters) {
     //-- FFT smoothing
-    //smoothByFFT_arr(peak, gMap, FFTSmoother);
+    smoothByFFT_arr(peak, FFTSmoother);
     outputMapFromTable("kappaMap_FFT", cmhm, peak, outputFFTSmoo->after, K_map+typeForNoise, 0, err);
     forwardError(*err, __LINE__,);
   }
@@ -2147,7 +2153,6 @@ void makeMapAndOutputAll2(char fileName[], char fileName2[], cosmo_hm *cmhm, pea
     forwardError(*err, __LINE__,);
   }
 
-	printf("fin map \n");
   return;
 }
 

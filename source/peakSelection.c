@@ -37,110 +37,113 @@ void fillPixelVariance(gal_map *gMap, FFT_t *var)
   //-- The shape noise variance is the inverse of the total weight: sigma_noise^2 = 1 / totWeight.
   //-- With uniform weighting, the weight of each galaxy is 1 / sigma_half^2 or 2 / sigma_eps^2.
   
-  int N1 = gMap->N1;
-  int N2 = gMap->N2;
-  int M  = var->N;
-  double threshold         = gMap->fillingThreshold;
-  fftw_complex *var_before = var->before;
-  
-  double totWeight;
-  int i, j, jN1, jM, index_FFT;
-  
-  //-- Fill the total variance in var->before
-  for (j=0; j<M; j++) {
-    jN1 = j * N1;
-    jM  = j * M;
-    for (i=0; i<M; i++) {
-      index_FFT = i + jM;
-      if (i >= N1 || j >= N2) { //-- Buffer area
-	var_before[index_FFT][0] = 0.0;
-	var_before[index_FFT][1] = 0.0;
-      }
-      else {
-	totWeight = gMap->map[i+jN1]->totWeight;
-	var_before[index_FFT][0] = (totWeight < threshold) ? 0.0 :  (1.0 / totWeight); //-- The total variance is the inversed total weight.
-	var_before[index_FFT][1] = 0.0;
-      }
-    }
-  }
-  
-  execute_FFT_t(var);
-  return;
+	int N1 = gMap->N1;
+	int N2 = gMap->N2;
+	int M  = var->N;
+	double threshold         = gMap->fillingThreshold;
+	fftw_complex *var_before = var->before;
+
+	double totWeight;
+	int i, j, jN1, jM, index_FFT;
+
+
+	//-- Fill the total variance in var->before
+	for (j=0; j<M; j++) {
+		jN1 = j * N1;
+		jM  = j * M;
+		for (i=0; i<M; i++) {
+			index_FFT = i + jM;
+			if (i >= N1 || j >= N2) { //-- Buffer area
+				var_before[index_FFT][0] = 0.0;
+				var_before[index_FFT][1] = 0.0;
+			}
+			else {
+				totWeight = gMap->map[i+jN1]->totWeight;
+				var_before[index_FFT][0] = (totWeight < threshold) ? 0.0 :  (1.0 / totWeight); //-- The total variance is the inversed total weight.
+				var_before[index_FFT][1] = 0.0;
+			}
+		}
+	}
+
+	execute_FFT_t(var);
+	return;
 }
 
 // MKDEBUG: New name in Linc-tw, used to be computeLocalVariance_arr. But modified,
 // no longer using peak->sigma_half.!
 void makeLocalVariance(peak_param *pkPar, gal_map *gMap, FFT_arr *variance)
 {
-  //-- Take into account the average by filtering
-  
-  if (pkPar->FFT_nbFilters == 0) return;
-  
-  FFT_t *var = variance->array[0];
-  fillPixelVariance(gMap, var);
-  
-  fftw_complex *var_before = var->before;
-  int FFTLength = var->length;
-  int i;
-  
-  for (i=1; i<variance->length; i++) {
-    var = variance->array[i];
-    multiplication_fftw_complex(var_before, var->kernel, var->after, FFTLength); //-- Multiplication
-    fftw_execute(var->after_b);                                                  //-- Go to direct space
-    rescaleReal_fftw_complex(var->after, FFTLength, pkPar->FFTNormFactor);       //-- Rescale, only real part is interesting.
-  }
-  return;
+	//-- Take into account the average by filtering
+
+	if (pkPar->FFT_nbFilters == 0) return;
+
+	FFT_t *var = variance->array[0];
+
+   // MKDEBUG: Used to be computeLocalVariance
+	fillPixelVariance(gMap, var);
+
+	fftw_complex *var_before = var->before;
+	int FFTLength = var->length;
+	int i;
+
+	for (i=1; i<variance->length; i++) {
+		var = variance->array[i];
+		multiplication_fftw_complex(var_before, var->kernel, var->after, FFTLength); //-- Multiplication
+		fftw_execute(var->after_b);                                                  //-- Go to direct space
+		rescaleReal_fftw_complex(var->after, FFTLength, pkPar->FFTNormFactor);       //-- Rescale, only real part is interesting.
+	}
+	return;
 }
 
 // MKDEBUG New in Linc-tw: FFTScaleInd indicates scale for which global noise is estimated.
 // Before only local noise was implemented here. Also new: totweight instead of size.
 void kappaToSNR_FFT(peak_param *pkPar, gal_map *gMap, FFT_t *FFTSmoo, signal_map *kMap, FFT_t *var, int FFTScaleInd)
 {
-  //-- If local noise is used:
-  //--   Retrieve kappa from FFTSmoo->after
-  //--   Divide it by local std, which is stocked in var->after (SNR = kappa / std_local)
-  //--   Stock SNR in kMap->value1
-  //--
-  //-- If global noise is used:
-  //--   Retrieve kappa from FFTSmoo->after
-  //--   Divide it by a filter-dependent global value (SNR = kappa / sigma_global)
-  //--   Stock SNR in kMap->value1
-  
-  int N1 = gMap->N1;
-  int N2 = gMap->N2;
-  int M  = var->N;
-  double sigma_noise_inv      = 1.0 / pkPar->FFT_sigma_noise[FFTScaleInd]; //-- Globle noise level
-  double threshold            = gMap->fillingThreshold;
-  fftw_complex *FFTSmoo_table = FFTSmoo->after;
-  fftw_complex *var_after     = var->after; //-- Contain the variance
-  double *SNR                 = kMap->value1;
-  
-  double totWeight;
-  int i, j, jN1, jM, index_kMap;
+	//-- If local noise is used:
+	//--   Retrieve kappa from FFTSmoo->after
+	//--   Divide it by local std, which is stocked in var->after (SNR = kappa / std_local)
+	//--   Stock SNR in kMap->value1
+	//--
+	//-- If global noise is used:
+	//--   Retrieve kappa from FFTSmoo->after
+	//--   Divide it by a filter-dependent global value (SNR = kappa / sigma_global)
+	//--   Stock SNR in kMap->value1
 
-  if (pkPar->doLocalNoise) {
-    for (j=0; j<N2; j++) {
-      jN1 = j * N1;
-      jM  = j * M;
-      for (i=0; i<N1; i++) {
-        index_kMap      = i + jN1;
-        totWeight       = gMap->map[index_kMap]->totWeight;
-        SNR[index_kMap] = (totWeight < threshold) ? -DBL_MAX : (FFTSmoo_table[i+jM][0] / sqrt(var_after[i+jM][0]));
-      }
-    }
-  }
-  else {
-    for (j=0; j<N2; j++) {
-      jN1 = j * N1;
-      jM  = j * M;
-      for (i=0; i<N1; i++) {
-        index_kMap      = i + jN1;
-        totWeight       = gMap->map[index_kMap]->totWeight;
-        SNR[index_kMap] = (totWeight < threshold) ? -DBL_MAX : (FFTSmoo_table[i+jM][0] * sigma_noise_inv);
-      }
-    }
-  }
-  return;
+	int N1 = gMap->N1;
+	int N2 = gMap->N2;
+	int M  = var->N;
+	double sigma_noise_inv      = 1.0 / pkPar->FFT_sigma_noise[FFTScaleInd]; //-- Globle noise level
+	double threshold            = gMap->fillingThreshold;
+	fftw_complex *FFTSmoo_table = FFTSmoo->after;
+	fftw_complex *var_after     = var->after; //-- Contain the variance
+	double *SNR                 = kMap->value1;
+
+	double totWeight;
+	int i, j, jN1, jM, index_kMap;
+
+	if (pkPar->doLocalNoise) {
+		for (j=0; j<N2; j++) {
+			jN1 = j * N1;
+			jM  = j * M;
+			for (i=0; i<N1; i++) {
+				index_kMap      = i + jN1;
+				totWeight       = gMap->map[index_kMap]->totWeight;
+				SNR[index_kMap] = (totWeight < threshold) ? -DBL_MAX : (FFTSmoo_table[i+jM][0] / sqrt(var_after[i+jM][0]));
+			}
+		}
+	}
+	else {
+		for (j=0; j<N2; j++) {
+			jN1 = j * N1;
+			jM  = j * M;
+			for (i=0; i<N1; i++) {
+				index_kMap      = i + jN1;
+				totWeight       = gMap->map[index_kMap]->totWeight;
+				SNR[index_kMap] = (totWeight < threshold) ? -DBL_MAX : (FFTSmoo_table[i+jM][0] * sigma_noise_inv);
+			}
+		}
+	}
+	return;
 }
 
 // MKDEBUG See kappaToSNR_TTF for changes wrt Linc-tw
@@ -281,7 +284,7 @@ void selectPeaks(peak_param *pkPar, signal_map *kMap, double_arr *peakList, erro
          }
       }
    }
-  
+
   peakList->length = count;
   return;
 }
@@ -369,7 +372,10 @@ void outAsciiPeakField(FILE *file, peak_param *pkPar)
 
 void outAsciiPeakList(char name[], peak_param *pkPar, double_arr *peakList, int filterInd, error **err)
 {
-  if (pkPar->outPeakList == 0) return;
+  if (pkPar->outPeakList == 0) {
+    printf("outPeakList = 0 in config file, no peak list file written\n");
+    return;
+  }
   
   FILE *file = fopen_err(name, "w", err); forwardError(*err, __LINE__,);
   
@@ -392,7 +398,7 @@ void outAsciiPeakList(char name[], peak_param *pkPar, double_arr *peakList, int 
   for (i=0; i<peakList->length; i++) fprintf(file, "  %8.5f\n", peakList->array[i]);
   
   fclose(file);
-  if (pkPar->verbose < 3) printf("Outputed \"%s\"\n", name);
+  if (pkPar->verbose < 3) printf("Created file \"%s\"\n", name);
   return;
 }
 
@@ -552,7 +558,7 @@ void outFitsHist(char name[], peak_param *pkPar, hist_t *hist, int filterInd)
 
 // New functions for TablesRondes
      
-void doPeakList_withInputs(char fileName[], char fileName2[], char end[], cosmo_hm *cmhm, peak_param *peak, error **err)
+void doPeakList_withInputs(char fileName[], char end[], cosmo_hm *cmhm, peak_param *peak, error **err)
 {
   int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
   
@@ -594,7 +600,7 @@ void doPeakList_withInputs(char fileName[], char fileName2[], char end[], cosmo_
     read_gal_map2(fileName, cmhm, peak, pipe->gMap, err);                                forwardError(*err, __LINE__,);
   }
   printf("Creating map and output\n");
-  makeMapAndOutputAll2(fileName, fileName2, cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err); forwardError(*err, __LINE__,);
+  makeMapAndOutputAll2(fileName, cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err); forwardError(*err, __LINE__,);
 
   // MKDEBUG  used to be computeLocalVariance_arr
   makeLocalVariance(peak, pipe->gMap, pipe->variance);
@@ -618,7 +624,7 @@ void doPeakList_withInputs(char fileName[], char fileName2[], char end[], cosmo_
   forwardError(*err, __LINE__,);
 
   computePeaks2(fpeakListPos, peak, pipe->kMap, pipe->peakList, err);
-  int silent = 1;
+  int silent = 0;
   makeHist(pipe->peakList, pipe->nuHist, silent);
 
   // MKDEBUG replaced. Output of 0th filter.
@@ -735,10 +741,9 @@ void doProduce_Catalog_N(int N,char HaloFileName[],char GalFileName[], cosmo_hm 
 }
 
 
-void doPeakList_withInputs_N(int N, char fileName[], char fileName2[], char end[], cosmo_hm *cmhm, peak_param *peak, error **err)
+void doPeakList_withInputs_N(int N, char fileName[], char end[], cosmo_hm *cmhm, peak_param *peak, error **err)
 {
     
-  char HaloFileName2[STRING_LENGTH_MAX];
   char GalFileName2[STRING_LENGTH_MAX];
   char PeakHistfich2[STRING_LENGTH_MAX];
   char PeakListfich2[STRING_LENGTH_MAX];
@@ -746,13 +751,11 @@ void doPeakList_withInputs_N(int N, char fileName[], char fileName2[], char end[
 
   for (i=0; i<N; i++) {
 
-    sprintf(HaloFileName2, "%s_%3.3d",fileName, 1);
-    sprintf(GalFileName2, "%s_%3.3d",fileName2, i+1);
+    sprintf(GalFileName2, "%s_%3.3d",fileName, i+1);
     sprintf(PeakListfich2, "PeakList_%s_%3.3d",end, i+1);
     sprintf(PeakHistfich2, "PeakHist_%s_%3.3d",end, i+1);
 
 
-    printf(" >>> Read halo %s \n", HaloFileName2);
     printf(" >>> Read gal %s \n", GalFileName2);
     printf(" >>> Write histo peak %s \n", PeakListfich2);
     printf(" >>> Write list peak %s \n",PeakHistfich2 );
@@ -782,16 +785,16 @@ void doPeakList_withInputs_N(int N, char fileName[], char fileName2[], char end[
 
   // MKDEBUG: Check new Linc-tw funtion readCatOrMakeSimulAndOutput
 
-    if ((fileName == NULL)||(fileName2 == NULL)) {
+    if (fileName == NULL) {
       //-- no input files
       printf("Problem input files missing \n");
     } else {
-      printf(" Input file for halo : \"%s\" \n", HaloFileName2);
+      //printf(" Input file for halo : \"%s\" \n", HaloFileName2);
       printf(" Input file for galaxies : \"%s\" \n", GalFileName2);
-      read_halo_map(HaloFileName2, cmhm, peak, pipe->hMap, err);                                forwardError(*err, __LINE__,);
+      //read_halo_map(HaloFileName2, cmhm, peak, pipe->hMap, err);                                forwardError(*err, __LINE__,);
       read_gal_map(GalFileName2, cmhm, peak, pipe->gMap, err);                                forwardError(*err, __LINE__,);
     }
-    makeMapAndOutputAll2(HaloFileName2, GalFileName2, cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err); forwardError(*err, __LINE__,);
+    makeMapAndOutputAll2(GalFileName2, cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err); forwardError(*err, __LINE__,);
 
     // MKDEBUG used to be computeLocalVariance_arr
     makeLocalVariance(peak, pipe->gMap, pipe->variance);
@@ -808,14 +811,13 @@ void doPeakList_withInputs_N(int N, char fileName[], char fileName2[], char end[
     }
 
     selectPeaks(peak, pipe->kMap, pipe->peakList, err);   forwardError(*err, __LINE__,);
-
     // MKDEBUG replaced. The following will only write peaks from 0th filter!
     //outputPeakList(PeakListfich2, peak, peakList);
     outAsciiPeakList(PeakListfich2, peak, pipe->peakList, 0, err);
 
       // computePeaks2("peakListPos", peak, pipe->kMap, pipe->peakList, err);
 
-    int silent = 1;
+    int silent = 0;
     makeHist(pipe->peakList, pipe->nuHist, silent); 
 
     // MKDEBUG replaced. Output of 0th filter.
@@ -911,11 +913,11 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[], char end[
   }
 
 
-  makeMapAndOutputAll2(fileNameHal, fileNameGal, cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err);
-  forwardError(*err, __LINE__,);
+  //makeMapAndOutputAll2(fileNameHal, fileNameGal, cmhm, peak, pipe->gMap, pipe->FFTSmoother, pipe->DCSmoother, pipe->kMap, err);
+  //forwardError(*err, __LINE__,);
 
   // MKDEBUG used to be computeLocalVariance_arr
-  makeLocalVariance(peak, pipe->gMap, pipe->variance);
+  //makeLocalVariance(peak, pipe->gMap, pipe->variance);
 
   // MKDEBUG: Replaced with lines from multiscale.c:mapToMultiscale_FFT/DC
   //if (peak->DC_nbFilters) kappaToSNR_DC(peak, gMap, DCSmoother->array[0], kMap);
@@ -950,7 +952,7 @@ void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[], char end[
   outAsciiPeakList(fpeakList, peak, pipe->peakList, 0, err);
 
   computePeaks2(fpeakListPos, peak, pipe->kMap, pipe->peakList, err);
-  int silent = 1;
+  int silent = 0;
   makeHist(pipe->peakList, pipe->nuHist, silent);
   //outputHist(fpeakHist, nuHist);
   outAsciiHist(fpeakHist, peak, pipe->nuHist, 0, err);

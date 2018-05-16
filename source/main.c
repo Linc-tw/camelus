@@ -204,21 +204,14 @@ int main(int argc, char *argv[])
     doProduce_Catalog(input_name, input_name2, chPar, pkPar, err); quitOnError(*err, __LINE__, stderr);
   }
 
-  //-- read catalogue of halo and galaxy then compute peak count / list / histogramm
-  else if (task == 16) {
-    if (argc != 5) {printInstructions(task, 1); return 1;}
-    char *input_name  = argv[3];
-    char *input_name2  = argv[4];
-    char *opt         = argv[5];
-    doPeakList_withInputs(input_name, input_name2, opt, chPar, pkPar, err);
-    quitOnError(*err, __LINE__, stderr);
-  }
+	// MKDEBUG: 16 removed, run 6 instead with galcat in config file
 
+  //-- read catalogue of halo and galaxy then compute peak count / list / histogramm
   else if (task == 151) {
-    if (argc != 5) {printInstructions(task, 1); return 1;}
-    int N = atoi(argv[2]);
-    char *input_catHal = argv[3];
-    char *input_catGal = argv[4];
+    if (argc != 6) {printInstructions(task, 1); return 1;}
+    int N = atoi(argv[3]);
+    char *input_catHal = argv[4];
+    char *input_catGal = argv[5];
    doProduce_Catalog_N(N, input_catHal, input_catGal, chPar, pkPar, err); quitOnError(*err, __LINE__, stderr);
   }
 
@@ -226,9 +219,8 @@ int main(int argc, char *argv[])
     if (argc != 6) {printInstructions(task, 1); return 1;}
     int N = atoi(argv[3]);
     char *input_name = argv[4];
-    char *input_name2 = argv[5];
-  	 char *opt = argv[6];
- 	 doPeakList_withInputs_N(N, input_name, input_name2, opt, chPar, pkPar, err);
+  	 char *opt = argv[5];
+ 	 doPeakList_withInputs_N(N, input_name, opt, chPar, pkPar, err);
 	 quitOnError(*err, __LINE__, stderr);
   }
 
@@ -635,7 +627,7 @@ void printDetails(int task, int doHeader, int doHelp)
      printf("  16: Removed, run with task = 6, and halocat, galcat in peakParam.par\n");
   }
   else if (task == 161) {
-     printf("  ./camelus 161 N halocat galcat  end   # Reads N halo/galaxy catalogues and creates peak histogram // end name files \n");
+     printf("  ./camelus 161 N galcat  end   # Reads N halo/galaxy catalogues and creates peak histogram // end name files \n");
   }
   else if (task == 171) {
      printf("  ./camelus 171  halocat galcat_nolensed  end   # Reads halo/galaxy catalogues and compute lensing quantities // end name files \n");
