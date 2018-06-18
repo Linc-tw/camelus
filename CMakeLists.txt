@@ -12,6 +12,8 @@
 cmake_minimum_required(VERSION 2.6)
 project(camelus)
 
+set(CMAKE_BUILD_TYPE Debug)
+
 ## Use pkg-config to find modules
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(REQ_PKG REQUIRED gsl fftw3)
@@ -62,8 +64,12 @@ set(CMAKE_C_FLAGS "${DEF_C_FLAGS} ${ADD_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${DEF_C_FLAGS} ${ADD_C_FLAGS}")
 
 ## Build executable
-file(GLOB_RECURSE SRC_FILES "${PROJECT_SOURCE_DIR}/source/*.c" "${PROJECT_SOURCE_DIR}/source/*.cpp")
-add_executable(camelus ${SRC_FILES})
+#file(GLOB_RECURSE SRC_FILES "${PROJECT_SOURCE_DIR}/source/*.c" "${PROJECT_SOURCE_DIR}/source/*.cpp")
+file(GLOB_RECURSE SRC_FILES "${PROJECT_SOURCE_DIR}/source/*.c")
+if (CHEALPIX_FOUND)
+  file(GLOB_RECURSE HEALPIX_FILES "${PROJECT_SOURCE_DIR}/source/wrapper.cpp")
+endif()
+add_executable(camelus ${SRC_FILES} ${HEALPIX_FILES})
 target_link_libraries(camelus
   ${REQ_PKG_LIBRARIES}     ${REQ_PKG_INCLUDE}
   -lnicaea

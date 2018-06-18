@@ -12,6 +12,9 @@
 #include "main.h"
 
 
+//This was removed in Linc-tw
+//#ifdef __releaseMenu__
+
 int main(int argc, char *argv[])
 {
   int MPISize = 1;
@@ -29,13 +32,17 @@ int main(int argc, char *argv[])
   if (MPIInd == 0) {
     printf("\n");
     printf("        *************************************************\n");
-    printf("        **                Camelus v2.0                 **\n");
+    printf("        **                Camelus v2.0 TRD             **\n");
     printf("        **                                             **\n");
     printf("        **  Copyright (C) 2018 - Chieh-An Lin          **\n");
     printf("        **  GNU GPLv3 - https://www.gnu.org/licenses/  **\n");
     printf("        *************************************************\n");
     printf("\n");
   }
+  
+   // Linc-tw: sanbox with task=-1 removed here, now somewhere else as task=0
+
+   // Linc-tw: some tasks (1-6) have changed order
   
   //-- Read inputs
   char *pkParPath = (argc >= 2) ? argv[1] : "../param/peakParam.par";
@@ -187,6 +194,104 @@ int main(int argc, char *argv[])
     }
   }
 
+  // Linc-tw: Here tasks from TablesRondes are copied
+
+  //-- only catalogue of galaxies and haloes are produced 
+  else if (task == 15) {
+    if (argc != 5) {printInstructions(task, 1);}
+    char *input_name  = argv[3];
+    char *input_name2 = argv[4];
+    doProduce_Catalog(input_name, input_name2, chPar, pkPar, err); quitOnError(*err, __LINE__, stderr);
+  }
+
+	// MKDEBUG: 16 removed, run 6 instead with galcat in config file
+
+  //-- read catalogue of halo and galaxy then compute peak count / list / histogramm
+  else if (task == 151) {
+    if (argc != 6) {printInstructions(task, 1); return 1;}
+    int N = atoi(argv[3]);
+    char *input_catHal = argv[4];
+    char *input_catGal = argv[5];
+    doProduce_Catalog_N(N, input_catHal, input_catGal, chPar, pkPar, err); quitOnError(*err, __LINE__, stderr);
+  }
+
+  else if (task == 161) {
+    if (argc != 6) {printInstructions(task, 1); return 1;}
+    int N = atoi(argv[3]);
+    char *input_name = argv[4];
+  	 char *opt = argv[5];
+ 	 doPeakList_withInputs_N(N, input_name, opt, chPar, pkPar, err);
+	 quitOnError(*err, __LINE__, stderr);
+  }
+
+  else if (task == 171) {
+    if (argc != 5) {printInstructions(task, 1); return 1;}
+    char *input_hal = argv[2];
+    char *input_gal = argv[3];
+	 char *opt = argv[4];
+ 	 doPeakList_withInputs_hod(input_hal, input_gal, opt, chPar, pkPar, err); 
+	 quitOnError(*err, __LINE__, stderr);
+  }
+
+  else if (task == 999) {
+    if (argc != 5) {printInstructions(task, 1); return 1;}
+    int N = atoi(argv[2]);
+    char *input_name = argv[3];
+    char *input_name2 = argv[4];
+
+    printf("Nb realisation : %i \n",N);
+    printf("Input param : %s \n", input_name);
+    printf("Output CatHalo : %s \n", input_name2);
+
+    // MKDEBUG: Changed the following lines, according to Lin-tw format, see Initialization above (line ~ 60)
+    read_cosmo_hm(input_name, chPar, pkPar, err);
+    quitOnError(*err, __LINE__, stderr);
+    checkParam(pkPar, err);                                          quitOnError(*err, __LINE__, stderr); //-- Check if some are missing
+    chPar = reinitialize_cosmo_hm(chPar, err);                       quitOnError(*err, __LINE__, stderr); //-- Precalculate some parameters
+    set_peak_param(chPar, pkPar, err);                               quitOnError(*err, __LINE__, stderr); //-- Precalculate some parameters
+
+    doProduce_Catalog_DM_HOD(N,input_name,input_name2, chPar, pkPar, err);
+    quitOnError(*err, __LINE__, stderr);
+  }
+
+  else if (task == 900){
+    if (argc != 6) {printInstructions(task, 1); return 1;}
+    int N = atoi(argv[2]);
+    char *input_name = argv[3];
+    char *input_name2 = argv[4];
+    char *input_name3 = argv[5];
+
+    printf("Nb realisation : %i \n",N);
+    printf("Input param : %s \n",input_name );
+    printf("Output CatHalo : %s \n",input_name2 );
+    printf("Output CatGal : %s \n",input_name3 );
+
+    // MKDEBUG: Changed the following lines, according to Lin-tw format, see Initialization above (line ~ 60)
+    read_cosmo_hm(input_name, chPar, pkPar, err);
+    quitOnError(*err, __LINE__, stderr);
+    checkParam(pkPar, err);                                          quitOnError(*err, __LINE__, stderr); //-- Check if some are missing
+    chPar = reinitialize_cosmo_hm(chPar, err);                       quitOnError(*err, __LINE__, stderr); //-- Precalculate some parameters
+    set_peak_param(chPar, pkPar, err);                               quitOnError(*err, __LINE__, stderr); //-- Precalculate some parameters
+    doProduce_Catalog_DM_galaxies(N,input_name,input_name2,input_name3, chPar, pkPar, err);
+    quitOnError(*err, __LINE__, stderr);
+  }
+
+	else if (task == 971){
+    if (argc != 6) {printInstructions(task, 1); return 1;}
+    int N = atoi(argv[3]);
+    char *input_name2 = argv[4];
+    char *input_name3 = argv[5];
+
+	printf("Nb realisation : %i \n", N);
+	printf("Output CatHalo : %s \n", input_name2);
+	printf("Output CatGal : %s \n", input_name3);
+
+	doProduce_Catalog_DM_galaxies_HOD_N(N, input_name2, input_name3, chPar, pkPar, err);
+	quitOnError(*err, __LINE__, stderr);
+  }
+
+  // Linc-tw: end tasks TablesRondes
+
 #ifdef __CAMELUS_USE_LHF__
   else if (task == 51) {
     if (!(argc == 5) || help) printInstructions(task, 1);
@@ -196,6 +301,11 @@ int main(int argc, char *argv[])
       int N2 = atoi(argv[4]);
       _LHF__doTrainingSet(N1, N2);
     }
+
+       
+  else {
+    printInstructions(-1, 1);
+    return 1;
   }
 #endif
   
@@ -224,8 +334,7 @@ int main(int argc, char *argv[])
       long N2 = strtol(argv[4], NULL, 10);
       _peakVI__doKMap_regular(chPar, pkPar, N1, N2, err); quitOnError(*err, __LINE__, stderr);
     }
-  }
-  
+
   else if (task == 64) {
     if (!(argc == 5) || help) printInstructions(task, 1);
     else {
@@ -276,7 +385,8 @@ int main(int argc, char *argv[])
 
 void printInstructions(int task, int doHelp)
 {
-  if (task >= 1 && task <= 30) {
+  // Task >= 150: TableRonde
+  if ((task >= 1 && task <= 30) || task >= 150) {
     printDetails(1, 1, 0);
     printDetails(task, 0, doHelp);
   }
@@ -313,8 +423,16 @@ void printInstructions(int task, int doHelp)
   
   else { //-- Complete menu
     printDetails(1, 1, doHelp);
-    printDetails(1, 0, 0); printDetails(2, 0, 0); printDetails(3, 0, 0); printDetails(4, 0, 0); printDetails(5, 0, 0); 
-    printDetails(6, 0, 0); printDetails(7, 0, 0); printDetails(8, 0, 0);
+    int i;
+    for (i=1; i<=8; i++) {
+      printDetails(i, 0, 0);
+    }
+#define N_TR 9
+    int tasks_TR[N_TR] = {15, 151, 51, 16, 161, 171, 971, 900, 999};
+    for (i=0; i<N_TR; i++) {
+      printDetails(tasks_TR[i], 0, 0);
+    }
+#undef N_TR
 #ifdef __CAMELUS_USE_LHF__
     printf("\n");
     printDetails(51, 1, 0);
@@ -349,7 +467,7 @@ void printDetails(int task, int doHeader, int doHelp)
       printf("  - For some tasks, parameters can be updated by KEY=VALUE.\n");
       printf("\n");
       printf("Examples:\n");
-      printf("  ./camelus default 1\n");
+      printf("  ./camelus default 1 0.3\n");
       printf("  ./camelus ../param/peakParam.par 4\n");
       printf("  ./camelus default 7 sigma_8=0.82 outMaps=1\n");
       printf("\n");
@@ -443,9 +561,47 @@ void printDetails(int task, int doHeader, int doHelp)
       printf("  - Not safe to do the entire run\n");
     }
   }
-  else if (task >= 51 && task <= 60) {
-      printf("  ./camelus default  51 N1 N2    # Do training set\n");
+  // Linc-tw: TablesRondes tasks inserted here
+  else if (task == 15) {
+     printf("  15 = Create halo and galaxy catalogue [not well tested in TRD, less halos than 2.0]\n");
   }
+  else if (task == 151) {
+    printf("  ./camelus 151 N halocat galcat        # Create N halo and galaxy catalogues\n");
+  }
+  else if (task == 161) {
+    printf("  161 = Read N galaxy catalogues and creates peak histogram\n");
+	 if (doHelp) {
+		printf("\n");
+	   printf("Commands\n");
+		printf("  ./camelus PATH  161 N galcat end   # Read galaxy catalogues galcat_i, i=000, 001, ... N\n");
+	   printf("                                     # and creates peak histograms <PeakHist>_<end>_i\n");
+    }
+  }
+  else if (task >= 51 && task <= 60) {
+    printf("  ./camelus default  51 N1 N2    # Do training set\n");
+  } 
+  else if (task == 16) {
+     printf("  16: Removed, run with task = 6, and halocat, galcat in peakParam.par\n");
+  }
+  
+  else if (task == 171) {
+     printf("  ./camelus 171  halocat galcat_nolensed  end   # Reads halo/galaxy catalogues and compute lensing quantities // end name files \n");
+  }
+  else if (task == 971) {
+	  printf("  971 = Create halocat and galcat with galaxies populated halos\n");
+	  if (doHelp) {
+		printf("n");
+		printf("Commands:\n");
+		printf("  ./camelus PATH 971  N halocat galcat   # Create N halo and galaxy catalogues halocat_i, galcat_i, i=001, 002, ..., N\n");
+	  }
+  }
+  else if (task == 900) {
+     printf("  ./camelus 900 N paramhm halocat galcat   # create catalog haloes with Ngal and galaxy catalog \n");
+  }
+  else if (task == 999) {
+     printf("  ./camelus 999 N paramhm halocat   # create catalog haloes with Ngal \n");
+  }
+  // Linc-tw: TablesRondes tasks end here 
   else if (task >= 61 && task <= 70) {
       printf("  ./camelus peakVI  61 str             # LSS maps\n");
       printf("  ./camelus peakVI  62 N1 N2           # Assign halos\n");

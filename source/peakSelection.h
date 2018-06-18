@@ -24,6 +24,8 @@
 #include "rayTracing.h"
 #include "smoothing.h"
 
+// MKDEBUG new, for pipeline_t, in Linc-tw all initialize_pipeline_t is in multiscale.
+#include "multiscale.h"
 
 //-- Functions related to local variance
 void makeKernelForVariance(peak_param *pkPar, FFT_arr *variance);
@@ -37,6 +39,7 @@ int isPeak(double *kappa, int N1, int i, int j);
 int isPeak_float(float *kappa, int N1, int i, int j);
 int isPeakForTable(fftw_complex *table, int M, int i, int j);
 void selectPeaks(peak_param *pkPar, signal_map *kMap, double_arr *peakList, error **err);
+void computePeaks2(char name[], peak_param *peak, signal_map *kMap, double_arr *peakList, error **err);
 void cutSmallPeaks(double_arr *peakList, double nu_min);
 void outAsciiPeakField(FILE *file, peak_param *pkPar);
 void outAsciiPeakList(char name[], peak_param *pkPar, double_arr *peakList, int filterInd, error **err);
@@ -54,6 +57,23 @@ void outAsciiHist(char name[], peak_param *pkPar, hist_t *hist, int filterInd, e
 void outFitsHistInfo(FITS_t *fits, peak_param *pkPar);
 #endif
 void outFitsHist(char name[], peak_param *pkPar, hist_t *hist, int filterInd);
+// Linc-tw: outputHist removed
+void outputHist(char name[], hist_t *hist);
+
+//-- Main functions
+void doPeakList(char KNMap[], cosmo_hm *cmhm, peak_param *peak, error **err);
+void doPeakList_repeat(cosmo_hm *cmhm, peak_param *peak, int N, error **err);
+
+//-- New functions
+
+void doProduce_Catalog(char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
+void doPeakList_withInputs(char fileName[], char opt[], cosmo_hm *cmhm, peak_param *peak, error **err);
+void doProduce_Catalog_N(int N,char HaloFileName[],char GalFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
+void doPeakList_withInputs_N(int N, char fileName[], char end[], cosmo_hm *cmhm, peak_param *peak, error **err);
+void doProduce_Catalog_DM_HOD(int N,char CmhmName[],char HaloFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
+void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[],cosmo_hm *cmhm, peak_param *peak, error **err);
+void doProduce_Catalog_DM_galaxies(int N, char CmhmName[], char HaloFileName[], char GalaxyFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
+void doProduce_Catalog_DM_galaxies_HOD_N(int N, char HaloFileName[], char GalaxyFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
 
 #endif
 

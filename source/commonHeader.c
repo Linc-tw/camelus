@@ -740,7 +740,7 @@ void push_hist_t(hist_t *hist, double x, int verbose)
 {
   double *x_lower = hist->x_lower;
   if (x < x_lower[0] || x >= hist->x_max) {
-    if (verbose == 1) printf("Value out of range, not pushed into histogram\n");
+    if (verbose == 1) printf("Value %g out of range [%g;%g], not pushed into histogram\n", x, x_lower[0], hist->x_max);
     return;
   }
   

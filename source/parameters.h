@@ -19,6 +19,7 @@
 #include <nicaea/cosmo.h>
 #include <nicaea/nofz.h>
 #include <nicaea/halomodel.h>
+#include <nicaea/hod.h>
 
 #ifdef __CAMELUS_USE_FITS__
 #include "FITSFunctions.h"
@@ -63,7 +64,27 @@
     if (strcmp(selement, stype((type)j))==0) element = (type)j;\
   }\
   testError((int)element==-1, conf_undef, "Parametrization '%s' not found in type %s, cannot assign value of type %s", *err, __LINE__)
-  
+
+// MKDEBUG from peakParameters.h, removed in Linc-tw
+typedef enum {rectangle=0, circle=1, aardvark_hPatch04=2, aardvark_gPatch086=3} field_t;
+#define NB_FIELD_T 4
+#define STR_FIELD_T(i) ( \
+  i==0 ? "rectangle" : \
+  i==1 ? "circle" : \
+  i==2 ? "hPatch04" : \
+  i==3 ? "gPatch086" : \
+  "")
+
+typedef enum {gauss=0, star=1, M_ap_tanh=2, mrlens=3} filter_t;
+#define NB_FILTER_T 4
+#define STR_FILTER_T(i) ( \
+  i==0 ? "gauss" : \
+  i==1 ? "star" : \
+  i==2 ? "tanh" : \
+  i==3 ? "mrlens" : \
+  "")
+
+
 typedef enum {
   kappa_map=0, K_map=1,  kn_map=2,  KN_map=3, noise_map=4,    N_map=5, 
   gamma_map=6, R_map=7,  re_map=8,  RE_map=9, epsilon_map=10, E_map=11,

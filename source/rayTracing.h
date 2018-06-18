@@ -11,6 +11,9 @@
 
 #include "commonHeader.h"
 
+// MKDEBUG New for STR_MAP...
+#include "parameters.h"
+
 #ifndef __CAMELUS_RAY_TRACING__
 #define __CAMELUS_RAY_TRACING__
 
@@ -76,5 +79,21 @@ void outFitsGalCat(char name[], cosmo_hm *chPar, peak_param *pkPar, gal_map *gMa
 void doProfile(cosmo_hm *chPar, peak_param *pkPar, double z_l, double M, double z_s, error **err);
 void doRayTracing(cosmo_hm *chPar, peak_param *pkPar, error **err);
 
+//-- New function
+void lensingCatalogueAndOutputAll2(char fileName[],cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_map *gMap, interpolator_t *k1Inter, error **err);
+
+
+void read_gal_map2(char name[], cosmo_hm *cmhm, peak_param *peak, gal_map *gMap, error **err);
+void appendWithSignal_gal_map2(cosmo_hm *cmhm, gal_map *gMap, double z, double pos[2], error **err);
+void appendWithSignal_gal_list2(cosmo_hm *cmhm, gal_list *gList, double z, double pos[2], error **err);
+void setWithSignal_gal_t2(cosmo_hm *cmhm, gal_t *g, double z, double pos[2], error **err);
+
+
+void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap);
+void output_halo_map_galaxies(FILE *file, FILE *file2, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_map *gMap);
+void output_halo_map_galaxies2(FILE *file, cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_map *gMap);
+void outputFastSimul_galaxies2(char name[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap,gal_map *gMap);
+
+double NFW(double x);
 #endif
 

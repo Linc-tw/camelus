@@ -1,13 +1,7 @@
-
-
-    ##############################################
-    ##  hmParam.par				##
-    ##  Halo model parameters for Camelus v2.0	##
-    ##############################################
-
+### Halomodel parameter file ###
 
 ### Cosmological parameters
-cosmo_file	../param/cosmoParam.par
+cosmo_file     ../param/cosmoParam.par
 
 ### Redshift distribution
 # n(x) \propto x^alpha * exp(-x^beta)
@@ -25,7 +19,7 @@ alpha_NFW	1.0		# NFW
 # Concentration parameter:
 # c(z) = [c0 / (1 + z)] * (M / M_star)^(-beta_NFW)
 c0		11
-beta_NFW		0.13
+beta_NFW 	0.13
 
 # Mass function
 #  ps 			Press-Schechter, p=0, q=1
@@ -40,6 +34,9 @@ smassfct		j01
 #  halo_bias_tinker10   Bias from Tinker et al. (2010)
 shalo_bias		halo_bias_tinker10
 
+# Maximum pi [Mpc/h], for w_p(r_p)
+pi_max 			60.0
+
 
 ### HOD parameters
 
@@ -47,6 +44,7 @@ shalo_bias		halo_bias_tinker10
 #  hamana04		Simple power-law, Hamana et al. (2004). Not recommended!
 #  berwein02		Satellite model, no halo exclusion. For testing only!
 #  berwein02_hexcl	Satellite model with halo exlusion
+
 shod		coupon15
 
 # Minimum and maximum stellar masses. Used for shod=leauthaud11.
@@ -66,8 +64,5 @@ sigma_log_M	    0.337	         # Central galaxy dispersion (Brown et al. 2008)
 alpha           1.17	         # Satellite power-law slope
 eta		        0.5	         # Fraction of halos with central galaxy of given type, 0 <= eta <= 1
 
-
-# Maximum pi [Mpc/h], for w_p(r_p)
-pi_max 			60.0
 
 
