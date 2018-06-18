@@ -997,7 +997,7 @@ void doProduce_Catalog_DM_galaxies(int N, char CmhmName[], char HaloFileName[], 
 }
 
 
-void doProduce_Catalog_DM_galaxies_HOD_N(int N, char CmhmName[], char HaloFileName[], char GalaxyFileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
+void doProduce_Catalog_DM_galaxies_HOD_N(int N, char HaloFileName[], char GalaxyFileName[], cosmo_hm *cmhm, peak_param *peak, error **err)
 {
 	int length  = (peak->resol[0] - 2 * peak->bufferSize) * (peak->resol[1] - 2 * peak->bufferSize);
 	char HaloFileName2[STRING_LENGTH_MAX], GalaxyFileName2[STRING_LENGTH_MAX];
@@ -1025,9 +1025,9 @@ void doProduce_Catalog_DM_galaxies_HOD_N(int N, char CmhmName[], char HaloFileNa
 
 		sprintf(HaloFileName2, "%s_%3.3d",HaloFileName, i+1);
 		sprintf(GalaxyFileName2, "%s_%3.3d",GalaxyFileName, i+1);
-		outputFastSimul_galaxies2(CmhmName,HaloFileName2,cmhm,peak, pipe->hMap, pipe->gMap);
+		outputFastSimul_galaxies2(HaloFileName2, cmhm, peak, pipe->hMap, pipe->gMap);
 		forwardError(*err, __LINE__,);
-		lensingCatalogueAndOutputAll2(GalaxyFileName2,cmhm, peak, pipe->hMap, pipe->gMap, pipe->k1Inter, err);
+		lensingCatalogueAndOutputAll2(GalaxyFileName2, cmhm, peak, pipe->hMap, pipe->gMap, pipe->k1Inter, err);
 		forwardError(*err, __LINE__,);
 
 		//AddBias(cmhm, peak, gMap, gMap_bias, err);

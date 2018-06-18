@@ -22,7 +22,7 @@ def ComputeDensity(galcat):
     delta = np.histogram2d(galcat[:,0], galcat[:,1], bins=[x_bins,y_bins])
     return delta
 
-def ApplyBias(galcat, delta, n, b= 0.00856):
+def ApplyBias(galcat, delta, n, b=-0.00856):
     """Compute and apply multiplicative bias to shear.
 
         Parameters
@@ -65,8 +65,6 @@ def CamelusNz(z, alpha=2., beta=1., z_0=.5):
 def CutOff(fullzs, bin_edges, nobj, dz=None):
     """apply cut off
     """
-    if bin_edges is None:
-        bin_edges = np.arange(0,np.max(fullzs)+dz,dz)
     select_idx = []
     zmid = [rf-(rf-lf)/2 for lf, rf in zip(bin_edges, bin_edges[1:])]
     nz = np.array([CamelusNz(z) for z in zmid])
@@ -103,6 +101,13 @@ def ConvertCats(galcat_dir, filename, bin_edges, savestub, savestub_b, nobj, dz=
     """
     print ' > Applying bias to galaxy catalog {}.'.format(filename)
     galcat = np.loadtxt(galcat_dir+filename)
+    # remove galaxies beyond zmax if it was provided
+    fullzs = galcat[:,2]
+    if bin_edges is None:
+        bin_edges = np.arange(0,np.max(fullzs)+dz,dz)
+    else:
+        zmax = bin_edges[-1]
+        galcat = galcat[galcat[:,2] <= zmax]
     # compute local densities from galaxy catalogs
     delta = ComputeDensity(galcat)
     # compute average density

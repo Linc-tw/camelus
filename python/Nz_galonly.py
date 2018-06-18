@@ -50,7 +50,7 @@ def main():
     Nzs_gal = np.array([ComputeNz(cats_dir+filename, dz) 
                 for filename in galcat_files])
     np.save(cats_dir+'Nzs_galonly.npy', Nzs_gal)
-    Nzs_gal = np.load(cats_dir + 'Nzs_galonly.npy')
+    #Nzs_gal = np.load(cats_dir + 'Nzs_galonly.npy')
     print Nzs_gal.shape, Nzs_gal
     zs = Nzs_gal[0,1][1:]-dz/2
     print 'z span: {} - {}'.format(np.min(zs), np.max(zs))

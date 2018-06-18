@@ -73,6 +73,7 @@ void doPeakList_withInputs_N(int N, char fileName[], char end[], cosmo_hm *cmhm,
 void doProduce_Catalog_DM_HOD(int N,char CmhmName[],char HaloFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
 void doPeakList_withInputs_hod(char fileNameHal[], char fileNameGal[],char end[],cosmo_hm *cmhm, peak_param *peak, error **err);
 void doProduce_Catalog_DM_galaxies(int N, char CmhmName[], char HaloFileName[], char GalaxyFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
+void doProduce_Catalog_DM_galaxies_HOD_N(int N, char HaloFileName[], char GalaxyFileName[], cosmo_hm *cmhm, peak_param *peak, error **err);
 
 #endif
 

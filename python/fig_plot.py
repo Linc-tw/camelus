@@ -185,7 +185,7 @@ def histogram_bias(fich,fichbias,N):
 		return
 
 	if(N!=1):
-		fich2=fich+str(1)
+		fich2=fich+'001'
 
 		dat = np.loadtxt(fich2)
 		xmin =dat[:,0]
@@ -197,7 +197,7 @@ def histogram_bias(fich,fichbias,N):
 		mean_snr_error = np.copy(nn)*0
 		
 		for ii in range(2,N):
-			fich2=fich+str(ii)
+			fich2=fich+'{:03d}'.format(ii)
 			dat = np.loadtxt(fich2)
 			xmin =dat[:,0]
 			xmax=dat[:,1]
@@ -208,7 +208,7 @@ def histogram_bias(fich,fichbias,N):
 		mean_snr[:]=mean_snr[:]/float(N)
 
 		for ii in range(1,N):
-			fich2=fich+str(ii)
+			fich2=fich+'{:03d}'.format(ii)
 			dat = np.loadtxt(fich2)
 			xmin =dat[:,0]
 			xmax=dat[:,1]
@@ -223,7 +223,7 @@ def histogram_bias(fich,fichbias,N):
 		plt.step(data,mean_snr,where='post',color='crimson',alpha=1,label="NoBias")
 
 
-		fich2=fichbias+str(1)
+		fich2=fichbias+'001'
 		dat = np.loadtxt(fich2)
 		xmin =dat[:,0]
 		xmax=dat[:,1]
@@ -233,7 +233,7 @@ def histogram_bias(fich,fichbias,N):
 		mean_snr_error = np.copy(nn)*0
 		
 		for ii in range(2,N):
-			fich2=fichbias+str(ii)
+			fich2=fichbias+'{:03d}'.format(ii)
 			dat = np.loadtxt(fich2)
 			xmin =dat[:,0]
 			xmax=dat[:,1]
@@ -243,7 +243,7 @@ def histogram_bias(fich,fichbias,N):
 		mean_snr=mean_snr/float(N)
 
 		for ii in range(1,N):
-			fich2=fichbias+str(ii)
+			fich2=fichbias+'{:03d}'.format(ii)
 			dat = np.loadtxt(fich2)
 			xmin =dat[:,0]
 			xmax=dat[:,1]
@@ -260,7 +260,7 @@ def histogram_bias(fich,fichbias,N):
 		plt.xlabel('SNR')
 		plt.ylabel('Peak number')
 		plt.legend()
-		plt.ion()
+		plt.savefig('Plots/PeakHists.pdf')
 		return
 
 

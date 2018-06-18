@@ -22,7 +22,7 @@ def ComputeDensity(galcat):
     delta = np.histogram2d(galcat[:,0], galcat[:,1], bins=[x_bins,y_bins])
     return delta
 
-def ApplyBias(galcat, delta, n, b= 0.00856):
+def ApplyBias(galcat, delta, n, b=-0.00856):
     """Compute and apply multiplicative bias to shear.
 
         Parameters

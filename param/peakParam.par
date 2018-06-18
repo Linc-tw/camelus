@@ -45,7 +45,7 @@ HP_resol	512		## [int] Resolution for HEALPix regular galaxies or maps
 
 
 ### Halos
-inHaloCatPath	haloCat
+inHaloCatPath	
 				## [string] Path of the input halo catalogue
 				##   Leave blank if sample halos from a mass function
 inHaloCatCol	0  1  3  2  4
@@ -74,7 +74,7 @@ inGalCatCol	0  1  2  -1   3   4   5
 				##   weight should be given by shape measurement
 				##   If weight is skipped, consider uniform weighting with 2 / sigma_eps^2
 				##   (e_1, e_2) can also be (gamma_1, gamma_2) or (g_1, g_2)
-z_s		 1.0		## [float] Source redshift
+z_s		-1.0		## [float] Source redshift
 				##   If z_s > 0, fix all source galaxy redshifts at z_s
 				##   If z_s <= 0, use distribution parameters defined in hmParam.par
 dz_gal		0.01		## [float] Galaxy redshift binwidth

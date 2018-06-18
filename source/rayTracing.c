@@ -1341,7 +1341,7 @@ void outputFastSimul_galaxies(char name_cmhm[], char name[], char name2[], cosmo
 }
 
 
-void outputFastSimul_galaxies2(char name_cmhm[], char name[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_map *gMap)
+void outputFastSimul_galaxies2(char name[], cosmo_hm *cmhm, peak_param *peak, halo_map *hMap, gal_map *gMap)
 {
 
   error *myerr = NULL, **err = &myerr;
